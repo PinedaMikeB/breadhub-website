@@ -11,6 +11,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
     
+    <!-- Cropper.js for image cropping -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    
     <style>
         :root {
             --cream: #FDF6E3;
@@ -56,20 +59,9 @@
             text-align: center;
         }
         
-        .login-logo {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-        }
-        
-        .login-box h1 {
-            color: var(--brown-dark);
-            margin-bottom: 0.5rem;
-        }
-        
-        .login-box p {
-            color: var(--brown);
-            margin-bottom: 2rem;
-        }
+        .login-logo { font-size: 4rem; margin-bottom: 1rem; }
+        .login-box h1 { color: var(--brown-dark); margin-bottom: 0.5rem; }
+        .login-box p { color: var(--brown); margin-bottom: 2rem; }
         
         .form-group {
             margin-bottom: 1.25rem;
@@ -112,30 +104,16 @@
             transition: all 0.3s ease;
         }
         
-        .btn-primary {
-            background: var(--orange);
-            color: var(--white);
-            width: 100%;
-        }
-        
-        .btn-primary:hover {
-            background: var(--orange-light);
-        }
-        
+        .btn-primary { background: var(--orange); color: var(--white); width: 100%; }
+        .btn-primary:hover { background: var(--orange-light); }
         .btn-success { background: var(--success); color: var(--white); }
         .btn-danger { background: var(--danger); color: var(--white); }
         .btn-secondary { background: var(--cream-dark); color: var(--brown-dark); }
         
-        .error-message {
-            color: var(--danger);
-            margin-top: 1rem;
-            font-size: 0.9rem;
-        }
+        .error-message { color: var(--danger); margin-top: 1rem; font-size: 0.9rem; }
         
         /* Admin Dashboard */
-        .admin-container {
-            display: none;
-        }
+        .admin-container { display: none; }
         
         .admin-header {
             background: linear-gradient(135deg, var(--brown) 0%, var(--brown-dark) 100%);
@@ -146,18 +124,8 @@
             color: var(--cream);
         }
         
-        .admin-header h1 {
-            font-size: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
+        .admin-header h1 { font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .user-info { display: flex; align-items: center; gap: 1rem; }
         
         .logout-btn {
             background: rgba(255,255,255,0.2);
@@ -166,18 +134,9 @@
             padding: 0.5rem 1rem;
             border-radius: 8px;
             cursor: pointer;
-            transition: background 0.3s ease;
         }
         
-        .logout-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        
-        .admin-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
+        .admin-content { max-width: 1200px; margin: 0 auto; padding: 2rem; }
         
         .admin-section {
             background: var(--white);
@@ -200,33 +159,48 @@
             gap: 1.25rem;
         }
         
-        .product-form .full-width {
-            grid-column: 1 / -1;
+        .product-form .full-width { grid-column: 1 / -1; }
+        
+        .image-upload-area {
+            border: 2px dashed var(--cream-dark);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
         }
+        
+        .image-upload-area:hover { border-color: var(--orange); }
         
         .image-preview {
             width: 100%;
             height: 200px;
-            border: 2px dashed var(--cream-dark);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background-size: cover;
+            background: var(--cream);
+            background-size: contain;
             background-position: center;
-            cursor: pointer;
-            transition: border-color 0.3s ease;
+            background-repeat: no-repeat;
             position: relative;
             overflow: hidden;
         }
         
-        .image-preview:hover {
-            border-color: var(--orange);
+        .image-preview.has-image { background-color: #fff; }
+        
+        .image-preview-text { color: var(--brown); text-align: center; }
+        
+        .image-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            justify-content: center;
         }
         
-        .image-preview-text {
-            color: var(--brown);
-            text-align: center;
+        .image-actions button {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
         }
         
         .form-actions {
@@ -237,27 +211,14 @@
         }
         
         /* Products Table */
-        .products-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .products-table th,
-        .products-table td {
+        .products-table { width: 100%; border-collapse: collapse; }
+        .products-table th, .products-table td {
             padding: 1rem;
             text-align: left;
             border-bottom: 1px solid var(--cream-dark);
         }
-        
-        .products-table th {
-            background: var(--cream);
-            font-weight: 600;
-            color: var(--brown-dark);
-        }
-        
-        .products-table tr:hover {
-            background: var(--cream);
-        }
+        .products-table th { background: var(--cream); font-weight: 600; }
+        .products-table tr:hover { background: var(--cream); }
         
         .product-thumb {
             width: 50px;
@@ -272,40 +233,78 @@
             font-size: 1.5rem;
         }
         
-        .status-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
+        .status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+        .status-active { background: #E8F5E9; color: var(--success); }
+        .status-inactive { background: #FFEBEE; color: var(--danger); }
         
-        .status-active {
-            background: #E8F5E9;
-            color: var(--success);
-        }
+        .action-btns { display: flex; gap: 0.5rem; }
+        .action-btns button { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
         
-        .status-inactive {
-            background: #FFEBEE;
-            color: var(--danger);
-        }
-        
-        .action-btns {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .action-btns button {
-            padding: 0.4rem 0.8rem;
-            font-size: 0.85rem;
-        }
-        
-        /* Loading & Toast */
-        .loading-overlay {
+        /* Image Crop Modal */
+        .crop-modal {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .crop-modal.show { opacity: 1; visibility: visible; }
+        
+        .crop-container {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 1.5rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow: auto;
+        }
+        
+        .crop-container h3 {
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .crop-wrapper {
+            width: 100%;
+            max-height: 400px;
+            background: #333;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .crop-wrapper img {
+            display: block;
+            max-width: 100%;
+        }
+        
+        .crop-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            justify-content: center;
+        }
+        
+        .crop-info {
+            text-align: center;
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--brown);
+        }
+        
+        /* Loading & Toast */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(255,255,255,0.8);
             display: flex;
             align-items: center;
@@ -315,11 +314,7 @@
             visibility: hidden;
             transition: all 0.3s ease;
         }
-        
-        .loading-overlay.show {
-            opacity: 1;
-            visibility: visible;
-        }
+        .loading-overlay.show { opacity: 1; visibility: visible; }
         
         .spinner {
             width: 50px;
@@ -330,9 +325,7 @@
             animation: spin 1s linear infinite;
         }
         
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         
         .toast {
             position: fixed;
@@ -347,11 +340,7 @@
             transition: transform 0.3s ease;
             z-index: 1001;
         }
-        
-        .toast.show {
-            transform: translateX(0);
-        }
-        
+        .toast.show { transform: translateX(0); }
         .toast.success { background: var(--success); }
         .toast.error { background: var(--danger); }
         
@@ -447,10 +436,16 @@
                     
                     <div class="form-group full-width">
                         <label>Product Image</label>
-                        <input type="file" id="productImage" accept="image/*" onchange="previewImage(event)" style="display:none">
-                        <div class="image-preview" id="imagePreview" onclick="document.getElementById('productImage').click()">
-                            <div class="image-preview-text">
-                                📷<br>Click to upload image
+                        <input type="file" id="productImage" accept="image/*" onchange="handleImageSelect(event)" style="display:none">
+                        <div class="image-upload-area" onclick="document.getElementById('productImage').click()">
+                            <div class="image-preview" id="imagePreview">
+                                <div class="image-preview-text" id="imagePreviewText">
+                                    📷<br>Click to upload image
+                                </div>
+                            </div>
+                            <div class="image-actions" id="imageActions" style="display:none;">
+                                <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); openCropModal()">✂️ Crop</button>
+                                <button type="button" class="btn btn-danger" onclick="event.stopPropagation(); removeImage()">🗑️ Remove</button>
                             </div>
                         </div>
                     </div>
@@ -486,6 +481,21 @@
         </main>
     </div>
     
+    <!-- Image Crop Modal -->
+    <div class="crop-modal" id="cropModal">
+        <div class="crop-container">
+            <h3>✂️ Crop Image</h3>
+            <div class="crop-wrapper">
+                <img id="cropImage" src="">
+            </div>
+            <p class="crop-info">Drag to reposition, scroll to zoom. Image will be cropped to a square.</p>
+            <div class="crop-actions">
+                <button class="btn btn-success" onclick="applyCrop()">✅ Apply Crop</button>
+                <button class="btn btn-secondary" onclick="closeCropModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
@@ -499,6 +509,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    
+    <!-- Cropper.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     
     <script>
         // Firebase Config
@@ -530,9 +543,12 @@
             'desserts': { name: 'Desserts', emoji: '🧁' }
         };
         
+        // State variables
         let selectedImage = null;
         let editingProductId = null;
         let existingImageUrl = null;
+        let cropper = null;
+        let originalImageData = null;
         
         // Auth state listener
         auth.onAuthStateChanged(user => {
@@ -567,47 +583,32 @@
                 await auth.signInWithEmailAndPassword(email, password);
             } catch (error) {
                 errorEl.textContent = 'Invalid email or password';
-                console.error('Login error:', error);
             } finally {
                 showLoading(false);
             }
         }
         
-        // Logout handler
-        function handleLogout() {
-            auth.signOut();
-        }
+        function handleLogout() { auth.signOut(); }
         
         // Load products
         async function loadProducts() {
             const tbody = document.getElementById('productsTableBody');
-            
             try {
                 const snapshot = await db.collection('products').orderBy('createdAt', 'desc').get();
-                
                 if (snapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;">No products yet. Add your first product above!</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;">No products yet.</td></tr>';
                     return;
                 }
-                
                 tbody.innerHTML = snapshot.docs.map(doc => {
                     const p = doc.data();
                     const cat = categoryData[p.category] || { name: p.category, emoji: '🍞' };
                     return `
                         <tr>
-                            <td>
-                                <div class="product-thumb" style="${p.imageUrl ? `background-image:url('${p.imageUrl}')` : ''}">
-                                    ${!p.imageUrl ? cat.emoji : ''}
-                                </div>
-                            </td>
+                            <td><div class="product-thumb" style="${p.imageUrl ? `background-image:url('${p.imageUrl}')` : ''}">${!p.imageUrl ? cat.emoji : ''}</div></td>
                             <td><strong>${p.name}</strong></td>
                             <td>${cat.emoji} ${cat.name}</td>
                             <td>₱${p.price.toFixed(2)}</td>
-                            <td>
-                                <span class="status-badge ${p.isActive ? 'status-active' : 'status-inactive'}">
-                                    ${p.isActive ? 'Active' : 'Inactive'}
-                                </span>
-                            </td>
+                            <td><span class="status-badge ${p.isActive ? 'status-active' : 'status-inactive'}">${p.isActive ? 'Active' : 'Inactive'}</span></td>
                             <td class="action-btns">
                                 <button class="btn btn-secondary" onclick="editProduct('${doc.id}')">Edit</button>
                                 <button class="btn btn-danger" onclick="deleteProduct('${doc.id}', '${p.name}')">Delete</button>
@@ -615,34 +616,127 @@
                         </tr>
                     `;
                 }).join('');
-                
             } catch (error) {
                 console.error('Error loading products:', error);
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:red;">Error loading products</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Error loading products</td></tr>';
             }
         }
         
-        // Image preview
-        function previewImage(e) {
+        // Image handling with crop
+        function handleImageSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
             
-            selectedImage = file;
+            originalImageData = file;
             const reader = new FileReader();
             reader.onload = function(e) {
+                // Show preview
                 const preview = document.getElementById('imagePreview');
                 preview.style.backgroundImage = `url('${e.target.result}')`;
-                preview.innerHTML = '';
+                preview.classList.add('has-image');
+                document.getElementById('imagePreviewText').style.display = 'none';
+                document.getElementById('imageActions').style.display = 'flex';
+                
+                // Store for cropping
+                selectedImage = dataURLtoBlob(e.target.result);
             };
             reader.readAsDataURL(file);
         }
         
+        function openCropModal() {
+            if (!originalImageData) return;
+            
+            const modal = document.getElementById('cropModal');
+            const cropImage = document.getElementById('cropImage');
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                cropImage.src = e.target.result;
+                modal.classList.add('show');
+                
+                // Initialize cropper after image loads
+                cropImage.onload = function() {
+                    if (cropper) cropper.destroy();
+                    cropper = new Cropper(cropImage, {
+                        aspectRatio: 1,
+                        viewMode: 1,
+                        dragMode: 'move',
+                        autoCropArea: 1,
+                        restore: false,
+                        guides: true,
+                        center: true,
+                        highlight: false,
+                        cropBoxMovable: true,
+                        cropBoxResizable: true,
+                        toggleDragModeOnDblclick: false,
+                    });
+                };
+            };
+            reader.readAsDataURL(originalImageData);
+        }
+        
+        function closeCropModal() {
+            document.getElementById('cropModal').classList.remove('show');
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+        }
+        
+        function applyCrop() {
+            if (!cropper) return;
+            
+            // Get cropped canvas - output 400x400 for good quality
+            const canvas = cropper.getCroppedCanvas({
+                width: 400,
+                height: 400,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+            
+            // Convert to blob
+            canvas.toBlob(function(blob) {
+                selectedImage = blob;
+                
+                // Update preview
+                const preview = document.getElementById('imagePreview');
+                preview.style.backgroundImage = `url('${canvas.toDataURL()}')`;
+                
+                closeCropModal();
+                showToast('Image cropped successfully!', 'success');
+            }, 'image/jpeg', 0.9);
+        }
+        
+        function removeImage() {
+            selectedImage = null;
+            originalImageData = null;
+            existingImageUrl = null;
+            
+            const preview = document.getElementById('imagePreview');
+            preview.style.backgroundImage = '';
+            preview.classList.remove('has-image');
+            document.getElementById('imagePreviewText').style.display = 'block';
+            document.getElementById('imageActions').style.display = 'none';
+            document.getElementById('productImage').value = '';
+        }
+        
+        // Helper function to convert dataURL to Blob
+        function dataURLtoBlob(dataURL) {
+            const arr = dataURL.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+            return new Blob([u8arr], { type: mime });
+        }
+        
         // Upload image to Firebase Storage
-        async function uploadImage(file) {
+        async function uploadImage(blob) {
             const timestamp = Date.now();
-            const filename = `products/${timestamp}_${file.name}`;
+            const filename = `products/${timestamp}.jpg`;
             const ref = storage.ref(filename);
-            await ref.put(file);
+            await ref.put(blob);
             return await ref.getDownloadURL();
         }
         
@@ -661,7 +755,6 @@
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 
-                // Handle image upload
                 if (selectedImage) {
                     productData.imageUrl = await uploadImage(selectedImage);
                 } else if (existingImageUrl) {
@@ -669,22 +762,19 @@
                 }
                 
                 if (editingProductId) {
-                    // Update existing product
                     await db.collection('products').doc(editingProductId).update(productData);
-                    showToast('Product updated successfully!', 'success');
+                    showToast('Product updated!', 'success');
                 } else {
-                    // Add new product
                     productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                     await db.collection('products').add(productData);
-                    showToast('Product added successfully!', 'success');
+                    showToast('Product added!', 'success');
                 }
                 
                 resetForm();
                 loadProducts();
-                
             } catch (error) {
-                console.error('Error saving product:', error);
-                showToast('Error saving product: ' + error.message, 'error');
+                console.error('Error:', error);
+                showToast('Error: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
@@ -707,37 +797,32 @@
                 document.getElementById('productDescription').value = p.description || '';
                 document.getElementById('productStatus').value = p.isActive.toString();
                 
-                // Show existing image
                 const preview = document.getElementById('imagePreview');
                 if (p.imageUrl) {
                     preview.style.backgroundImage = `url('${p.imageUrl}')`;
-                    preview.innerHTML = '';
+                    preview.classList.add('has-image');
+                    document.getElementById('imagePreviewText').style.display = 'none';
+                    document.getElementById('imageActions').style.display = 'flex';
                 }
                 
                 document.getElementById('formTitle').textContent = '✏️ Edit Product';
                 document.getElementById('submitBtn').textContent = 'Update Product';
-                
-                // Scroll to form
                 document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
-                
             } catch (error) {
-                console.error('Error loading product:', error);
                 showToast('Error loading product', 'error');
             }
         }
         
         // Delete product
         async function deleteProduct(productId, productName) {
-            if (!confirm(`Are you sure you want to delete "${productName}"?`)) return;
-            
+            if (!confirm(`Delete "${productName}"?`)) return;
             showLoading(true);
             try {
                 await db.collection('products').doc(productId).delete();
                 showToast('Product deleted', 'success');
                 loadProducts();
             } catch (error) {
-                console.error('Error deleting product:', error);
-                showToast('Error deleting product', 'error');
+                showToast('Error deleting', 'error');
             } finally {
                 showLoading(false);
             }
@@ -749,22 +834,23 @@
             document.getElementById('productId').value = '';
             editingProductId = null;
             selectedImage = null;
+            originalImageData = null;
             existingImageUrl = null;
             
             const preview = document.getElementById('imagePreview');
             preview.style.backgroundImage = '';
-            preview.innerHTML = '<div class="image-preview-text">📷<br>Click to upload image</div>';
+            preview.classList.remove('has-image');
+            document.getElementById('imagePreviewText').style.display = 'block';
+            document.getElementById('imageActions').style.display = 'none';
             
             document.getElementById('formTitle').textContent = '➕ Add New Product';
             document.getElementById('submitBtn').textContent = 'Add Product';
         }
         
-        // Show/hide loading
         function showLoading(show) {
             document.getElementById('loadingOverlay').classList.toggle('show', show);
         }
         
-        // Show toast notification
         function showToast(message, type = '') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
