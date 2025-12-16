@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin | BreadHub</title>
+    <meta name="robots" content="noindex, nofollow">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --cream: #FDF6E3;
+            --cream-dark: #F5E6C8;
+            --brown: #5D4037;
+            --brown-dark: #3E2723;
+            --orange: #E65100;
+            --orange-light: #FF8A50;
+            --white: #FFFFFF;
+            --shadow: rgba(93, 64, 55, 0.15);
+            --success: #4CAF50;
+            --danger: #f44336;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Source Sans 3', sans-serif;
+            background: var(--cream);
+            color: var(--brown-dark);
+            min-height: 100vh;
+        }
+        
+        h1, h2, h3 { font-family: 'Playfair Display', serif; }
+        
+        /* Login Screen */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--brown) 0%, var(--brown-dark) 100%);
+            padding: 2rem;
+        }
+        
+        .login-box {
+            background: var(--white);
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .login-logo {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        
+        .login-box h1 {
+            color: var(--brown-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-box p {
+            color: var(--brown);
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.25rem;
+            text-align: left;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--brown-dark);
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--cream-dark);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--orange);
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: var(--orange);
+            color: var(--white);
+            width: 100%;
+        }
+        
+        .btn-primary:hover {
+            background: var(--orange-light);
+        }
+        
+        .btn-success { background: var(--success); color: var(--white); }
+        .btn-danger { background: var(--danger); color: var(--white); }
+        .btn-secondary { background: var(--cream-dark); color: var(--brown-dark); }
+        
+        .error-message {
+            color: var(--danger);
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        /* Admin Dashboard */
+        .admin-container {
+            display: none;
+        }
+        
+        .admin-header {
+            background: linear-gradient(135deg, var(--brown) 0%, var(--brown-dark) 100%);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--cream);
+        }
+        
+        .admin-header h1 {
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: var(--cream);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .admin-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .admin-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+        }
+        
+        .admin-section h2 {
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--cream-dark);
+        }
+        
+        /* Product Form */
+        .product-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.25rem;
+        }
+        
+        .product-form .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .image-preview {
+            width: 100%;
+            height: 200px;
+            border: 2px dashed var(--cream-dark);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-size: cover;
+            background-position: center;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .image-preview:hover {
+            border-color: var(--orange);
+        }
+        
+        .image-preview-text {
+            color: var(--brown);
+            text-align: center;
+        }
+        
+        .form-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        /* Products Table */
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .products-table th,
+        .products-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--cream-dark);
+        }
+        
+        .products-table th {
+            background: var(--cream);
+            font-weight: 600;
+            color: var(--brown-dark);
+        }
+        
+        .products-table tr:hover {
+            background: var(--cream);
+        }
+        
+        .product-thumb {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            background: var(--cream-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-size: cover;
+            background-position: center;
+            font-size: 1.5rem;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: #E8F5E9;
+            color: var(--success);
+        }
+        
+        .status-inactive {
+            background: #FFEBEE;
+            color: var(--danger);
+        }
+        
+        .action-btns {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .action-btns button {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+        
+        /* Loading & Toast */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .loading-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--cream-dark);
+            border-top-color: var(--orange);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--brown-dark);
+            color: var(--white);
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transform: translateX(150%);
+            transition: transform 0.3s ease;
+            z-index: 1001;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .admin-header { flex-direction: column; gap: 1rem; padding: 1rem; }
+            .admin-content { padding: 1rem; }
+            .admin-section { padding: 1rem; }
+            .products-table { font-size: 0.85rem; }
+            .products-table th, .products-table td { padding: 0.5rem; }
+            .action-btns { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div class="login-container" id="loginScreen">
+        <div class="login-box">
+            <div class="login-logo">🍞</div>
+            <h1>BreadHub Admin</h1>
+            <p>Sign in to manage your products</p>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" required placeholder="admin@breadhub.shop">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary">Sign In</button>
+                <p class="error-message" id="loginError"></p>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Admin Dashboard -->
+    <div class="admin-container" id="adminDashboard">
+        <header class="admin-header">
+            <h1>🍞 BreadHub Admin</h1>
+            <div class="user-info">
+                <span id="userEmail"></span>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            </div>
+        </header>
+        
+        <main class="admin-content">
+            <!-- Add/Edit Product Section -->
+            <section class="admin-section">
+                <h2 id="formTitle">➕ Add New Product</h2>
+                <form id="productForm" class="product-form" onsubmit="handleProductSubmit(event)">
+                    <input type="hidden" id="productId">
+                    
+                    <div class="form-group">
+                        <label>Product Name *</label>
+                        <input type="text" id="productName" required placeholder="e.g., Chocolate Donut">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Price (₱) *</label>
+                        <input type="number" id="productPrice" required min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Category *</label>
+                        <select id="productCategory" required>
+                            <option value="">Select category...</option>
+                            <option value="donut">🍩 Donuts</option>
+                            <option value="savory">🥐 Savory</option>
+                            <option value="loaf">🍞 Loaf Breads</option>
+                            <option value="cookies">🍪 Cookies</option>
+                            <option value="cinnamon-rolls">🥮 Cinnamon Rolls</option>
+                            <option value="classic-filipino">🥖 Classic Filipino</option>
+                            <option value="roti">🫓 Roti</option>
+                            <option value="cakes">🎂 Cakes</option>
+                            <option value="pandesal">🥯 Pandesal</option>
+                            <option value="desserts">🧁 Desserts</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="productStatus">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label>Description</label>
+                        <textarea id="productDescription" rows="3" placeholder="Describe your product..."></textarea>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label>Product Image</label>
+                        <input type="file" id="productImage" accept="image/*" onchange="previewImage(event)" style="display:none">
+                        <div class="image-preview" id="imagePreview" onclick="document.getElementById('productImage').click()">
+                            <div class="image-preview-text">
+                                📷<br>Click to upload image
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-success" id="submitBtn">Add Product</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetForm()">Cancel</button>
+                    </div>
+                </form>
+            </section>
+            
+            <!-- Products List -->
+            <section class="admin-section">
+                <h2>📦 All Products</h2>
+                <div style="overflow-x: auto;">
+                    <table class="products-table">
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <tr><td colspan="6" style="text-align:center;padding:2rem;">Loading products...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCv_6FGxvhMVbGjfGI5VKI9PyXaMlQeH2k",
+            authDomain: "breadhub-ce8fd.firebaseapp.com",
+            projectId: "breadhub-ce8fd",
+            storageBucket: "breadhub-ce8fd.firebasestorage.app",
+            messagingSenderId: "644722238875",
+            appId: "1:644722238875:web:15b04e93f9bc909e40ed3e"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+        
+        // Category data
+        const categoryData = {
+            'donut': { name: 'Donuts', emoji: '🍩' },
+            'savory': { name: 'Savory', emoji: '🥐' },
+            'loaf': { name: 'Loaf Breads', emoji: '🍞' },
+            'cookies': { name: 'Cookies', emoji: '🍪' },
+            'cinnamon-rolls': { name: 'Cinnamon Rolls', emoji: '🥮' },
+            'classic-filipino': { name: 'Classic Filipino', emoji: '🥖' },
+            'roti': { name: 'Roti', emoji: '🫓' },
+            'cakes': { name: 'Cakes', emoji: '🎂' },
+            'pandesal': { name: 'Pandesal', emoji: '🥯' },
+            'desserts': { name: 'Desserts', emoji: '🧁' }
+        };
+        
+        let selectedImage = null;
+        let editingProductId = null;
+        let existingImageUrl = null;
+        
+        // Auth state listener
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                showDashboard(user);
+            } else {
+                showLogin();
+            }
+        });
+        
+        function showLogin() {
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('adminDashboard').style.display = 'none';
+        }
+        
+        function showDashboard(user) {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('adminDashboard').style.display = 'block';
+            document.getElementById('userEmail').textContent = user.email;
+            loadProducts();
+        }
+        
+        // Login handler
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+            
+            try {
+                showLoading(true);
+                await auth.signInWithEmailAndPassword(email, password);
+            } catch (error) {
+                errorEl.textContent = 'Invalid email or password';
+                console.error('Login error:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Logout handler
+        function handleLogout() {
+            auth.signOut();
+        }
+        
+        // Load products
+        async function loadProducts() {
+            const tbody = document.getElementById('productsTableBody');
+            
+            try {
+                const snapshot = await db.collection('products').orderBy('createdAt', 'desc').get();
+                
+                if (snapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;">No products yet. Add your first product above!</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = snapshot.docs.map(doc => {
+                    const p = doc.data();
+                    const cat = categoryData[p.category] || { name: p.category, emoji: '🍞' };
+                    return `
+                        <tr>
+                            <td>
+                                <div class="product-thumb" style="${p.imageUrl ? `background-image:url('${p.imageUrl}')` : ''}">
+                                    ${!p.imageUrl ? cat.emoji : ''}
+                                </div>
+                            </td>
+                            <td><strong>${p.name}</strong></td>
+                            <td>${cat.emoji} ${cat.name}</td>
+                            <td>₱${p.price.toFixed(2)}</td>
+                            <td>
+                                <span class="status-badge ${p.isActive ? 'status-active' : 'status-inactive'}">
+                                    ${p.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                            </td>
+                            <td class="action-btns">
+                                <button class="btn btn-secondary" onclick="editProduct('${doc.id}')">Edit</button>
+                                <button class="btn btn-danger" onclick="deleteProduct('${doc.id}', '${p.name}')">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error loading products:', error);
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:red;">Error loading products</td></tr>';
+            }
+        }
+        
+        // Image preview
+        function previewImage(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            selectedImage = file;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('imagePreview');
+                preview.style.backgroundImage = `url('${e.target.result}')`;
+                preview.innerHTML = '';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Upload image to Firebase Storage
+        async function uploadImage(file) {
+            const timestamp = Date.now();
+            const filename = `products/${timestamp}_${file.name}`;
+            const ref = storage.ref(filename);
+            await ref.put(file);
+            return await ref.getDownloadURL();
+        }
+        
+        // Handle product form submit
+        async function handleProductSubmit(e) {
+            e.preventDefault();
+            showLoading(true);
+            
+            try {
+                const productData = {
+                    name: document.getElementById('productName').value,
+                    price: parseFloat(document.getElementById('productPrice').value),
+                    category: document.getElementById('productCategory').value,
+                    description: document.getElementById('productDescription').value,
+                    isActive: document.getElementById('productStatus').value === 'true',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                // Handle image upload
+                if (selectedImage) {
+                    productData.imageUrl = await uploadImage(selectedImage);
+                } else if (existingImageUrl) {
+                    productData.imageUrl = existingImageUrl;
+                }
+                
+                if (editingProductId) {
+                    // Update existing product
+                    await db.collection('products').doc(editingProductId).update(productData);
+                    showToast('Product updated successfully!', 'success');
+                } else {
+                    // Add new product
+                    productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await db.collection('products').add(productData);
+                    showToast('Product added successfully!', 'success');
+                }
+                
+                resetForm();
+                loadProducts();
+                
+            } catch (error) {
+                console.error('Error saving product:', error);
+                showToast('Error saving product: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Edit product
+        async function editProduct(productId) {
+            try {
+                const doc = await db.collection('products').doc(productId).get();
+                if (!doc.exists) return;
+                
+                const p = doc.data();
+                editingProductId = productId;
+                existingImageUrl = p.imageUrl || null;
+                
+                document.getElementById('productId').value = productId;
+                document.getElementById('productName').value = p.name;
+                document.getElementById('productPrice').value = p.price;
+                document.getElementById('productCategory').value = p.category;
+                document.getElementById('productDescription').value = p.description || '';
+                document.getElementById('productStatus').value = p.isActive.toString();
+                
+                // Show existing image
+                const preview = document.getElementById('imagePreview');
+                if (p.imageUrl) {
+                    preview.style.backgroundImage = `url('${p.imageUrl}')`;
+                    preview.innerHTML = '';
+                }
+                
+                document.getElementById('formTitle').textContent = '✏️ Edit Product';
+                document.getElementById('submitBtn').textContent = 'Update Product';
+                
+                // Scroll to form
+                document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (error) {
+                console.error('Error loading product:', error);
+                showToast('Error loading product', 'error');
+            }
+        }
+        
+        // Delete product
+        async function deleteProduct(productId, productName) {
+            if (!confirm(`Are you sure you want to delete "${productName}"?`)) return;
+            
+            showLoading(true);
+            try {
+                await db.collection('products').doc(productId).delete();
+                showToast('Product deleted', 'success');
+                loadProducts();
+            } catch (error) {
+                console.error('Error deleting product:', error);
+                showToast('Error deleting product', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Reset form
+        function resetForm() {
+            document.getElementById('productForm').reset();
+            document.getElementById('productId').value = '';
+            editingProductId = null;
+            selectedImage = null;
+            existingImageUrl = null;
+            
+            const preview = document.getElementById('imagePreview');
+            preview.style.backgroundImage = '';
+            preview.innerHTML = '<div class="image-preview-text">📷<br>Click to upload image</div>';
+            
+            document.getElementById('formTitle').textContent = '➕ Add New Product';
+            document.getElementById('submitBtn').textContent = 'Add Product';
+        }
+        
+        // Show/hide loading
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').classList.toggle('show', show);
+        }
+        
+        // Show toast notification
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+</html>

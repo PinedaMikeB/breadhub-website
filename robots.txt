@@ -1,0 +1,9 @@
+# BreadHub Robots.txt
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://breadhub.shop/sitemap.xml
+
+# Disallow admin page from indexing
+Disallow: /admin.html
