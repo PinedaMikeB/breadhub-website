@@ -430,7 +430,10 @@
             'roti': { name: 'Roti', emoji: '🫓' },
             'cakes': { name: 'Cakes', emoji: '🎂' },
             'pandesal': { name: 'Pandesal', emoji: '🥯' },
-            'desserts': { name: 'Desserts', emoji: '🧁' }
+            'desserts': { name: 'Desserts', emoji: '🧁' },
+            'drinks': { name: 'Drinks', emoji: '🥤' },
+            'coffee': { name: 'Coffee', emoji: '☕' },
+            'non-coffee': { name: 'Non-Coffee Drinks', emoji: '🧃' }
         };
         
         // Get product ID from URL
@@ -504,11 +507,14 @@
             }
         }
         
-        function renderProduct(product, catInfo) {
+        async function renderProduct(product, catInfo) {
             const content = document.getElementById('productContent');
             
             const fullDescription = product.fullDescription || product.description || '';
             const shortDescription = product.description || '';
+            
+            // Format description with smart links
+            const formattedDescription = fullDescription ? await formatDescriptionWithLinks(fullDescription, product.category) : '';
             
             content.innerHTML = `
                 <div class="product-hero">
@@ -537,13 +543,31 @@
                 ${fullDescription ? `
                 <div class="product-details-full">
                     <h2>About ${product.name}</h2>
-                    ${formatDescription(fullDescription)}
+                    ${formattedDescription}
                 </div>
                 ` : ''}
+                
+                <!-- Discover More Section -->
+                <div class="product-details-full" style="background:var(--cream-dark);border-left:4px solid var(--orange);margin-top:2rem;">
+                    <h2 style="display:flex;align-items:center;gap:0.5rem;">🍞 Discover More from BreadHub</h2>
+                    <p style="margin-bottom:1.5rem;line-height:1.8;">
+                        Love our ${product.name}? Explore our complete collection of artisan breads, 
+                        pastries, and Filipino favorites. All baked fresh daily using premium ingredients 
+                        in our Taytay, Rizal bakery.
+                    </p>
+                    <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+                        <a href="../products.html" style="display:inline-block;padding:0.75rem 1.5rem;background:var(--orange);color:white;text-decoration:none;border-radius:8px;font-weight:600;">
+                            Browse All Products →
+                        </a>
+                        <a href="../index.html" style="display:inline-block;padding:0.75rem 1.5rem;background:var(--brown);color:white;text-decoration:none;border-radius:8px;font-weight:600;">
+                            Visit BreadHub Home
+                        </a>
+                    </div>
+                </div>
             `;
         }
         
-        function formatDescription(text) {
+        async function formatDescriptionWithLinks(text, currentCategory) {
             if (!text) return '';
             
             let html = text;
@@ -564,10 +588,45 @@
                 return '<ul>' + match + '</ul>';
             });
             
-            // 5. Internal link placeholders [LINK:name]
+            // 5. Smart Internal Linking
+            try {
+                // Fetch all products to create smart links
+                const productsSnapshot = await db.collection('products').get();
+                const allProducts = productsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Sort by name length (longest first) to match longer names first
+                allProducts.sort((a, b) => b.name.length - a.name.length);
+                
+                // Create links for product mentions (case-insensitive, whole word)
+                allProducts.forEach(product => {
+                    // Skip linking to itself
+                    if (product.category === currentCategory && html.includes(product.name)) {
+                        return;
+                    }
+                    
+                    const regex = new RegExp(`\\b(${product.name})\\b(?![^<]*>)`, 'gi');
+                    html = html.replace(regex, `<a href="template.html?id=${product.id}" style="color:var(--orange);text-decoration:underline;font-weight:500;">$1</a>`);
+                });
+                
+                // Create links for category mentions
+                Object.keys(categoryData).forEach(categoryKey => {
+                    const categoryName = categoryData[categoryKey].name;
+                    // Match category name (case-insensitive, whole word, not already in a link)
+                    const regex = new RegExp(`\\b(${categoryName})\\b(?![^<]*>)`, 'gi');
+                    html = html.replace(regex, `<a href="../products.html?category=${categoryKey}" style="color:var(--orange);text-decoration:underline;">$1</a>`);
+                });
+                
+            } catch (error) {
+                console.warn('Smart linking failed:', error);
+            }
+            
+            // 6. Manual link placeholders [LINK:name]
             html = html.replace(/\[LINK:([^\]]+)\]/g, '<a href="../products.html?category=$1" style="color:var(--orange);text-decoration:underline;">$1</a>');
             
-            // 6. Paragraphs - split by double newlines and wrap non-tag text
+            // 7. Paragraphs - split by double newlines and wrap non-tag text
             html = html.split('\n\n').map(block => {
                 block = block.trim();
                 if (!block) return '';
@@ -579,6 +638,14 @@
             }).join('\n');
             
             return html;
+        }
+        
+        // Keep old function for backward compatibility
+        function formatDescription(text) {
+            return formatDescriptionWithLinks(text, '').catch(() => {
+                // Fallback to basic formatting if smart linking fails
+                return text;
+            });
         }
         
         function showError(message) {

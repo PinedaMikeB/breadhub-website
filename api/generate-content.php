@@ -113,6 +113,7 @@ $productName = trim($input['productName'] ?? '');
 $category = trim($input['category'] ?? '');
 $price = floatval($input['price'] ?? 0);
 $note = trim($input['note'] ?? '');
+$additionalInstructions = trim($input['additionalInstructions'] ?? '');
 
 // Validation
 if (empty($productName)) {
@@ -129,6 +130,13 @@ if (empty($category)) {
 $productName = htmlspecialchars($productName, ENT_QUOTES, 'UTF-8');
 $category = htmlspecialchars($category, ENT_QUOTES, 'UTF-8');
 $note = htmlspecialchars($note, ENT_QUOTES, 'UTF-8');
+$additionalInstructions = htmlspecialchars($additionalInstructions, ENT_QUOTES, 'UTF-8');
+
+// Build additional instructions section
+$additionalSection = '';
+if (!empty($additionalInstructions)) {
+    $additionalSection = "\n\n**IMPORTANT CUSTOM INSTRUCTIONS:**\n{$additionalInstructions}\n\nPlease incorporate these instructions into the content naturally.";
+}
 
 // Build the prompt for Claude
 $prompt = <<<PROMPT
@@ -140,7 +148,7 @@ Generate TWO descriptions for this product:
 - Name: {$productName}
 - Category: {$category}
 - Price: ₱{$price}
-- Additional Notes: {$note}
+- Additional Notes: {$note}{$additionalSection}
 
 **Requirements:**
 

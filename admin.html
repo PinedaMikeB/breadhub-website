@@ -194,6 +194,9 @@
                             <option value="cakes">🎂 Cakes</option>
                             <option value="pandesal">🥯 Pandesal</option>
                             <option value="desserts">🧁 Desserts</option>
+                            <option value="drinks">🥤 Drinks</option>
+                            <option value="coffee">☕ Coffee</option>
+                            <option value="non-coffee">🧃 Non-Coffee Drinks</option>
                         </select>
                     </div>
                     
@@ -218,6 +221,22 @@
                             <input type="text" id="aiQuickNote" placeholder="e.g., Rich chocolate with espresso notes" style="margin-top:0.5rem;">
                             <small style="color:var(--brown);font-size:0.85rem;display:block;margin-top:0.25rem;">
                                 Add any special details to help AI understand your product better
+                            </small>
+                        </div>
+                        
+                        <!-- Advanced Settings Toggle -->
+                        <div style="margin-bottom:1rem;">
+                            <button type="button" onclick="toggleAdvancedSettings()" style="background:none;border:1px solid var(--brown);color:var(--brown);padding:0.5rem 1rem;border-radius:6px;cursor:pointer;font-size:0.9rem;width:100%;">
+                                <span id="advancedToggleIcon">▶</span> Advanced Settings (Custom AI Instructions)
+                            </button>
+                        </div>
+                        
+                        <!-- Advanced Settings Panel -->
+                        <div id="advancedSettings" style="display:none;background:white;padding:1rem;border-radius:8px;margin-bottom:1rem;border:1px solid var(--cream-dark);">
+                            <label style="font-weight:600;font-size:0.9rem;margin-bottom:0.5rem;display:block;">Additional Instructions for AI:</label>
+                            <textarea id="aiAdditionalInstructions" rows="4" placeholder="e.g., Emphasize the espresso notes, mention artisan crafting process, focus on breakfast appeal" style="width:100%;padding:0.75rem;border:2px solid var(--cream-dark);border-radius:6px;font-family:inherit;"></textarea>
+                            <small style="color:var(--brown);font-size:0.85rem;display:block;margin-top:0.5rem;">
+                                Add specific instructions to customize the AI-generated content. Leave blank to use default prompts.
                             </small>
                         </div>
                         
@@ -345,7 +364,10 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             'roti': { name: 'Roti', emoji: '🫓' },
             'cakes': { name: 'Cakes', emoji: '🎂' },
             'pandesal': { name: 'Pandesal', emoji: '🥯' },
-            'desserts': { name: 'Desserts', emoji: '🧁' }
+            'desserts': { name: 'Desserts', emoji: '🧁' },
+            'drinks': { name: 'Drinks', emoji: '🥤' },
+            'coffee': { name: 'Coffee', emoji: '☕' },
+            'non-coffee': { name: 'Non-Coffee Drinks', emoji: '🧃' }
         };
         
         let editingProductId = null;
@@ -720,6 +742,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             const category = document.getElementById('productCategory').value;
             const price = parseFloat(document.getElementById('productPrice').value) || 0;
             const note = document.getElementById('aiQuickNote').value.trim();
+            const additionalInstructions = document.getElementById('aiAdditionalInstructions').value.trim();
             
             // Validation
             if (!productName) {
@@ -750,7 +773,8 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                         productName,
                         category,
                         price,
-                        note
+                        note,
+                        additionalInstructions
                     })
                 });
                 
@@ -813,6 +837,19 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         
         function hideAIStatus() {
             document.getElementById('aiStatus').style.display = 'none';
+        }
+        
+        function toggleAdvancedSettings() {
+            const panel = document.getElementById('advancedSettings');
+            const icon = document.getElementById('advancedToggleIcon');
+            
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                icon.textContent = '▼';
+            } else {
+                panel.style.display = 'none';
+                icon.textContent = '▶';
+            }
         }
         
         function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('show', show); }
