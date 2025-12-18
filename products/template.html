@@ -544,22 +544,41 @@
         }
         
         function formatDescription(text) {
-            // Simple markdown-like formatting
-            return text
-                .split('\n\n')
-                .map(para => {
-                    if (para.startsWith('###')) {
-                        return `<h3>${para.replace('###', '').trim()}</h3>`;
-                    } else if (para.startsWith('##')) {
-                        return `<h2>${para.replace('##', '').trim()}</h2>`;
-                    } else if (para.startsWith('- ')) {
-                        const items = para.split('\n').map(item => item.replace(/^- /, '').trim());
-                        return `<ul>${items.map(item => `<li>${item}</li>`).join('')}</ul>`;
-                    } else {
-                        return `<p>${para}</p>`;
-                    }
-                })
-                .join('');
+            if (!text) return '';
+            
+            let html = text;
+            
+            // 1. Process headers (before splitting paragraphs)
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            
+            // 2. Bold text (**text** or __text__)
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+            
+            // 3. Convert bullet points (- or •)
+            html = html.replace(/^[•\-]\s+(.+)$/gm, '<li>$1</li>');
+            
+            // 4. Wrap consecutive <li> tags in <ul>
+            html = html.replace(/(<li>.*?<\/li>\s*)+/g, match => {
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // 5. Internal link placeholders [LINK:name]
+            html = html.replace(/\[LINK:([^\]]+)\]/g, '<a href="../products.html?category=$1" style="color:var(--orange);text-decoration:underline;">$1</a>');
+            
+            // 6. Paragraphs - split by double newlines and wrap non-tag text
+            html = html.split('\n\n').map(block => {
+                block = block.trim();
+                if (!block) return '';
+                // If block doesn't start with HTML tag, wrap in <p>
+                if (!block.match(/^<(h[1-6]|ul|ol|li|div)/)) {
+                    return '<p>' + block.replace(/\n/g, '<br>') + '</p>';
+                }
+                return block;
+            }).join('\n');
+            
+            return html;
         }
         
         function showError(message) {
