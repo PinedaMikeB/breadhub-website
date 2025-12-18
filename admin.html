@@ -205,6 +205,30 @@
                         </select>
                     </div>
                     
+                    <div class="form-group full-width" style="background:var(--cream-dark);padding:1.5rem;border-radius:12px;margin-bottom:1.5rem;">
+                        <label style="font-size:1.1rem;display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+                            🤖 AI Content Generator
+                        </label>
+                        <p style="color:var(--brown);font-size:0.9rem;margin-bottom:1rem;">
+                            Let AI generate SEO-optimized descriptions for your product. Just enter the basic info above and click generate!
+                        </p>
+                        
+                        <div style="margin-bottom:1rem;">
+                            <label style="font-weight:normal;font-size:0.9rem;">Quick Note (Optional):</label>
+                            <input type="text" id="aiQuickNote" placeholder="e.g., Rich chocolate with espresso notes" style="margin-top:0.5rem;">
+                            <small style="color:var(--brown);font-size:0.85rem;display:block;margin-top:0.25rem;">
+                                Add any special details to help AI understand your product better
+                            </small>
+                        </div>
+                        
+                        <button type="button" class="btn btn-primary" onclick="generateAIContent()" id="generateBtn" style="width:100%;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+                            <span>✨</span>
+                            <span id="generateBtnText">Generate SEO Content with AI</span>
+                        </button>
+                        
+                        <div id="aiStatus" style="margin-top:1rem;padding:1rem;border-radius:8px;display:none;"></div>
+                    </div>
+                    
                     <div class="form-group full-width">
                         <label>Description (Short - for product cards)</label>
                         <textarea id="productDescription" rows="3" placeholder="Brief description for product listing..."></textarea>
@@ -680,12 +704,115 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             document.getElementById('productForm').reset();
             document.getElementById('productId').value = '';
             document.getElementById('productFullDescription').value = '';
+            document.getElementById('aiQuickNote').value = '';
             document.getElementById('generateProductPage').checked = true;
             editingProductId = null;
             existingImageUrl = null;
             removeImage();
             document.getElementById('formTitle').textContent = '➕ Add New Product';
             document.getElementById('submitBtn').textContent = 'Add Product';
+            hideAIStatus();
+        }
+        
+        // AI Content Generation
+        async function generateAIContent() {
+            const productName = document.getElementById('productName').value.trim();
+            const category = document.getElementById('productCategory').value;
+            const price = parseFloat(document.getElementById('productPrice').value) || 0;
+            const note = document.getElementById('aiQuickNote').value.trim();
+            
+            // Validation
+            if (!productName) {
+                showAIStatus('Please enter a product name first', 'error');
+                return;
+            }
+            
+            if (!category || category === 'Select category...') {
+                showAIStatus('Please select a category first', 'error');
+                return;
+            }
+            
+            // Disable button and show loading
+            const btn = document.getElementById('generateBtn');
+            const btnText = document.getElementById('generateBtnText');
+            btn.disabled = true;
+            btnText.textContent = 'Generating... This may take 10-15 seconds';
+            
+            showAIStatus('🤖 AI is crafting your SEO-optimized content...', 'loading');
+            
+            try {
+                const response = await fetch('/api/generate-content.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        productName,
+                        category,
+                        price,
+                        note
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || result.message || 'Generation failed');
+                }
+                
+                if (result.success && result.data) {
+                    // Populate the description fields
+                    document.getElementById('productDescription').value = result.data.shortDescription || '';
+                    document.getElementById('productFullDescription').value = result.data.fullDescription || '';
+                    
+                    showAIStatus(
+                        `✅ Success! Generated ${result.data.shortDescription?.length || 0} char short description and ${result.data.fullDescription?.length || 0} word full description. ` +
+                        `(${result.usage.callsToday} calls today, ${result.usage.remainingThisHour} remaining this hour)`,
+                        'success'
+                    );
+                    
+                    // Scroll to descriptions so user can see them
+                    document.getElementById('productDescription').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    throw new Error('Invalid response format');
+                }
+                
+            } catch (error) {
+                console.error('AI Generation Error:', error);
+                showAIStatus('❌ Error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = 'Generate SEO Content with AI';
+            }
+        }
+        
+        function showAIStatus(message, type) {
+            const status = document.getElementById('aiStatus');
+            status.style.display = 'block';
+            status.textContent = message;
+            
+            // Style based on type
+            if (type === 'success') {
+                status.style.background = '#d4edda';
+                status.style.color = '#155724';
+                status.style.border = '1px solid #c3e6cb';
+            } else if (type === 'error') {
+                status.style.background = '#f8d7da';
+                status.style.color = '#721c24';
+                status.style.border = '1px solid #f5c6cb';
+            } else if (type === 'loading') {
+                status.style.background = '#d1ecf1';
+                status.style.color = '#0c5460';
+                status.style.border = '1px solid #bee5eb';
+            } else {
+                status.style.background = '#fff3cd';
+                status.style.color = '#856404';
+                status.style.border = '1px solid #ffeaa7';
+            }
+        }
+        
+        function hideAIStatus() {
+            document.getElementById('aiStatus').style.display = 'none';
         }
         
         function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('show', show); }

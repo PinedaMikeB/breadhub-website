@@ -1,0 +1,22 @@
+# Protect .env file
+<Files ".env">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Allow PHP files to be accessed
+<Files "*.php">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
+# Protect log files
+<Files "*.log">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+<Files "*.json">
+    Order Allow,Deny
+    Deny from all
+</Files>
