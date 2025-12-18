@@ -6,13 +6,9 @@
     <title>Admin | BreadHub</title>
     <meta name="robots" content="noindex, nofollow">
     
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
-    <!-- Cropper.js for image cropping -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
     <style>
         :root {
@@ -29,334 +25,116 @@
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: 'Source Sans 3', sans-serif;
-            background: var(--cream);
-            color: var(--brown-dark);
-            min-height: 100vh;
-        }
-        
+        body { font-family: 'Source Sans 3', sans-serif; background: var(--cream); color: var(--brown-dark); min-height: 100vh; }
         h1, h2, h3 { font-family: 'Playfair Display', serif; }
         
-        /* Login Screen */
         .login-container {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, var(--brown) 0%, var(--brown-dark) 100%);
-            padding: 2rem;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, var(--brown) 0%, var(--brown-dark) 100%); padding: 2rem;
         }
-        
         .login-box {
-            background: var(--white);
-            padding: 3rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
+            background: var(--white); padding: 3rem; border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3); width: 100%; max-width: 400px; text-align: center;
         }
-        
         .login-logo { font-size: 4rem; margin-bottom: 1rem; }
         .login-box h1 { color: var(--brown-dark); margin-bottom: 0.5rem; }
         .login-box p { color: var(--brown); margin-bottom: 2rem; }
         
-        .form-group {
-            margin-bottom: 1.25rem;
-            text-align: left;
+        .form-group { margin-bottom: 1.25rem; text-align: left; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 0.75rem; border: 2px solid var(--cream-dark);
+            border-radius: 8px; font-family: inherit; font-size: 1rem;
         }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--orange); }
         
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: var(--brown-dark);
-        }
-        
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid var(--cream-dark);
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-        
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--orange);
-        }
-        
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
         .btn-primary { background: var(--orange); color: var(--white); width: 100%; }
         .btn-primary:hover { background: var(--orange-light); }
         .btn-success { background: var(--success); color: var(--white); }
         .btn-danger { background: var(--danger); color: var(--white); }
         .btn-secondary { background: var(--cream-dark); color: var(--brown-dark); }
-        
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
         .error-message { color: var(--danger); margin-top: 1rem; font-size: 0.9rem; }
         
-        /* Admin Dashboard */
         .admin-container { display: none; }
-        
         .admin-header {
             background: linear-gradient(135deg, var(--brown) 0%, var(--brown-dark) 100%);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: var(--cream);
+            padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; color: var(--cream);
         }
-        
-        .admin-header h1 { font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .admin-header h1 { font-size: 1.5rem; }
         .user-info { display: flex; align-items: center; gap: 1rem; }
-        
-        .logout-btn {
-            background: rgba(255,255,255,0.2);
-            color: var(--cream);
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            cursor: pointer;
-        }
+        .logout-btn { background: rgba(255,255,255,0.2); color: var(--cream); border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
         
         .admin-content { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .admin-section { background: var(--white); border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 20px var(--shadow); }
+        .admin-section h2 { margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 2px solid var(--cream-dark); }
         
-        .admin-section {
-            background: var(--white);
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 20px var(--shadow);
-        }
-        
-        .admin-section h2 {
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 2px solid var(--cream-dark);
-        }
-        
-        /* Product Form */
-        .product-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.25rem;
-        }
-        
+        .product-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; }
         .product-form .full-width { grid-column: 1 / -1; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 1rem; margin-top: 1rem; }
         
-        .image-upload-area {
-            border: 2px dashed var(--cream-dark);
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-            cursor: pointer;
-            transition: border-color 0.3s ease;
+        /* Image Editor */
+        .image-editor-container { border: 2px dashed var(--cream-dark); border-radius: 8px; padding: 1rem; }
+        .image-box {
+            width: 300px; height: 300px; margin: 0 auto;
+            background: var(--cream); border-radius: 8px;
+            position: relative; overflow: hidden; cursor: move;
         }
-        
-        .image-upload-area:hover { border-color: var(--orange); }
-        
-        .image-preview {
-            width: 100%;
-            height: 200px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--cream);
-            background-size: contain;
-            background-position: center;
-            background-repeat: no-repeat;
-            position: relative;
-            overflow: hidden;
+        .image-box img {
+            position: absolute; cursor: move;
+            user-select: none; -webkit-user-drag: none;
         }
-        
-        .image-preview.has-image { background-color: #fff; }
-        
-        .image-preview-text { color: var(--brown); text-align: center; }
-        
-        .image-actions {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 0.75rem;
-            justify-content: center;
+        .image-placeholder {
+            width: 100%; height: 100%; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; color: var(--brown); cursor: pointer;
         }
-        
-        .image-actions button {
-            padding: 0.4rem 0.8rem;
-            font-size: 0.85rem;
-        }
-        
-        .form-actions {
-            grid-column: 1 / -1;
-            display: flex;
-            gap: 1rem;
-            margin-top: 1rem;
-        }
+        .image-placeholder span { font-size: 3rem; margin-bottom: 0.5rem; }
+        .image-controls { margin-top: 1rem; text-align: center; }
+        .image-controls label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+        .size-slider { width: 200px; cursor: pointer; }
+        .image-buttons { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
         
         /* Products Table */
         .products-table { width: 100%; border-collapse: collapse; }
-        .products-table th, .products-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--cream-dark);
-        }
+        .products-table th, .products-table td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--cream-dark); }
         .products-table th { background: var(--cream); font-weight: 600; }
         .products-table tr:hover { background: var(--cream); }
-        
         .product-thumb {
-            width: 50px;
-            height: 50px;
-            border-radius: 8px;
-            background: var(--cream-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-size: cover;
-            background-position: center;
-            font-size: 1.5rem;
+            width: 50px; height: 50px; border-radius: 8px; background: var(--cream-dark);
+            display: flex; align-items: center; justify-content: center;
+            background-size: cover; background-position: center; font-size: 1.5rem;
         }
-        
         .status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
         .status-active { background: #E8F5E9; color: var(--success); }
         .status-inactive { background: #FFEBEE; color: var(--danger); }
-        
         .action-btns { display: flex; gap: 0.5rem; }
-        .action-btns button { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
         
-        /* Image Crop Modal */
-        .crop-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .crop-modal.show { opacity: 1; visibility: visible; }
-        
-        .crop-container {
-            background: var(--white);
-            border-radius: 16px;
-            padding: 1.5rem;
-            max-width: 600px;
-            width: 90%;
-            max-height: 90vh;
-            overflow: auto;
-        }
-        
-        .crop-container h3 {
-            margin-bottom: 1rem;
-            text-align: center;
-        }
-        
-        .crop-wrapper {
-            width: 100%;
-            max-height: 400px;
-            background: #333;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        
-        .crop-wrapper img {
-            display: block;
-            max-width: 100%;
-        }
-        
-        .crop-actions {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1rem;
-            justify-content: center;
-        }
-        
-        .crop-info {
-            text-align: center;
-            margin-top: 0.75rem;
-            font-size: 0.9rem;
-            color: var(--brown);
-        }
-        
-        /* Loading & Toast */
         .loading-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255,255,255,0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease;
         }
         .loading-overlay.show { opacity: 1; visibility: visible; }
-        
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid var(--cream-dark);
-            border-top-color: var(--orange);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
+        .spinner { width: 50px; height: 50px; border: 4px solid var(--cream-dark); border-top-color: var(--orange); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
         .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--brown-dark);
-            color: var(--white);
-            padding: 1rem 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            transform: translateX(150%);
-            transition: transform 0.3s ease;
-            z-index: 1001;
+            position: fixed; bottom: 20px; right: 20px; background: var(--brown-dark); color: var(--white);
+            padding: 1rem 2rem; border-radius: 8px; transform: translateX(150%); transition: transform 0.3s ease; z-index: 1001;
         }
         .toast.show { transform: translateX(0); }
         .toast.success { background: var(--success); }
         .toast.error { background: var(--danger); }
         
-        /* Responsive */
         @media (max-width: 768px) {
             .admin-header { flex-direction: column; gap: 1rem; padding: 1rem; }
             .admin-content { padding: 1rem; }
-            .admin-section { padding: 1rem; }
-            .products-table { font-size: 0.85rem; }
-            .products-table th, .products-table td { padding: 0.5rem; }
-            .action-btns { flex-direction: column; }
+            .image-box { width: 250px; height: 250px; }
         }
     </style>
 </head>
 <body>
-    <!-- Login Screen -->
     <div class="login-container" id="loginScreen">
         <div class="login-box">
             <div class="login-logo">🍞</div>
@@ -377,7 +155,6 @@
         </div>
     </div>
     
-    <!-- Admin Dashboard -->
     <div class="admin-container" id="adminDashboard">
         <header class="admin-header">
             <h1>🍞 BreadHub Admin</h1>
@@ -388,7 +165,6 @@
         </header>
         
         <main class="admin-content">
-            <!-- Add/Edit Product Section -->
             <section class="admin-section">
                 <h2 id="formTitle">➕ Add New Product</h2>
                 <form id="productForm" class="product-form" onsubmit="handleProductSubmit(event)">
@@ -437,15 +213,24 @@
                     <div class="form-group full-width">
                         <label>Product Image</label>
                         <input type="file" id="productImage" accept="image/*" onchange="handleImageSelect(event)" style="display:none">
-                        <div class="image-upload-area" onclick="document.getElementById('productImage').click()">
-                            <div class="image-preview" id="imagePreview">
-                                <div class="image-preview-text" id="imagePreviewText">
-                                    📷<br>Click to upload image
+                        <div class="image-editor-container">
+                            <div class="image-box" id="imageBox">
+                                <div class="image-placeholder" id="imagePlaceholder" onclick="document.getElementById('productImage').click()">
+                                    <span>📷</span>
+                                    <p>Click to upload image</p>
                                 </div>
+                                <img id="previewImg" src="" style="display:none;">
                             </div>
-                            <div class="image-actions" id="imageActions" style="display:none;">
-                                <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); openCropModal()">✂️ Crop</button>
-                                <button type="button" class="btn btn-danger" onclick="event.stopPropagation(); removeImage()">🗑️ Remove</button>
+                            <div class="image-controls" id="imageControls" style="display:none;">
+                                <label>🔍 Image Size: <span id="sizeValue">100</span>%</label>
+                                <input type="range" id="sizeSlider" class="size-slider" min="5" max="500" value="100" oninput="resizeImage(this.value)">
+                                <p style="font-size:0.85rem;color:var(--brown);margin-top:0.5rem;">Drag image to position • Use slider to resize</p>
+                                <div class="image-buttons">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="centerImage()">⊡ Center</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="fitImage()">↔ Fit</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="fillImage()">⬛ Fill</button>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="removeImage()">🗑 Remove</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -457,23 +242,15 @@
                 </form>
             </section>
             
-            <!-- Products List -->
             <section class="admin-section">
                 <h2>📦 All Products</h2>
                 <div style="overflow-x: auto;">
                     <table class="products-table">
                         <thead>
-                            <tr>
-                                <th>Image</th>
-                                <th>Name</th>
-                                <th>Category</th>
-                                <th>Price</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
+                            <tr><th>Image</th><th>Name</th><th>Category</th><th>Price</th><th>Status</th><th>Actions</th></tr>
                         </thead>
                         <tbody id="productsTableBody">
-                            <tr><td colspan="6" style="text-align:center;padding:2rem;">Loading products...</td></tr>
+                            <tr><td colspan="6" style="text-align:center;padding:2rem;">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -481,40 +258,15 @@
         </main>
     </div>
     
-    <!-- Image Crop Modal -->
-    <div class="crop-modal" id="cropModal">
-        <div class="crop-container">
-            <h3>✂️ Crop Image</h3>
-            <div class="crop-wrapper">
-                <img id="cropImage" src="">
-            </div>
-            <p class="crop-info">Drag to reposition, scroll to zoom. Image will be cropped to a square.</p>
-            <div class="crop-actions">
-                <button class="btn btn-success" onclick="applyCrop()">✅ Apply Crop</button>
-                <button class="btn btn-secondary" onclick="closeCropModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="spinner"></div>
-    </div>
-    
-    <!-- Toast -->
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
     <div class="toast" id="toast"></div>
     
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
     
-    <!-- Cropper.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-    
     <script>
-        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyCv_6FGxvhMVbGjfGI5VKI9PyXaMlQeH2k",
             authDomain: "breadhub-ce8fd.firebaseapp.com",
@@ -529,7 +281,6 @@
         const db = firebase.firestore();
         const storage = firebase.storage();
         
-        // Category data
         const categoryData = {
             'donut': { name: 'Donuts', emoji: '🍩' },
             'savory': { name: 'Savory', emoji: '🥐' },
@@ -543,46 +294,35 @@
             'desserts': { name: 'Desserts', emoji: '🧁' }
         };
         
-        // State variables
-        let selectedImage = null;
         let editingProductId = null;
         let existingImageUrl = null;
-        let cropper = null;
-        let originalImageData = null;
+        let imageData = { naturalWidth: 0, naturalHeight: 0, x: 0, y: 0, scale: 100 };
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
         
-        // Auth state listener
+        // Auth
         auth.onAuthStateChanged(user => {
             if (user) {
-                showDashboard(user);
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('adminDashboard').style.display = 'block';
+                document.getElementById('userEmail').textContent = user.email;
+                loadProducts();
             } else {
-                showLogin();
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('adminDashboard').style.display = 'none';
             }
         });
         
-        function showLogin() {
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('adminDashboard').style.display = 'none';
-        }
-        
-        function showDashboard(user) {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('adminDashboard').style.display = 'block';
-            document.getElementById('userEmail').textContent = user.email;
-            loadProducts();
-        }
-        
-        // Login handler
         async function handleLogin(e) {
             e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const errorEl = document.getElementById('loginError');
-            
             try {
                 showLoading(true);
-                await auth.signInWithEmailAndPassword(email, password);
+                await auth.signInWithEmailAndPassword(
+                    document.getElementById('loginEmail').value,
+                    document.getElementById('loginPassword').value
+                );
             } catch (error) {
-                errorEl.textContent = 'Invalid email or password';
+                document.getElementById('loginError').textContent = 'Invalid email or password';
             } finally {
                 showLoading(false);
             }
@@ -590,7 +330,7 @@
         
         function handleLogout() { auth.signOut(); }
         
-        // Load products
+        // Products
         async function loadProducts() {
             const tbody = document.getElementById('productsTableBody');
             try {
@@ -602,145 +342,196 @@
                 tbody.innerHTML = snapshot.docs.map(doc => {
                     const p = doc.data();
                     const cat = categoryData[p.category] || { name: p.category, emoji: '🍞' };
-                    return `
-                        <tr>
-                            <td><div class="product-thumb" style="${p.imageUrl ? `background-image:url('${p.imageUrl}')` : ''}">${!p.imageUrl ? cat.emoji : ''}</div></td>
-                            <td><strong>${p.name}</strong></td>
-                            <td>${cat.emoji} ${cat.name}</td>
-                            <td>₱${p.price.toFixed(2)}</td>
-                            <td><span class="status-badge ${p.isActive ? 'status-active' : 'status-inactive'}">${p.isActive ? 'Active' : 'Inactive'}</span></td>
-                            <td class="action-btns">
-                                <button class="btn btn-secondary" onclick="editProduct('${doc.id}')">Edit</button>
-                                <button class="btn btn-danger" onclick="deleteProduct('${doc.id}', '${p.name}')">Delete</button>
-                            </td>
-                        </tr>
-                    `;
+                    return `<tr>
+                        <td><div class="product-thumb" style="${p.imageUrl ? `background-image:url('${p.imageUrl}')` : ''}">${!p.imageUrl ? cat.emoji : ''}</div></td>
+                        <td><strong>${p.name}</strong></td>
+                        <td>${cat.emoji} ${cat.name}</td>
+                        <td>₱${p.price.toFixed(2)}</td>
+                        <td><span class="status-badge ${p.isActive ? 'status-active' : 'status-inactive'}">${p.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td class="action-btns">
+                            <button class="btn btn-secondary btn-sm" onclick="editProduct('${doc.id}')">Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteProduct('${doc.id}','${p.name.replace(/'/g, "\\'")}')">Delete</button>
+                        </td>
+                    </tr>`;
                 }).join('');
             } catch (error) {
-                console.error('Error loading products:', error);
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Error loading products</td></tr>';
+                console.error(error);
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Error loading</td></tr>';
             }
         }
         
-        // Image handling with crop
+        // Image handling
         function handleImageSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
             
-            originalImageData = file;
             const reader = new FileReader();
-            reader.onload = function(e) {
-                // Show preview
-                const preview = document.getElementById('imagePreview');
-                preview.style.backgroundImage = `url('${e.target.result}')`;
-                preview.classList.add('has-image');
-                document.getElementById('imagePreviewText').style.display = 'none';
-                document.getElementById('imageActions').style.display = 'flex';
-                
-                // Store for cropping
-                selectedImage = dataURLtoBlob(e.target.result);
+            reader.onload = function(ev) {
+                const img = document.getElementById('previewImg');
+                img.onload = function() {
+                    imageData.naturalWidth = img.naturalWidth;
+                    imageData.naturalHeight = img.naturalHeight;
+                    fitImage();
+                    img.style.display = 'block';
+                    document.getElementById('imagePlaceholder').style.display = 'none';
+                    document.getElementById('imageControls').style.display = 'block';
+                    setupDrag();
+                };
+                img.src = ev.target.result;
             };
             reader.readAsDataURL(file);
         }
         
-        function openCropModal() {
-            if (!originalImageData) return;
+        function resizeImage(value) {
+            imageData.scale = parseInt(value);
+            document.getElementById('sizeValue').textContent = value;
+            applyTransform();
+        }
+        
+        function applyTransform() {
+            const img = document.getElementById('previewImg');
+            const scale = imageData.scale / 100;
+            const newWidth = imageData.naturalWidth * scale;
+            const newHeight = imageData.naturalHeight * scale;
             
-            const modal = document.getElementById('cropModal');
-            const cropImage = document.getElementById('cropImage');
+            img.style.width = newWidth + 'px';
+            img.style.height = newHeight + 'px';
+            img.style.left = imageData.x + 'px';
+            img.style.top = imageData.y + 'px';
+        }
+        
+        function centerImage() {
+            const box = document.getElementById('imageBox');
+            const boxSize = box.offsetWidth;
+            const scale = imageData.scale / 100;
+            const imgWidth = imageData.naturalWidth * scale;
+            const imgHeight = imageData.naturalHeight * scale;
             
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                cropImage.src = e.target.result;
-                modal.classList.add('show');
-                
-                // Initialize cropper after image loads
-                cropImage.onload = function() {
-                    if (cropper) cropper.destroy();
-                    cropper = new Cropper(cropImage, {
-                        aspectRatio: 1,
-                        viewMode: 1,
-                        dragMode: 'move',
-                        autoCropArea: 1,
-                        restore: false,
-                        guides: true,
-                        center: true,
-                        highlight: false,
-                        cropBoxMovable: true,
-                        cropBoxResizable: true,
-                        toggleDragModeOnDblclick: false,
-                    });
-                };
+            imageData.x = (boxSize - imgWidth) / 2;
+            imageData.y = (boxSize - imgHeight) / 2;
+            applyTransform();
+        }
+        
+        function fitImage() {
+            const box = document.getElementById('imageBox');
+            const boxSize = box.offsetWidth;
+            
+            // Fit so entire image is visible
+            const widthRatio = boxSize / imageData.naturalWidth;
+            const heightRatio = boxSize / imageData.naturalHeight;
+            const fitRatio = Math.min(widthRatio, heightRatio);
+            
+            imageData.scale = Math.round(fitRatio * 100);
+            document.getElementById('sizeSlider').value = imageData.scale;
+            document.getElementById('sizeValue').textContent = imageData.scale;
+            centerImage();
+        }
+        
+        function fillImage() {
+            const box = document.getElementById('imageBox');
+            const boxSize = box.offsetWidth;
+            
+            // Fill so image covers entire box
+            const widthRatio = boxSize / imageData.naturalWidth;
+            const heightRatio = boxSize / imageData.naturalHeight;
+            const fillRatio = Math.max(widthRatio, heightRatio);
+            
+            imageData.scale = Math.round(fillRatio * 100);
+            document.getElementById('sizeSlider').value = imageData.scale;
+            document.getElementById('sizeValue').textContent = imageData.scale;
+            centerImage();
+        }
+        
+        function setupDrag() {
+            const img = document.getElementById('previewImg');
+            
+            img.onmousedown = function(e) {
+                e.preventDefault();
+                isDragging = true;
+                dragStart.x = e.clientX - imageData.x;
+                dragStart.y = e.clientY - imageData.y;
             };
-            reader.readAsDataURL(originalImageData);
-        }
-        
-        function closeCropModal() {
-            document.getElementById('cropModal').classList.remove('show');
-            if (cropper) {
-                cropper.destroy();
-                cropper = null;
-            }
-        }
-        
-        function applyCrop() {
-            if (!cropper) return;
             
-            // Get cropped canvas - output 400x400 for good quality
-            const canvas = cropper.getCroppedCanvas({
-                width: 400,
-                height: 400,
-                imageSmoothingEnabled: true,
-                imageSmoothingQuality: 'high',
-            });
+            document.onmousemove = function(e) {
+                if (!isDragging) return;
+                imageData.x = e.clientX - dragStart.x;
+                imageData.y = e.clientY - dragStart.y;
+                applyTransform();
+            };
             
-            // Convert to blob
-            canvas.toBlob(function(blob) {
-                selectedImage = blob;
-                
-                // Update preview
-                const preview = document.getElementById('imagePreview');
-                preview.style.backgroundImage = `url('${canvas.toDataURL()}')`;
-                
-                closeCropModal();
-                showToast('Image cropped successfully!', 'success');
-            }, 'image/jpeg', 0.9);
+            document.onmouseup = function() { isDragging = false; };
+            
+            // Touch support
+            img.ontouchstart = function(e) {
+                isDragging = true;
+                dragStart.x = e.touches[0].clientX - imageData.x;
+                dragStart.y = e.touches[0].clientY - imageData.y;
+            };
+            
+            document.ontouchmove = function(e) {
+                if (!isDragging) return;
+                imageData.x = e.touches[0].clientX - dragStart.x;
+                imageData.y = e.touches[0].clientY - dragStart.y;
+                applyTransform();
+            };
+            
+            document.ontouchend = function() { isDragging = false; };
         }
         
         function removeImage() {
-            selectedImage = null;
-            originalImageData = null;
-            existingImageUrl = null;
-            
-            const preview = document.getElementById('imagePreview');
-            preview.style.backgroundImage = '';
-            preview.classList.remove('has-image');
-            document.getElementById('imagePreviewText').style.display = 'block';
-            document.getElementById('imageActions').style.display = 'none';
+            document.getElementById('previewImg').src = '';
+            document.getElementById('previewImg').style.display = 'none';
+            document.getElementById('imagePlaceholder').style.display = 'flex';
+            document.getElementById('imageControls').style.display = 'none';
             document.getElementById('productImage').value = '';
+            document.getElementById('sizeSlider').value = 100;
+            document.getElementById('sizeValue').textContent = '100';
+            imageData = { naturalWidth: 0, naturalHeight: 0, x: 0, y: 0, scale: 100 };
+            existingImageUrl = null;
         }
         
-        // Helper function to convert dataURL to Blob
-        function dataURLtoBlob(dataURL) {
-            const arr = dataURL.split(',');
-            const mime = arr[0].match(/:(.*?);/)[1];
-            const bstr = atob(arr[1]);
-            let n = bstr.length;
-            const u8arr = new Uint8Array(n);
-            while (n--) { u8arr[n] = bstr.charCodeAt(n); }
-            return new Blob([u8arr], { type: mime });
+        // Generate final image from canvas
+        function generateFinalImage() {
+            return new Promise((resolve) => {
+                const img = document.getElementById('previewImg');
+                if (!img.src || img.style.display === 'none') {
+                    resolve(null);
+                    return;
+                }
+                
+                const canvas = document.createElement('canvas');
+                const outputSize = 400;
+                canvas.width = outputSize;
+                canvas.height = outputSize;
+                const ctx = canvas.getContext('2d');
+                
+                // White background
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, outputSize, outputSize);
+                
+                // Calculate scaled positions
+                const box = document.getElementById('imageBox');
+                const displayBoxSize = box.offsetWidth;
+                const ratio = outputSize / displayBoxSize;
+                
+                const drawX = imageData.x * ratio;
+                const drawY = imageData.y * ratio;
+                const drawWidth = (imageData.naturalWidth * imageData.scale / 100) * ratio;
+                const drawHeight = (imageData.naturalHeight * imageData.scale / 100) * ratio;
+                
+                ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+                
+                canvas.toBlob(resolve, 'image/jpeg', 0.9);
+            });
         }
         
-        // Upload image to Firebase Storage
         async function uploadImage(blob) {
-            const timestamp = Date.now();
-            const filename = `products/${timestamp}.jpg`;
+            const filename = 'products/' + Date.now() + '.jpg';
             const ref = storage.ref(filename);
             await ref.put(blob);
             return await ref.getDownloadURL();
         }
         
-        // Handle product form submit
         async function handleProductSubmit(e) {
             e.preventDefault();
             showLoading(true);
@@ -755,8 +546,9 @@
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 
-                if (selectedImage) {
-                    productData.imageUrl = await uploadImage(selectedImage);
+                const imageBlob = await generateFinalImage();
+                if (imageBlob) {
+                    productData.imageUrl = await uploadImage(imageBlob);
                 } else if (existingImageUrl) {
                     productData.imageUrl = existingImageUrl;
                 }
@@ -773,14 +565,13 @@
                 resetForm();
                 loadProducts();
             } catch (error) {
-                console.error('Error:', error);
+                console.error(error);
                 showToast('Error: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
         }
         
-        // Edit product
         async function editProduct(productId) {
             try {
                 const doc = await db.collection('products').doc(productId).get();
@@ -797,12 +588,19 @@
                 document.getElementById('productDescription').value = p.description || '';
                 document.getElementById('productStatus').value = p.isActive.toString();
                 
-                const preview = document.getElementById('imagePreview');
                 if (p.imageUrl) {
-                    preview.style.backgroundImage = `url('${p.imageUrl}')`;
-                    preview.classList.add('has-image');
-                    document.getElementById('imagePreviewText').style.display = 'none';
-                    document.getElementById('imageActions').style.display = 'flex';
+                    const img = document.getElementById('previewImg');
+                    img.crossOrigin = 'anonymous';
+                    img.onload = function() {
+                        imageData.naturalWidth = img.naturalWidth;
+                        imageData.naturalHeight = img.naturalHeight;
+                        fitImage();
+                        img.style.display = 'block';
+                        document.getElementById('imagePlaceholder').style.display = 'none';
+                        document.getElementById('imageControls').style.display = 'block';
+                        setupDrag();
+                    };
+                    img.src = p.imageUrl;
                 }
                 
                 document.getElementById('formTitle').textContent = '✏️ Edit Product';
@@ -813,48 +611,36 @@
             }
         }
         
-        // Delete product
         async function deleteProduct(productId, productName) {
-            if (!confirm(`Delete "${productName}"?`)) return;
+            if (!confirm('Delete "' + productName + '"?')) return;
             showLoading(true);
             try {
                 await db.collection('products').doc(productId).delete();
-                showToast('Product deleted', 'success');
+                showToast('Deleted', 'success');
                 loadProducts();
             } catch (error) {
-                showToast('Error deleting', 'error');
+                showToast('Error', 'error');
             } finally {
                 showLoading(false);
             }
         }
         
-        // Reset form
         function resetForm() {
             document.getElementById('productForm').reset();
             document.getElementById('productId').value = '';
             editingProductId = null;
-            selectedImage = null;
-            originalImageData = null;
             existingImageUrl = null;
-            
-            const preview = document.getElementById('imagePreview');
-            preview.style.backgroundImage = '';
-            preview.classList.remove('has-image');
-            document.getElementById('imagePreviewText').style.display = 'block';
-            document.getElementById('imageActions').style.display = 'none';
-            
+            removeImage();
             document.getElementById('formTitle').textContent = '➕ Add New Product';
             document.getElementById('submitBtn').textContent = 'Add Product';
         }
         
-        function showLoading(show) {
-            document.getElementById('loadingOverlay').classList.toggle('show', show);
-        }
+        function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('show', show); }
         
-        function showToast(message, type = '') {
+        function showToast(msg, type) {
             const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = 'toast show ' + type;
+            toast.textContent = msg;
+            toast.className = 'toast show ' + (type || '');
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
     </script>
