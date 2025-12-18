@@ -154,10 +154,15 @@ Generate TWO descriptions for this product:
    - 350-450 words
    - Include these sections with ### headings:
      * Opening paragraph (80-100 words) with product name, key features, "Taytay, Rizal", use cases
-     * ### What Makes It Special (4-5 bullet points with features)
-     * ### Perfect Pairings (mention complementary products naturally)
-     * ### Ingredients (list main ingredients with keywords)
-     * ### Serving Suggestions (how to enjoy, storage, reheating)
+     * ### What Makes It Special
+       - Put each bullet point on a NEW LINE starting with "- "
+       - Example format:
+         - Premium ingredient feature
+         - Fresh daily preparation
+         - Unique characteristic
+     * ### Perfect Pairings (mention complementary products naturally in paragraph form)
+     * ### Ingredients (list main ingredients in paragraph or bullet form)
+     * ### Serving Suggestions (how to enjoy, storage, reheating in paragraph form)
      * Closing paragraph (40-60 words) with location keywords and call-to-action
    
    - SEO Keywords to include naturally (2-3 times each):
