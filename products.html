@@ -849,7 +849,7 @@
             grid.innerHTML = products.map(product => {
                 const catInfo = categoryData[product.category] || { name: product.category, emoji: '🍞' };
                 const slug = generateSlug(product.name);
-                const productPageUrl = product.productPageUrl || `products/${slug}.html`;
+                const productPageUrl = product.productPageUrl || `products/template.html?id=${product.id}`;
                 
                 return `
                     <div class="product-card">
