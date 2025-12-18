@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Product URLs - One-Time Script</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #5D4037;
+        }
+        button {
+            background: #E65100;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #FF8A50;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .log div {
+            margin: 5px 0;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .error {
+            color: #f44336;
+        }
+        .info {
+            color: #2196F3;
+        }
+        .warning {
+            color: #FF9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Product URLs</h1>
+        <p>This script will update all existing products in Firebase to use the correct dynamic template URL format.</p>
+        
+        <p><strong>What it does:</strong></p>
+        <ul>
+            <li>Finds all products with old URL format (products/slug.html)</li>
+            <li>Updates them to new format (products/template.html?id=xxx)</li>
+            <li>Preserves all other product data</li>
+        </ul>
+        
+        <p class="warning" style="background: #FFF3E0; padding: 10px; border-radius: 5px;">
+            ⚠️ <strong>Important:</strong> This is a one-time fix. After running, you can delete this file.
+        </p>
+        
+        <button id="fixButton" onclick="fixAllProducts()">Fix All Product URLs</button>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCv_6FGxvhMVbGjfGI5VKI9PyXaMlQeH2k",
+            authDomain: "breadhub-ce8fd.firebaseapp.com",
+            projectId: "breadhub-ce8fd",
+            storageBucket: "breadhub-ce8fd.firebasestorage.app",
+            messagingSenderId: "644722238875",
+            appId: "1:644722238875:web:15b04e93f9bc909e40ed3e"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        async function fixAllProducts() {
+            const button = document.getElementById('fixButton');
+            button.disabled = true;
+            button.textContent = 'Fixing...';
+            
+            log('Starting product URL fix...', 'info');
+            log('-----------------------------------', 'info');
+            
+            try {
+                // Get all products
+                const snapshot = await db.collection('products').get();
+                log(`Found ${snapshot.size} products in database`, 'info');
+                
+                let fixedCount = 0;
+                let skippedCount = 0;
+                let errorCount = 0;
+                
+                for (const doc of snapshot.docs) {
+                    const product = doc.data();
+                    const productId = doc.id;
+                    const productName = product.name || 'Unknown';
+                    
+                    // Check if product has old URL format
+                    const currentUrl = product.productPageUrl || '';
+                    const needsFix = currentUrl && !currentUrl.includes('template.html?id=');
+                    
+                    if (needsFix) {
+                        try {
+                            const newUrl = `products/template.html?id=${productId}`;
+                            
+                            await db.collection('products').doc(productId).update({
+                                productPageUrl: newUrl,
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            
+                            log(`✓ Fixed: ${productName}`, 'success');
+                            log(`  Old: ${currentUrl}`, 'info');
+                            log(`  New: ${newUrl}`, 'info');
+                            fixedCount++;
+                        } catch (error) {
+                            log(`✗ Error fixing ${productName}: ${error.message}`, 'error');
+                            errorCount++;
+                        }
+                    } else if (!currentUrl) {
+                        // Product doesn't have URL yet - add it
+                        try {
+                            const newUrl = `products/template.html?id=${productId}`;
+                            
+                            await db.collection('products').doc(productId).update({
+                                productPageUrl: newUrl,
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            
+                            log(`✓ Added URL: ${productName}`, 'success');
+                            log(`  New: ${newUrl}`, 'info');
+                            fixedCount++;
+                        } catch (error) {
+                            log(`✗ Error adding URL to ${productName}: ${error.message}`, 'error');
+                            errorCount++;
+                        }
+                    } else {
+                        log(`○ Skipped (already correct): ${productName}`, 'warning');
+                        skippedCount++;
+                    }
+                }
+                
+                log('-----------------------------------', 'info');
+                log(`✅ Complete! Fixed: ${fixedCount} | Skipped: ${skippedCount} | Errors: ${errorCount}`, 'success');
+                
+                if (errorCount === 0) {
+                    log('', 'info');
+                    log('🎉 All products updated successfully!', 'success');
+                    log('You can now:', 'info');
+                    log('1. Go to breadhub.shop/products.html', 'info');
+                    log('2. Click "View" on any product', 'info');
+                    log('3. Product pages should now load correctly!', 'info');
+                    log('4. Delete this fix-product-urls.html file', 'info');
+                }
+                
+                button.textContent = 'Done!';
+                
+            } catch (error) {
+                log(`Fatal error: ${error.message}`, 'error');
+                button.disabled = false;
+                button.textContent = 'Retry';
+            }
+        }
+    </script>
+</body>
+</html>
