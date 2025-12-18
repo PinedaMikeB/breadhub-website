@@ -206,8 +206,38 @@
                     </div>
                     
                     <div class="form-group full-width">
-                        <label>Description</label>
-                        <textarea id="productDescription" rows="3" placeholder="Describe your product..."></textarea>
+                        <label>Description (Short - for product cards)</label>
+                        <textarea id="productDescription" rows="3" placeholder="Brief description for product listing..."></textarea>
+                        <small style="color:var(--brown);font-size:0.85rem;">This will be truncated to ~80 characters on product cards</small>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label>Full Description (SEO - for product pages)</label>
+                        <textarea id="productFullDescription" rows="8" placeholder="Detailed description with keywords for SEO...
+
+Example:
+Our signature [Product Name] is baked fresh daily using premium ingredients...
+
+### What Makes It Special
+- Premium ingredients
+- Fresh daily
+- Artisan crafted
+
+### Perfect For
+- Breakfast with coffee
+- Afternoon snacks
+"></textarea>
+                        <small style="color:var(--brown);font-size:0.85rem;">Use this for SEO-rich content. Supports simple markdown (###, -, etc.)</small>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label>
+                            <input type="checkbox" id="generateProductPage" checked style="width:auto;margin-right:0.5rem;">
+                            Auto-generate individual product page
+                        </label>
+                        <small style="color:var(--brown);font-size:0.85rem;display:block;margin-top:0.5rem;">
+                            When checked, creates a dedicated page for this product (e.g., products/chocolate-donut.html?id=xxx)
+                        </small>
                     </div>
                     
                     <div class="form-group full-width">
@@ -537,14 +567,25 @@
             showLoading(true);
             
             try {
+                const productName = document.getElementById('productName').value;
                 const productData = {
-                    name: document.getElementById('productName').value,
+                    name: productName,
                     price: parseFloat(document.getElementById('productPrice').value),
                     category: document.getElementById('productCategory').value,
                     description: document.getElementById('productDescription').value,
+                    fullDescription: document.getElementById('productFullDescription').value,
                     isActive: document.getElementById('productStatus').value === 'true',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
+                
+                // Generate slug and product page URL
+                const slug = productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                const generatePage = document.getElementById('generateProductPage').checked;
+                
+                if (generatePage) {
+                    productData.productPageUrl = `products/template.html?id=${editingProductId || 'NEW'}`;
+                    productData.slug = slug;
+                }
                 
                 const imageBlob = await generateFinalImage();
                 if (imageBlob) {
@@ -558,7 +599,15 @@
                     showToast('Product updated!', 'success');
                 } else {
                     productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    await db.collection('products').add(productData);
+                    const docRef = await db.collection('products').add(productData);
+                    
+                    // Update product page URL with actual document ID
+                    if (generatePage) {
+                        await db.collection('products').doc(docRef.id).update({
+                            productPageUrl: `products/template.html?id=${docRef.id}`
+                        });
+                    }
+                    
                     showToast('Product added!', 'success');
                 }
                 
@@ -586,7 +635,9 @@
                 document.getElementById('productPrice').value = p.price;
                 document.getElementById('productCategory').value = p.category;
                 document.getElementById('productDescription').value = p.description || '';
+                document.getElementById('productFullDescription').value = p.fullDescription || '';
                 document.getElementById('productStatus').value = p.isActive.toString();
+                document.getElementById('generateProductPage').checked = !!p.productPageUrl;
                 
                 if (p.imageUrl) {
                     const img = document.getElementById('previewImg');
@@ -628,6 +679,8 @@
         function resetForm() {
             document.getElementById('productForm').reset();
             document.getElementById('productId').value = '';
+            document.getElementById('productFullDescription').value = '';
+            document.getElementById('generateProductPage').checked = true;
             editingProductId = null;
             existingImageUrl = null;
             removeImage();

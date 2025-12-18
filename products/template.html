@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">Product | BreadHub Taytay</title>
+    <meta name="description" content="" id="pageDescription">
+    <meta name="keywords" content="" id="pageKeywords">
+    <link rel="canonical" href="" id="pageCanonical">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="" id="ogTitle">
+    <meta property="og:description" content="" id="ogDescription">
+    <meta property="og:type" content="product">
+    <meta property="og:url" content="" id="ogUrl">
+    <meta property="og:image" content="" id="ogImage">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Product Schema will be injected here by JavaScript -->
+    <script type="application/ld+json" id="productSchema"></script>
+    
+    <style>
+        :root {
+            --cream: #FDF6E3;
+            --cream-dark: #F5E6C8;
+            --brown: #5D4037;
+            --brown-dark: #3E2723;
+            --orange: #E65100;
+            --orange-light: #FF8A50;
+            --white: #FFFFFF;
+            --shadow: rgba(93, 64, 55, 0.15);
+            --success: #4CAF50;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Source Sans 3', sans-serif;
+            background: var(--cream);
+            color: var(--brown-dark);
+            line-height: 1.6;
+        }
+        
+        h1, h2, h3 { font-family: 'Playfair Display', serif; }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--brown) 0%, var(--brown-dark) 100%);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px var(--shadow);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--cream);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        nav { display: flex; gap: 2rem; align-items: center; }
+        
+        nav a {
+            color: var(--cream);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        
+        nav a:hover { color: var(--orange-light); }
+        
+        /* Breadcrumb */
+        .breadcrumb {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            font-size: 0.9rem;
+        }
+        
+        .breadcrumb a {
+            color: var(--brown);
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            color: var(--orange);
+        }
+        
+        .breadcrumb span {
+            color: var(--brown);
+            margin: 0 0.5rem;
+        }
+        
+        /* Product Page */
+        .product-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .product-hero {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            background: var(--white);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 3rem;
+        }
+        
+        .product-images {
+            position: relative;
+        }
+        
+        .main-image {
+            width: 100%;
+            aspect-ratio: 1;
+            background: var(--cream-dark);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-size: cover;
+            background-position: center;
+            font-size: 8rem;
+        }
+        
+        .product-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .product-category-badge {
+            display: inline-block;
+            background: var(--orange);
+            color: var(--white);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: fit-content;
+        }
+        
+        .product-name-large {
+            font-size: 2.5rem;
+            color: var(--brown-dark);
+            margin: 0;
+        }
+        
+        .product-price-large {
+            font-size: 2.5rem;
+            color: var(--orange);
+            font-weight: 700;
+        }
+        
+        .product-short-desc {
+            font-size: 1.1rem;
+            color: var(--brown);
+            line-height: 1.8;
+        }
+        
+        .add-to-cart-large {
+            background: var(--orange);
+            color: var(--white);
+            border: none;
+            padding: 1.25rem 2rem;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(230, 81, 0, 0.4);
+        }
+        
+        .add-to-cart-large:hover {
+            background: var(--orange-light);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(230, 81, 0, 0.5);
+        }
+        
+        .quick-info {
+            background: var(--cream);
+            padding: 1.5rem;
+            border-radius: 12px;
+        }
+        
+        .quick-info p {
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .quick-info p:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* Product Details Section */
+        .product-details-full {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 3rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 3rem;
+        }
+        
+        .product-details-full h2 {
+            font-size: 2rem;
+            color: var(--brown-dark);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--cream-dark);
+        }
+        
+        .product-details-full h3 {
+            font-size: 1.5rem;
+            color: var(--brown);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .product-details-full p {
+            font-size: 1.05rem;
+            line-height: 1.8;
+            margin-bottom: 1.5rem;
+            text-align: justify;
+        }
+        
+        .product-details-full ul {
+            margin-left: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .product-details-full li {
+            font-size: 1.05rem;
+            line-height: 1.8;
+            margin-bottom: 0.75rem;
+        }
+        
+        .product-details-full strong {
+            color: var(--brown-dark);
+        }
+        
+        /* Back to Products */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--brown);
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            transition: color 0.3s ease;
+        }
+        
+        .back-link:hover {
+            color: var(--orange);
+        }
+        
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--brown);
+        }
+        
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid var(--cream-dark);
+            border-top-color: var(--orange);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 1rem;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--brown-dark);
+            color: var(--white);
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+            z-index: 400;
+        }
+        
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        /* Footer */
+        .footer {
+            background: linear-gradient(135deg, var(--brown-dark) 0%, var(--brown) 100%);
+            color: var(--cream);
+            padding: 3rem 2rem;
+            text-align: center;
+            margin-top: 4rem;
+        }
+        
+        .footer h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+        
+        .footer p {
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header { padding: 1rem; }
+            .logo { font-size: 1.5rem; }
+            .product-hero {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+                padding: 1.5rem;
+            }
+            .product-name-large { font-size: 2rem; }
+            .product-price-large { font-size: 2rem; }
+            .product-details-full { padding: 1.5rem; }
+            .product-details-full h2 { font-size: 1.5rem; }
+            .main-image { font-size: 6rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="../index.html" class="logo">🍞 BreadHub</a>
+            <nav>
+                <a href="../index.html">Home</a>
+                <a href="../products.html">Products</a>
+                <a href="https://m.me/61581500712810" target="_blank">Contact</a>
+            </nav>
+        </div>
+    </header>
+    
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="../index.html">Home</a>
+        <span>›</span>
+        <a href="../products.html">Products</a>
+        <span>›</span>
+        <span id="breadcrumbProduct">Loading...</span>
+    </div>
+    
+    <!-- Main Content -->
+    <main class="product-page">
+        <a href="../products.html" class="back-link">← Back to Products</a>
+        
+        <div id="productContent">
+            <div class="loading">Loading product details</div>
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <h3>🍞 BreadHub Taytay</h3>
+            <p>Fresh Artisan Breads & Pastries</p>
+            <p>Taytay, Rizal, Philippines</p>
+            <p style="margin-top: 2rem; opacity: 0.7;">© 2024 BreadHub. All rights reserved.</p>
+        </div>
+    </footer>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCv_6FGxvhMVbGjfGI5VKI9PyXaMlQeH2k",
+            authDomain: "breadhub-ce8fd.firebaseapp.com",
+            projectId: "breadhub-ce8fd",
+            storageBucket: "breadhub-ce8fd.firebasestorage.app",
+            messagingSenderId: "644722238875",
+            appId: "1:644722238875:web:15b04e93f9bc909e40ed3e"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        const categoryData = {
+            'donut': { name: 'Donuts', emoji: '🍩' },
+            'savory': { name: 'Savory', emoji: '🥐' },
+            'loaf': { name: 'Loaf Breads', emoji: '🍞' },
+            'cookies': { name: 'Cookies', emoji: '🍪' },
+            'cinnamon-rolls': { name: 'Cinnamon Rolls', emoji: '🥮' },
+            'classic-filipino': { name: 'Classic Filipino', emoji: '🥖' },
+            'roti': { name: 'Roti', emoji: '🫓' },
+            'cakes': { name: 'Cakes', emoji: '🎂' },
+            'pandesal': { name: 'Pandesal', emoji: '🥯' },
+            'desserts': { name: 'Desserts', emoji: '🧁' }
+        };
+        
+        // Get product ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const productId = urlParams.get('id');
+        
+        // Load product
+        async function loadProduct() {
+            if (!productId) {
+                showError('Product not found');
+                return;
+            }
+            
+            try {
+                const doc = await db.collection('products').doc(productId).get();
+                
+                if (!doc.exists) {
+                    showError('Product not found');
+                    return;
+                }
+                
+                const product = doc.data();
+                const catInfo = categoryData[product.category] || { name: product.category, emoji: '🍞' };
+                
+                // Update meta tags
+                const productName = `${product.name} | BreadHub Taytay`;
+                const productDesc = product.fullDescription || product.description || `Order ${product.name} from BreadHub Taytay. Fresh baked goods delivered to your door.`;
+                const productUrl = window.location.href.split('?')[0];
+                
+                document.getElementById('pageTitle').textContent = productName;
+                document.getElementById('pageDescription').setAttribute('content', productDesc.substring(0, 160));
+                document.getElementById('pageKeywords').setAttribute('content', `${product.name}, ${catInfo.name}, bread taytay, bakery taytay, ${product.name} taytay`);
+                document.getElementById('pageCanonical').setAttribute('href', productUrl);
+                
+                document.getElementById('ogTitle').setAttribute('content', productName);
+                document.getElementById('ogDescription').setAttribute('content', productDesc.substring(0, 160));
+                document.getElementById('ogUrl').setAttribute('content', productUrl);
+                document.getElementById('ogImage').setAttribute('content', product.imageUrl || 'https://breadhub.shop/images/og-image.jpg');
+                
+                // Update breadcrumb
+                document.getElementById('breadcrumbProduct').textContent = product.name;
+                
+                // Generate Product Schema
+                const schema = {
+                    "@context": "https://schema.org",
+                    "@type": "Product",
+                    "name": product.name,
+                    "description": productDesc,
+                    "image": product.imageUrl || '',
+                    "brand": {
+                        "@type": "Brand",
+                        "name": "BreadHub Taytay"
+                    },
+                    "offers": {
+                        "@type": "Offer",
+                        "price": product.price.toFixed(2),
+                        "priceCurrency": "PHP",
+                        "availability": "https://schema.org/InStock",
+                        "url": productUrl
+                    }
+                };
+                
+                document.getElementById('productSchema').textContent = JSON.stringify(schema, null, 2);
+                
+                // Render product content
+                renderProduct(product, catInfo);
+                
+            } catch (error) {
+                console.error('Error loading product:', error);
+                showError('Error loading product');
+            }
+        }
+        
+        function renderProduct(product, catInfo) {
+            const content = document.getElementById('productContent');
+            
+            const fullDescription = product.fullDescription || product.description || '';
+            const shortDescription = product.description || '';
+            
+            content.innerHTML = `
+                <div class="product-hero">
+                    <div class="product-images">
+                        <div class="main-image" style="${product.imageUrl ? `background-image:url('${product.imageUrl}')` : ''}">
+                            ${!product.imageUrl ? catInfo.emoji : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="product-sidebar">
+                        <div class="product-category-badge">${catInfo.emoji} ${catInfo.name}</div>
+                        <h1 class="product-name-large">${product.name}</h1>
+                        <p class="product-short-desc">${shortDescription}</p>
+                        <div class="product-price-large">₱${product.price.toFixed(2)}</div>
+                        <button class="add-to-cart-large" onclick="addToCart('${productId}', '${product.name}', ${product.price}, '${product.imageUrl || ''}', '${product.category}')">
+                            🛒 Add to Cart
+                        </button>
+                        <div class="quick-info">
+                            <p>🕐 <strong>Order before 6 PM</strong> for next-day delivery</p>
+                            <p>📍 <strong>Delivery available</strong> in Taytay & nearby areas</p>
+                            <p>✓ <strong>Fresh Daily</strong> - Baked with premium ingredients</p>
+                        </div>
+                    </div>
+                </div>
+                
+                ${fullDescription ? `
+                <div class="product-details-full">
+                    <h2>About ${product.name}</h2>
+                    ${formatDescription(fullDescription)}
+                </div>
+                ` : ''}
+            `;
+        }
+        
+        function formatDescription(text) {
+            // Simple markdown-like formatting
+            return text
+                .split('\n\n')
+                .map(para => {
+                    if (para.startsWith('###')) {
+                        return `<h3>${para.replace('###', '').trim()}</h3>`;
+                    } else if (para.startsWith('##')) {
+                        return `<h2>${para.replace('##', '').trim()}</h2>`;
+                    } else if (para.startsWith('- ')) {
+                        const items = para.split('\n').map(item => item.replace(/^- /, '').trim());
+                        return `<ul>${items.map(item => `<li>${item}</li>`).join('')}</ul>`;
+                    } else {
+                        return `<p>${para}</p>`;
+                    }
+                })
+                .join('');
+        }
+        
+        function showError(message) {
+            document.getElementById('productContent').innerHTML = `
+                <div style="text-align:center; padding:3rem;">
+                    <h2 style="color:var(--brown); margin-bottom:1rem;">${message}</h2>
+                    <p><a href="../products.html" style="color:var(--orange)">← Back to Products</a></p>
+                </div>
+            `;
+        }
+        
+        // Cart functions
+        function addToCart(id, name, price, imageUrl, category) {
+            let cart = JSON.parse(localStorage.getItem('breadhub_cart') || '[]');
+            
+            const existing = cart.find(item => item.id === id);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                cart.push({
+                    id: id,
+                    name: name,
+                    price: price,
+                    imageUrl: imageUrl,
+                    category: category,
+                    quantity: 1
+                });
+            }
+            
+            localStorage.setItem('breadhub_cart', JSON.stringify(cart));
+            showToast(`${name} added to cart!`);
+        }
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', loadProduct);
+    </script>
+</body>
+</html>
