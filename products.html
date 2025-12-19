@@ -1125,7 +1125,7 @@
         }
         
         // Submit order via Messenger
-        function submitOrder(e) {
+        async function submitOrder(e) {
             e.preventDefault();
             
             const name = document.getElementById('customerName').value;
@@ -1135,15 +1135,42 @@
             
             const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             
-            // Build order message
-            let message = `🍞 NEW ORDER from BreadHub Website\n\n`;
-            message += `👤 Customer: ${name}\n`;
-            message += `📞 Phone: ${phone}\n`;
-            message += `📍 Address: ${address}\n`;
-            if (notes) message += `📝 Notes: ${notes}\n`;
-            message += `\n📦 ORDER DETAILS:\n`;
-            message += cart.map(item => `• ${item.name} x${item.quantity} = ₱${(item.price * item.quantity).toFixed(2)}`).join('\n');
-            message += `\n\n💰 TOTAL: ₱${totalPrice.toFixed(2)}`;
+            // Generate short order ID
+            const orderId = 'BH' + Date.now().toString(36).toUpperCase();
+            
+            // Save order to Firebase
+            try {
+                await db.collection('orders').add({
+                    orderId: orderId,
+                    customer: {
+                        name: name,
+                        phone: phone,
+                        address: address,
+                        notes: notes || ''
+                    },
+                    items: cart.map(item => ({
+                        name: item.name,
+                        price: item.price,
+                        quantity: item.quantity,
+                        variant: item.variant || null
+                    })),
+                    total: totalPrice,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log('Order saved to Firebase:', orderId);
+            } catch (error) {
+                console.error('Error saving order:', error);
+                // Continue anyway - Messenger will still work
+            }
+            
+            // Build SHORT message for Messenger (to avoid URL length issues)
+            // Keep it simple: Order ID, name, phone, total
+            let message = `🍞 Order #${orderId}\n`;
+            message += `👤 ${name}\n`;
+            message += `📞 ${phone}\n`;
+            message += `💰 Total: ₱${totalPrice.toFixed(2)}\n`;
+            message += `📦 ${cart.length} item(s)`;
             
             // Encode and open Messenger
             const encodedMessage = encodeURIComponent(message);
@@ -1155,7 +1182,7 @@
             updateCartUI();
             closeCheckoutModal();
             
-            showToast('Order sent! Please complete the conversation in Messenger.');
+            showToast(`Order #${orderId} submitted! Complete in Messenger.`);
         }
         
         // Show toast notification
