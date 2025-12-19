@@ -399,6 +399,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
         let productVariants = []; // For storing size variants
+        let imageIsEditable = false; // Track if image was loaded and is editable
         
         // Drinks categories that support variants
         const drinkCategories = ['drinks', 'coffee', 'non-coffee'];
@@ -562,6 +563,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                     document.getElementById('imagePlaceholder').style.display = 'none';
                     document.getElementById('imageControls').style.display = 'block';
                     setupDrag();
+                    imageIsEditable = true; // Mark as editable
                     
                     // Remove existing image note if present
                     const note = document.getElementById('existingImageNote');
@@ -599,12 +601,15 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                     document.getElementById('imagePlaceholder').style.display = 'none';
                     document.getElementById('imageControls').style.display = 'block';
                     setupDrag();
+                    imageIsEditable = true; // Mark as editable
                 };
                 img.src = dataUrl;
             };
             
             tempImg.onerror = function() {
                 console.log('CORS blocked, showing preview only');
+                imageIsEditable = false; // Mark as NOT editable
+                
                 // Fallback: show as background with note
                 const imageBox = document.getElementById('imageBox');
                 imageBox.style.backgroundImage = `url('${imageUrl}')`;
@@ -733,6 +738,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             document.getElementById('sizeValue').textContent = '100';
             imageData = { naturalWidth: 0, naturalHeight: 0, x: 0, y: 0, scale: 100 };
             existingImageUrl = null;
+            imageIsEditable = false;
             
             // Clear background image if set
             const imageBox = document.getElementById('imageBox');
@@ -749,7 +755,8 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         function generateFinalImage() {
             return new Promise((resolve) => {
                 const img = document.getElementById('previewImg');
-                if (!img.src || img.style.display === 'none') {
+                // Only generate if image is editable (loaded as data URL, not just background preview)
+                if (!imageIsEditable || !img.src || img.style.display === 'none') {
                     resolve(null);
                     return;
                 }
