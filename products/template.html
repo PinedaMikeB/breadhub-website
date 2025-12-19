@@ -176,6 +176,29 @@
             font-weight: 700;
         }
         
+        /* Size selector for product page */
+        .size-select-large {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border: 2px solid var(--cream-dark);
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 1.1rem;
+            color: var(--brown-dark);
+            background: var(--white);
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+        
+        .size-select-large:hover {
+            border-color: var(--orange);
+        }
+        
+        .size-select-large:focus {
+            outline: none;
+            border-color: var(--orange);
+        }
+        
         .product-short-desc {
             font-size: 1.1rem;
             color: var(--brown);
@@ -516,6 +539,35 @@
             // Format description with smart links
             const formattedDescription = fullDescription ? await formatDescriptionWithLinks(fullDescription, product.category) : '';
             
+            // Check if product has variants
+            const hasVariants = product.hasVariants && product.variants && product.variants.length > 0;
+            
+            // Build price display
+            let priceDisplay = `₱${product.price.toFixed(2)}`;
+            if (hasVariants) {
+                const prices = product.variants.map(v => v.price);
+                const minPrice = Math.min(...prices);
+                priceDisplay = `₱${minPrice.toFixed(2)}`;
+            }
+            
+            // Build variant selector HTML
+            let variantSelectorHtml = '';
+            if (hasVariants) {
+                variantSelectorHtml = `
+                    <div class="variant-selector-large" style="margin-bottom:1rem;">
+                        <label style="display:block;font-weight:600;margin-bottom:0.5rem;color:var(--brown-dark);">Select Size:</label>
+                        <select id="productVariantSelect" class="size-select-large" onchange="updateSelectedVariant()">
+                            ${product.variants.map((v, i) => `
+                                <option value="${i}" data-price="${v.price}" data-name="${v.name}">${v.name}${v.size ? ' (' + v.size + ')' : ''} - ₱${v.price.toFixed(2)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                `;
+            }
+            
+            // Store product data globally for the add to cart function
+            window.currentProduct = product;
+            
             content.innerHTML = `
                 <div class="product-hero">
                     <div class="product-images">
@@ -528,8 +580,9 @@
                         <div class="product-category-badge">${catInfo.emoji} ${catInfo.name}</div>
                         <h1 class="product-name-large">${product.name}</h1>
                         <p class="product-short-desc">${shortDescription}</p>
-                        <div class="product-price-large">₱${product.price.toFixed(2)}</div>
-                        <button class="add-to-cart-large" onclick="addToCart('${productId}', '${product.name}', ${product.price}, '${product.imageUrl || ''}', '${product.category}')">
+                        <div class="product-price-large" id="displayPrice">${priceDisplay}</div>
+                        ${variantSelectorHtml}
+                        <button class="add-to-cart-large" onclick="addToCartWithVariant()">
                             🛒 Add to Cart
                         </button>
                         <div class="quick-info">
@@ -565,6 +618,42 @@
                     </div>
                 </div>
             `;
+        }
+        
+        // Update displayed price when variant changes
+        function updateSelectedVariant() {
+            const select = document.getElementById('productVariantSelect');
+            if (!select) return;
+            
+            const selectedOption = select.options[select.selectedIndex];
+            const price = parseFloat(selectedOption.dataset.price);
+            
+            document.getElementById('displayPrice').textContent = `₱${price.toFixed(2)}`;
+        }
+        
+        // Add to cart with variant support
+        function addToCartWithVariant() {
+            const product = window.currentProduct;
+            if (!product) return;
+            
+            let selectedVariant = null;
+            let itemPrice = product.price;
+            let itemName = product.name;
+            
+            // Check if product has variants
+            if (product.hasVariants && product.variants && product.variants.length > 0) {
+                const select = document.getElementById('productVariantSelect');
+                if (select) {
+                    const variantIndex = parseInt(select.value);
+                    selectedVariant = product.variants[variantIndex];
+                    if (selectedVariant) {
+                        itemPrice = selectedVariant.price;
+                        itemName = `${product.name} (${selectedVariant.name})`;
+                    }
+                }
+            }
+            
+            addToCart(productId, itemName, itemPrice, product.imageUrl || '', product.category, selectedVariant);
         }
         
         async function formatDescriptionWithLinks(text, currentCategory) {
@@ -658,20 +747,25 @@
         }
         
         // Cart functions
-        function addToCart(id, name, price, imageUrl, category) {
+        function addToCart(id, name, price, imageUrl, category, variant = null) {
             let cart = JSON.parse(localStorage.getItem('breadhub_cart') || '[]');
             
-            const existing = cart.find(item => item.id === id);
+            // Create unique cart ID for variants
+            const cartId = variant ? `${id}_${variant.name}` : id;
+            
+            const existing = cart.find(item => (item.cartId || item.id) === cartId);
             if (existing) {
                 existing.quantity++;
             } else {
                 cart.push({
+                    cartId: cartId,
                     id: id,
                     name: name,
                     price: price,
                     imageUrl: imageUrl,
                     category: category,
-                    quantity: 1
+                    quantity: 1,
+                    variant: variant
                 });
             }
             

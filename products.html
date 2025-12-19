@@ -248,6 +248,33 @@
             color: var(--orange);
         }
         
+        /* Size variant selector */
+        .variant-selector {
+            width: 100%;
+        }
+        
+        .size-select {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 2px solid var(--cream-dark);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            color: var(--brown-dark);
+            background: var(--white);
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+        
+        .size-select:hover {
+            border-color: var(--orange);
+        }
+        
+        .size-select:focus {
+            outline: none;
+            border-color: var(--orange);
+        }
+        
         .product-actions {
             display: flex;
             gap: 0.5rem;
@@ -854,6 +881,36 @@
                 const slug = generateSlug(product.name);
                 const productPageUrl = product.productPageUrl || `products/template.html?id=${product.id}`;
                 
+                // Check if product has variants
+                const hasVariants = product.hasVariants && product.variants && product.variants.length > 0;
+                
+                // Build price display
+                let priceDisplay = `₱${product.price.toFixed(2)}`;
+                if (hasVariants) {
+                    const prices = product.variants.map(v => v.price);
+                    const minPrice = Math.min(...prices);
+                    const maxPrice = Math.max(...prices);
+                    if (minPrice !== maxPrice) {
+                        priceDisplay = `₱${minPrice.toFixed(2)} - ₱${maxPrice.toFixed(2)}`;
+                    } else {
+                        priceDisplay = `₱${minPrice.toFixed(2)}`;
+                    }
+                }
+                
+                // Build variant selector if has variants
+                let variantSelector = '';
+                if (hasVariants) {
+                    variantSelector = `
+                        <div class="variant-selector" style="margin-bottom:0.75rem;">
+                            <select id="variant-${product.id}" class="size-select" onchange="updateProductPrice('${product.id}')">
+                                ${product.variants.map((v, i) => `
+                                    <option value="${i}" data-price="${v.price}">${v.name}${v.size ? ' (' + v.size + ')' : ''} - ₱${v.price.toFixed(2)}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    `;
+                }
+                
                 return `
                     <div class="product-card">
                         <div class="product-image" style="${product.imageUrl ? `background-image:url('${product.imageUrl}')` : ''}" onclick="window.location.href='${productPageUrl}'">
@@ -863,17 +920,32 @@
                             <div class="product-category">${catInfo.name}</div>
                             <h3 class="product-name" onclick="window.location.href='${productPageUrl}'">${product.name}</h3>
                             <p class="product-description">${truncateText(product.description, 80)}</p>
+                            ${variantSelector}
                             <div class="product-footer">
-                                <span class="product-price">₱${product.price.toFixed(2)}</span>
+                                <span class="product-price" id="price-${product.id}">${priceDisplay}</span>
                                 <div class="product-actions">
                                     <a href="${productPageUrl}" class="view-product">View</a>
-                                    <button class="add-to-cart" onclick="addToCart('${product.id}')">Add to Cart</button>
+                                    <button class="add-to-cart" onclick="addToCart('${product.id}')">Add</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+        
+        // Update displayed price when variant changes
+        function updateProductPrice(productId) {
+            const product = allProducts.find(p => p.id === productId);
+            if (!product || !product.hasVariants) return;
+            
+            const select = document.getElementById(`variant-${productId}`);
+            const variantIndex = parseInt(select.value);
+            const variant = product.variants[variantIndex];
+            
+            if (variant) {
+                document.getElementById(`price-${productId}`).textContent = `₱${variant.price.toFixed(2)}`;
+            }
         }
         
         // Filter products by category
@@ -902,26 +974,54 @@
             const product = allProducts.find(p => p.id === productId);
             if (!product) return;
             
-            const existing = cart.find(item => item.id === productId);
+            // Check if product has variants
+            let selectedVariant = null;
+            let cartItemId = productId;
+            let itemPrice = product.price;
+            let itemName = product.name;
+            
+            if (product.hasVariants && product.variants && product.variants.length > 0) {
+                const select = document.getElementById(`variant-${productId}`);
+                if (select) {
+                    const variantIndex = parseInt(select.value);
+                    selectedVariant = product.variants[variantIndex];
+                    if (selectedVariant) {
+                        cartItemId = `${productId}_${selectedVariant.name}`;
+                        itemPrice = selectedVariant.price;
+                        itemName = `${product.name} (${selectedVariant.name})`;
+                    }
+                }
+            }
+            
+            const existing = cart.find(item => item.cartId === cartItemId);
             if (existing) {
                 existing.quantity++;
             } else {
-                cart.push({ id: productId, quantity: 1, ...product });
+                cart.push({ 
+                    cartId: cartItemId,
+                    id: productId, 
+                    quantity: 1, 
+                    name: itemName,
+                    price: itemPrice,
+                    category: product.category,
+                    imageUrl: product.imageUrl,
+                    variant: selectedVariant
+                });
             }
             
             saveCart();
             updateCartUI();
-            showToast(`${product.name} added to cart!`);
+            showToast(`${itemName} added to cart!`);
         }
         
         // Update cart quantity
-        function updateQuantity(productId, delta) {
-            const item = cart.find(i => i.id === productId);
+        function updateQuantity(cartItemId, delta) {
+            const item = cart.find(i => (i.cartId || i.id) === cartItemId);
             if (!item) return;
             
             item.quantity += delta;
             if (item.quantity <= 0) {
-                cart = cart.filter(i => i.id !== productId);
+                cart = cart.filter(i => (i.cartId || i.id) !== cartItemId);
             }
             
             saveCart();
@@ -929,8 +1029,8 @@
         }
         
         // Remove from cart
-        function removeFromCart(productId) {
-            cart = cart.filter(i => i.id !== productId);
+        function removeFromCart(cartItemId) {
+            cart = cart.filter(i => (i.cartId || i.id) !== cartItemId);
             saveCart();
             updateCartUI();
         }
@@ -966,6 +1066,7 @@
             
             cartItems.innerHTML = cart.map(item => {
                 const catInfo = categoryData[item.category] || { emoji: '🍞' };
+                const itemId = item.cartId || item.id;
                 return `
                     <div class="cart-item">
                         <div class="cart-item-image" style="${item.imageUrl ? `background-image:url('${item.imageUrl}')` : ''}">
@@ -976,11 +1077,11 @@
                             <div class="cart-item-price">₱${(item.price * item.quantity).toFixed(2)}</div>
                         </div>
                         <div class="cart-item-qty">
-                            <button class="qty-btn" onclick="updateQuantity('${item.id}', -1)">-</button>
+                            <button class="qty-btn" onclick="updateQuantity('${itemId}', -1)">-</button>
                             <span>${item.quantity}</span>
-                            <button class="qty-btn" onclick="updateQuantity('${item.id}', 1)">+</button>
+                            <button class="qty-btn" onclick="updateQuantity('${itemId}', 1)">+</button>
                         </div>
-                        <button class="remove-item" onclick="removeFromCart('${item.id}')">🗑️</button>
+                        <button class="remove-item" onclick="removeFromCart('${itemId}')">🗑️</button>
                     </div>
                 `;
             }).join('');

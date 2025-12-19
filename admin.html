@@ -175,14 +175,37 @@
                         <input type="text" id="productName" required placeholder="e.g., Chocolate Donut">
                     </div>
                     
-                    <div class="form-group">
+                    <div class="form-group" id="priceGroup">
                         <label>Price (₱) *</label>
                         <input type="number" id="productPrice" required min="0" step="0.01" placeholder="0.00">
                     </div>
                     
+                    <!-- Size Variants Section (for drinks) -->
+                    <div class="form-group full-width" id="variantsSection" style="display:none; background:var(--cream);padding:1.5rem;border-radius:12px;">
+                        <label style="font-size:1.1rem;display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+                            🥤 Size Variants
+                            <small style="font-weight:normal;color:var(--brown);">(for drinks with different sizes)</small>
+                        </label>
+                        
+                        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+                            <input type="checkbox" id="hasVariants" onchange="toggleVariants()">
+                            <label for="hasVariants" style="font-weight:normal;margin:0;">This product has size variants (Tall, Grande, Venti)</label>
+                        </div>
+                        
+                        <div id="variantsContainer" style="display:none;">
+                            <div id="variantsList"></div>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addVariant()" style="margin-top:0.5rem;">
+                                + Add Size Variant
+                            </button>
+                            <p style="font-size:0.85rem;color:var(--brown);margin-top:0.75rem;">
+                                💡 Common sizes: Tall (12oz), Grande (16oz), Venti (20oz)
+                            </p>
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label>Category *</label>
-                        <select id="productCategory" required>
+                        <select id="productCategory" required onchange="handleCategoryChange()">
                             <option value="">Select category...</option>
                             <option value="donut">🍩 Donuts</option>
                             <option value="savory">🥐 Savory</option>
@@ -375,6 +398,93 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         let imageData = { naturalWidth: 0, naturalHeight: 0, x: 0, y: 0, scale: 100 };
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
+        let productVariants = []; // For storing size variants
+        
+        // Drinks categories that support variants
+        const drinkCategories = ['drinks', 'coffee', 'non-coffee'];
+        
+        // Show/hide variants section based on category
+        function handleCategoryChange() {
+            const category = document.getElementById('productCategory').value;
+            const variantsSection = document.getElementById('variantsSection');
+            const priceGroup = document.getElementById('priceGroup');
+            const hasVariants = document.getElementById('hasVariants');
+            
+            if (drinkCategories.includes(category)) {
+                variantsSection.style.display = 'block';
+            } else {
+                variantsSection.style.display = 'none';
+                hasVariants.checked = false;
+                toggleVariants();
+            }
+        }
+        
+        // Toggle variants container
+        function toggleVariants() {
+            const hasVariants = document.getElementById('hasVariants').checked;
+            const variantsContainer = document.getElementById('variantsContainer');
+            const priceInput = document.getElementById('productPrice');
+            
+            if (hasVariants) {
+                variantsContainer.style.display = 'block';
+                priceInput.removeAttribute('required');
+                priceInput.parentElement.querySelector('label').innerHTML = 'Base Price (₱) <small style="font-weight:normal;">(optional if variants set)</small>';
+                
+                // Add default variants if empty
+                if (productVariants.length === 0) {
+                    productVariants = [
+                        { name: 'Tall', size: '12oz', price: 0 },
+                        { name: 'Grande', size: '16oz', price: 0 },
+                        { name: 'Venti', size: '20oz', price: 0 }
+                    ];
+                }
+                renderVariants();
+            } else {
+                variantsContainer.style.display = 'none';
+                priceInput.setAttribute('required', 'required');
+                priceInput.parentElement.querySelector('label').innerHTML = 'Price (₱) *';
+                productVariants = [];
+            }
+        }
+        
+        // Render variants list
+        function renderVariants() {
+            const list = document.getElementById('variantsList');
+            list.innerHTML = productVariants.map((v, i) => `
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;margin-bottom:0.5rem;align-items:end;">
+                    <div>
+                        <label style="font-size:0.85rem;">Size Name</label>
+                        <input type="text" value="${v.name}" onchange="updateVariant(${i}, 'name', this.value)" placeholder="e.g., Tall" style="padding:0.5rem;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.85rem;">Description</label>
+                        <input type="text" value="${v.size || ''}" onchange="updateVariant(${i}, 'size', this.value)" placeholder="e.g., 12oz" style="padding:0.5rem;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.85rem;">Price (₱)</label>
+                        <input type="number" value="${v.price || ''}" onchange="updateVariant(${i}, 'price', parseFloat(this.value) || 0)" min="0" step="0.01" placeholder="0.00" style="padding:0.5rem;">
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removeVariant(${i})" style="margin-bottom:2px;">🗑</button>
+                </div>
+            `).join('');
+        }
+        
+        // Update variant
+        function updateVariant(index, field, value) {
+            productVariants[index][field] = value;
+        }
+        
+        // Add new variant
+        function addVariant() {
+            productVariants.push({ name: '', size: '', price: 0 });
+            renderVariants();
+        }
+        
+        // Remove variant
+        function removeVariant(index) {
+            productVariants.splice(index, 1);
+            renderVariants();
+        }
         
         // Auth
         auth.onAuthStateChanged(user => {
@@ -614,15 +724,35 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             
             try {
                 const productName = document.getElementById('productName').value;
+                const hasVariants = document.getElementById('hasVariants').checked;
+                const category = document.getElementById('productCategory').value;
+                
                 const productData = {
                     name: productName,
-                    price: parseFloat(document.getElementById('productPrice').value),
-                    category: document.getElementById('productCategory').value,
+                    price: parseFloat(document.getElementById('productPrice').value) || 0,
+                    category: category,
                     description: document.getElementById('productDescription').value,
                     fullDescription: document.getElementById('productFullDescription').value,
                     isActive: document.getElementById('productStatus').value === 'true',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
+                
+                // Add variants if enabled
+                if (hasVariants && productVariants.length > 0) {
+                    // Filter out empty variants and validate
+                    const validVariants = productVariants.filter(v => v.name && v.price > 0);
+                    if (validVariants.length > 0) {
+                        productData.hasVariants = true;
+                        productData.variants = validVariants;
+                        // Set base price to lowest variant price if not set
+                        if (!productData.price) {
+                            productData.price = Math.min(...validVariants.map(v => v.price));
+                        }
+                    }
+                } else {
+                    productData.hasVariants = false;
+                    productData.variants = [];
+                }
                 
                 // Generate slug and product page URL
                 const slug = productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -685,6 +815,20 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 document.getElementById('productStatus').value = p.isActive.toString();
                 document.getElementById('generateProductPage').checked = !!p.productPageUrl;
                 
+                // Handle category change to show/hide variants section
+                handleCategoryChange();
+                
+                // Load variants if they exist
+                if (p.hasVariants && p.variants && p.variants.length > 0) {
+                    document.getElementById('hasVariants').checked = true;
+                    productVariants = [...p.variants];
+                    toggleVariants();
+                } else {
+                    document.getElementById('hasVariants').checked = false;
+                    productVariants = [];
+                    toggleVariants();
+                }
+                
                 if (p.imageUrl) {
                     const img = document.getElementById('previewImg');
                     img.crossOrigin = 'anonymous';
@@ -734,6 +878,14 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             document.getElementById('formTitle').textContent = '➕ Add New Product';
             document.getElementById('submitBtn').textContent = 'Add Product';
             hideAIStatus();
+            
+            // Reset variants
+            productVariants = [];
+            document.getElementById('hasVariants').checked = false;
+            document.getElementById('variantsSection').style.display = 'none';
+            document.getElementById('variantsContainer').style.display = 'none';
+            document.getElementById('productPrice').setAttribute('required', 'required');
+            document.getElementById('productPrice').parentElement.querySelector('label').innerHTML = 'Price (₱) *';
         }
         
         // AI Content Generation
