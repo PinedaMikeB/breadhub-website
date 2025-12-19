@@ -574,29 +574,37 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         
         // Load existing image from URL and make it editable
         async function loadExistingImage(imageUrl) {
-            try {
-                // Fetch the image as blob
-                const response = await fetch(imageUrl);
-                const blob = await response.blob();
+            // Create a temporary image to load and draw to canvas
+            const tempImg = new Image();
+            tempImg.crossOrigin = 'anonymous';
+            
+            tempImg.onload = function() {
+                // Create canvas and draw image
+                const canvas = document.createElement('canvas');
+                canvas.width = tempImg.naturalWidth;
+                canvas.height = tempImg.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(tempImg, 0, 0);
                 
-                // Convert blob to data URL
-                const reader = new FileReader();
-                reader.onload = function(ev) {
-                    const img = document.getElementById('previewImg');
-                    img.onload = function() {
-                        imageData.naturalWidth = img.naturalWidth;
-                        imageData.naturalHeight = img.naturalHeight;
-                        fitImage();
-                        img.style.display = 'block';
-                        document.getElementById('imagePlaceholder').style.display = 'none';
-                        document.getElementById('imageControls').style.display = 'block';
-                        setupDrag();
-                    };
-                    img.src = ev.target.result;
+                // Convert to data URL
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                
+                // Now load into the preview image
+                const img = document.getElementById('previewImg');
+                img.onload = function() {
+                    imageData.naturalWidth = img.naturalWidth;
+                    imageData.naturalHeight = img.naturalHeight;
+                    fitImage();
+                    img.style.display = 'block';
+                    document.getElementById('imagePlaceholder').style.display = 'none';
+                    document.getElementById('imageControls').style.display = 'block';
+                    setupDrag();
                 };
-                reader.readAsDataURL(blob);
-            } catch (error) {
-                console.error('Error loading existing image:', error);
+                img.src = dataUrl;
+            };
+            
+            tempImg.onerror = function() {
+                console.log('CORS blocked, showing preview only');
                 // Fallback: show as background with note
                 const imageBox = document.getElementById('imageBox');
                 imageBox.style.backgroundImage = `url('${imageUrl}')`;
@@ -614,7 +622,9 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 if (!document.getElementById('existingImageNote')) {
                     document.getElementById('imageControls').appendChild(note);
                 }
-            }
+            };
+            
+            tempImg.src = imageUrl;
         }
         
         function resizeImage(value) {
