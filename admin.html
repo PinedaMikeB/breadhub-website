@@ -576,60 +576,104 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         
         // Load existing image from URL and make it editable
         async function loadExistingImage(imageUrl) {
-            // Create a temporary image to load and draw to canvas
-            const tempImg = new Image();
-            tempImg.crossOrigin = 'anonymous';
+            // Show loading state
+            const imageBox = document.getElementById('imageBox');
+            document.getElementById('imagePlaceholder').innerHTML = '<span>⏳</span><p>Loading image...</p>';
             
-            tempImg.onload = function() {
-                // Create canvas and draw image
+            // Try to load via proxy to bypass CORS
+            // Using a public CORS proxy or Firebase function would be ideal
+            // For now, try direct loading first, then fallback
+            
+            // Method 1: Try creating a blob URL via fetch with no-cors and canvas
+            try {
+                // Create an image element and try to load it
+                const tempImg = new Image();
+                tempImg.crossOrigin = 'anonymous';
+                
+                // Create a promise to handle the image loading
+                const imageLoaded = new Promise((resolve, reject) => {
+                    tempImg.onload = () => resolve(tempImg);
+                    tempImg.onerror = () => reject(new Error('CORS blocked'));
+                });
+                
+                tempImg.src = imageUrl;
+                
+                const loadedImg = await imageLoaded;
+                
+                // If we get here, CORS worked - draw to canvas
                 const canvas = document.createElement('canvas');
-                canvas.width = tempImg.naturalWidth;
-                canvas.height = tempImg.naturalHeight;
+                canvas.width = loadedImg.naturalWidth;
+                canvas.height = loadedImg.naturalHeight;
                 const ctx = canvas.getContext('2d');
-                ctx.drawImage(tempImg, 0, 0);
+                ctx.drawImage(loadedImg, 0, 0);
                 
-                // Convert to data URL
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                const dataUrl = canvas.toDataURL('image/png');
+                loadImageIntoEditor(dataUrl);
                 
-                // Now load into the preview image
-                const img = document.getElementById('previewImg');
-                img.onload = function() {
-                    imageData.naturalWidth = img.naturalWidth;
-                    imageData.naturalHeight = img.naturalHeight;
-                    fitImage();
-                    img.style.display = 'block';
-                    document.getElementById('imagePlaceholder').style.display = 'none';
-                    document.getElementById('imageControls').style.display = 'block';
-                    setupDrag();
-                    imageIsEditable = true; // Mark as editable
-                };
-                img.src = dataUrl;
-            };
-            
-            tempImg.onerror = function() {
-                console.log('CORS blocked, showing preview only');
-                imageIsEditable = false; // Mark as NOT editable
+            } catch (error) {
+                console.log('Direct load failed, trying alternative method...');
                 
-                // Fallback: show as background with note
-                const imageBox = document.getElementById('imageBox');
-                imageBox.style.backgroundImage = `url('${imageUrl}')`;
-                imageBox.style.backgroundSize = 'contain';
-                imageBox.style.backgroundPosition = 'center';
-                imageBox.style.backgroundRepeat = 'no-repeat';
-                document.getElementById('imagePlaceholder').style.display = 'none';
-                document.getElementById('imageControls').style.display = 'block';
-                
-                // Add note about existing image
-                const note = document.createElement('p');
-                note.style.cssText = 'font-size:0.85rem;color:var(--orange);margin-top:0.5rem;text-align:center;';
-                note.textContent = '📷 Current image shown. Upload a new one to edit/replace it.';
-                note.id = 'existingImageNote';
-                if (!document.getElementById('existingImageNote')) {
-                    document.getElementById('imageControls').appendChild(note);
+                // Method 2: Use allorigins.win proxy (free CORS proxy)
+                try {
+                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(imageUrl)}`;
+                    const response = await fetch(proxyUrl);
+                    const blob = await response.blob();
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        loadImageIntoEditor(e.target.result);
+                    };
+                    reader.readAsDataURL(blob);
+                    
+                } catch (proxyError) {
+                    console.log('Proxy also failed, showing preview only');
+                    showImagePreviewOnly(imageUrl);
                 }
+            }
+        }
+        
+        // Load image data URL into the editor (makes it fully editable)
+        function loadImageIntoEditor(dataUrl) {
+            const img = document.getElementById('previewImg');
+            img.onload = function() {
+                imageData.naturalWidth = img.naturalWidth;
+                imageData.naturalHeight = img.naturalHeight;
+                fitImage();
+                img.style.display = 'block';
+                document.getElementById('imagePlaceholder').style.display = 'none';
+                document.getElementById('imagePlaceholder').innerHTML = '<span>📷</span><p>Click to upload image</p>';
+                document.getElementById('imageControls').style.display = 'block';
+                setupDrag();
+                imageIsEditable = true;
+                
+                // Remove any existing note
+                const note = document.getElementById('existingImageNote');
+                if (note) note.remove();
             };
+            img.src = dataUrl;
+        }
+        
+        // Show image as non-editable preview (fallback)
+        function showImagePreviewOnly(imageUrl) {
+            imageIsEditable = false;
             
-            tempImg.src = imageUrl;
+            const imageBox = document.getElementById('imageBox');
+            imageBox.style.backgroundImage = `url('${imageUrl}')`;
+            imageBox.style.backgroundSize = 'contain';
+            imageBox.style.backgroundPosition = 'center';
+            imageBox.style.backgroundRepeat = 'no-repeat';
+            document.getElementById('imagePlaceholder').style.display = 'none';
+            document.getElementById('imagePlaceholder').innerHTML = '<span>📷</span><p>Click to upload image</p>';
+            document.getElementById('imageControls').style.display = 'block';
+            
+            // Add note
+            const note = document.createElement('p');
+            note.style.cssText = 'font-size:0.85rem;color:var(--orange);margin-top:0.5rem;text-align:center;';
+            note.textContent = '📷 Current image shown. Upload a new one to edit/replace it.';
+            note.id = 'existingImageNote';
+            if (!document.getElementById('existingImageNote')) {
+                document.getElementById('imageControls').appendChild(note);
+            }
         }
         
         function resizeImage(value) {
