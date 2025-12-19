@@ -562,10 +562,59 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                     document.getElementById('imagePlaceholder').style.display = 'none';
                     document.getElementById('imageControls').style.display = 'block';
                     setupDrag();
+                    
+                    // Remove existing image note if present
+                    const note = document.getElementById('existingImageNote');
+                    if (note) note.remove();
                 };
                 img.src = ev.target.result;
             };
             reader.readAsDataURL(file);
+        }
+        
+        // Load existing image from URL and make it editable
+        async function loadExistingImage(imageUrl) {
+            try {
+                // Fetch the image as blob
+                const response = await fetch(imageUrl);
+                const blob = await response.blob();
+                
+                // Convert blob to data URL
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const img = document.getElementById('previewImg');
+                    img.onload = function() {
+                        imageData.naturalWidth = img.naturalWidth;
+                        imageData.naturalHeight = img.naturalHeight;
+                        fitImage();
+                        img.style.display = 'block';
+                        document.getElementById('imagePlaceholder').style.display = 'none';
+                        document.getElementById('imageControls').style.display = 'block';
+                        setupDrag();
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(blob);
+            } catch (error) {
+                console.error('Error loading existing image:', error);
+                // Fallback: show as background with note
+                const imageBox = document.getElementById('imageBox');
+                imageBox.style.backgroundImage = `url('${imageUrl}')`;
+                imageBox.style.backgroundSize = 'contain';
+                imageBox.style.backgroundPosition = 'center';
+                imageBox.style.backgroundRepeat = 'no-repeat';
+                document.getElementById('imagePlaceholder').style.display = 'none';
+                document.getElementById('imageControls').style.display = 'block';
+                
+                // Add note about existing image
+                const note = document.createElement('p');
+                note.style.cssText = 'font-size:0.85rem;color:var(--orange);margin-top:0.5rem;text-align:center;';
+                note.textContent = '📷 Current image shown. Upload a new one to edit/replace it.';
+                note.id = 'existingImageNote';
+                if (!document.getElementById('existingImageNote')) {
+                    document.getElementById('imageControls').appendChild(note);
+                }
+            }
         }
         
         function resizeImage(value) {
@@ -840,39 +889,8 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 }
                 
                 if (p.imageUrl) {
-                    const img = document.getElementById('previewImg');
-                    img.crossOrigin = 'anonymous';
-                    
-                    img.onerror = function() {
-                        // If CORS fails, show the image as background instead
-                        console.log('Image CORS error, showing as background');
-                        const imageBox = document.getElementById('imageBox');
-                        imageBox.style.backgroundImage = `url('${p.imageUrl}')`;
-                        imageBox.style.backgroundSize = 'cover';
-                        imageBox.style.backgroundPosition = 'center';
-                        document.getElementById('imagePlaceholder').style.display = 'none';
-                        document.getElementById('imageControls').style.display = 'block';
-                        
-                        // Add note about existing image
-                        const note = document.createElement('p');
-                        note.style.cssText = 'font-size:0.85rem;color:var(--orange);margin-top:0.5rem;text-align:center;';
-                        note.textContent = '📷 Current image shown. Upload a new one to replace it.';
-                        note.id = 'existingImageNote';
-                        if (!document.getElementById('existingImageNote')) {
-                            document.getElementById('imageControls').appendChild(note);
-                        }
-                    };
-                    
-                    img.onload = function() {
-                        imageData.naturalWidth = img.naturalWidth;
-                        imageData.naturalHeight = img.naturalHeight;
-                        fitImage();
-                        img.style.display = 'block';
-                        document.getElementById('imagePlaceholder').style.display = 'none';
-                        document.getElementById('imageControls').style.display = 'block';
-                        setupDrag();
-                    };
-                    img.src = p.imageUrl;
+                    // Load image via fetch to avoid CORS issues with img.crossOrigin
+                    loadExistingImage(p.imageUrl);
                 }
                 
                 document.getElementById('formTitle').textContent = '✏️ Edit Product';
