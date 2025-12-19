@@ -1164,25 +1164,40 @@
                 // Continue anyway - Messenger will still work
             }
             
-            // Build SHORT message for Messenger (to avoid URL length issues)
-            // Keep it simple: Order ID, name, phone, total
-            let message = `🍞 Order #${orderId}\n`;
-            message += `👤 ${name}\n`;
-            message += `📞 ${phone}\n`;
-            message += `💰 Total: ₱${totalPrice.toFixed(2)}\n`;
-            message += `📦 ${cart.length} item(s)`;
+            // Build full order message
+            let message = `🍞 NEW ORDER #${orderId}\n\n`;
+            message += `👤 Customer: ${name}\n`;
+            message += `📞 Phone: ${phone}\n`;
+            message += `📍 Address: ${address}\n`;
+            if (notes) message += `📝 Notes: ${notes}\n`;
+            message += `\n📦 ORDER DETAILS:\n`;
+            message += cart.map(item => `• ${item.name} x${item.quantity} = ₱${(item.price * item.quantity).toFixed(2)}`).join('\n');
+            message += `\n\n💰 TOTAL: ₱${totalPrice.toFixed(2)}`;
             
-            // Encode and open Messenger
-            const encodedMessage = encodeURIComponent(message);
-            window.open(`${MESSENGER_LINK}?text=${encodedMessage}`, '_blank');
+            // Copy message to clipboard
+            try {
+                await navigator.clipboard.writeText(message);
+                showToast('Order copied! Paste it in Messenger.');
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = message;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('Order copied! Paste it in Messenger.');
+            }
+            
+            // Open Messenger without pre-filled text (more reliable)
+            window.open(MESSENGER_LINK, '_blank');
             
             // Clear cart
             cart = [];
             saveCart();
             updateCartUI();
             closeCheckoutModal();
-            
-            showToast(`Order #${orderId} submitted! Complete in Messenger.`);
+        }
         }
         
         // Show toast notification
