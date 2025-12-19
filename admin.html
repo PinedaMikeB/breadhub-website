@@ -674,6 +674,16 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             document.getElementById('sizeValue').textContent = '100';
             imageData = { naturalWidth: 0, naturalHeight: 0, x: 0, y: 0, scale: 100 };
             existingImageUrl = null;
+            
+            // Clear background image if set
+            const imageBox = document.getElementById('imageBox');
+            imageBox.style.backgroundImage = '';
+            imageBox.style.backgroundSize = '';
+            imageBox.style.backgroundPosition = '';
+            
+            // Remove existing image note if present
+            const note = document.getElementById('existingImageNote');
+            if (note) note.remove();
         }
         
         // Generate final image from canvas
@@ -832,6 +842,27 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 if (p.imageUrl) {
                     const img = document.getElementById('previewImg');
                     img.crossOrigin = 'anonymous';
+                    
+                    img.onerror = function() {
+                        // If CORS fails, show the image as background instead
+                        console.log('Image CORS error, showing as background');
+                        const imageBox = document.getElementById('imageBox');
+                        imageBox.style.backgroundImage = `url('${p.imageUrl}')`;
+                        imageBox.style.backgroundSize = 'cover';
+                        imageBox.style.backgroundPosition = 'center';
+                        document.getElementById('imagePlaceholder').style.display = 'none';
+                        document.getElementById('imageControls').style.display = 'block';
+                        
+                        // Add note about existing image
+                        const note = document.createElement('p');
+                        note.style.cssText = 'font-size:0.85rem;color:var(--orange);margin-top:0.5rem;text-align:center;';
+                        note.textContent = '📷 Current image shown. Upload a new one to replace it.';
+                        note.id = 'existingImageNote';
+                        if (!document.getElementById('existingImageNote')) {
+                            document.getElementById('imageControls').appendChild(note);
+                        }
+                    };
+                    
                     img.onload = function() {
                         imageData.naturalWidth = img.naturalWidth;
                         imageData.naturalHeight = img.naturalHeight;
