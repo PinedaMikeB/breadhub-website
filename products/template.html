@@ -693,15 +693,16 @@
             
             // 5. Smart Internal Linking
             try {
-                // Fetch all published products for smart links
-                const productsSnapshot = await db.collection('products')
-                    .where('shop.isPublished', '==', true)
-                    .get();
-                const allProducts = productsSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    name: doc.data().name,
-                    category: doc.data().category
-                }));
+                // Fetch all products and filter for published (avoids composite index)
+                const productsSnapshot = await db.collection('products').get();
+                const allProducts = productsSnapshot.docs
+                    .map(doc => ({
+                        id: doc.id,
+                        name: doc.data().name,
+                        category: doc.data().category,
+                        isPublished: doc.data().shop?.isPublished || false
+                    }))
+                    .filter(p => p.isPublished);
                 
                 // Sort by name length (longest first) to match longer names first
                 allProducts.sort((a, b) => b.name.length - a.name.length);

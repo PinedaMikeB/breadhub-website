@@ -873,29 +873,29 @@
             const grid = document.getElementById('productsGrid');
             
             try {
-                // Query unified products collection where shop.isPublished is true
-                const snapshot = await db.collection('products')
-                    .where('shop.isPublished', '==', true)
-                    .get();
+                // Get all products and filter client-side (avoids composite index requirement)
+                const snapshot = await db.collection('products').get();
                 
-                // Map to expected format from unified schema
-                allProducts = snapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        name: data.name,
-                        category: data.category,
-                        mainCategory: data.mainCategory || getMainCategory(data.category),
-                        price: data.finalSRP || 0,
-                        description: data.shop?.description || '',
-                        imageUrl: data.shop?.imageUrl || '',
-                        images: data.shop?.images || [],
-                        hasVariants: data.shop?.hasVariants || false,
-                        variants: data.shop?.variants || [],
-                        isActive: data.shop?.isPublished || false,
-                        createdAt: data.createdAt
-                    };
-                });
+                // Map to expected format and filter for published only
+                allProducts = snapshot.docs
+                    .map(doc => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            name: data.name,
+                            category: data.category,
+                            mainCategory: data.mainCategory || getMainCategory(data.category),
+                            price: data.finalSRP || 0,
+                            description: data.shop?.description || '',
+                            imageUrl: data.shop?.imageUrl || '',
+                            images: data.shop?.images || [],
+                            hasVariants: data.shop?.hasVariants || false,
+                            variants: data.shop?.variants || [],
+                            isPublished: data.shop?.isPublished || false,
+                            createdAt: data.createdAt
+                        };
+                    })
+                    .filter(p => p.isPublished); // Only show published products
                 
                 // Sort by name
                 allProducts.sort((a, b) => a.name.localeCompare(b.name));
