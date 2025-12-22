@@ -248,33 +248,6 @@
             color: var(--orange);
         }
         
-        /* Size variant selector */
-        .variant-selector {
-            width: 100%;
-        }
-        
-        .size-select {
-            width: 100%;
-            padding: 0.6rem 0.75rem;
-            border: 2px solid var(--cream-dark);
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 0.95rem;
-            color: var(--brown-dark);
-            background: var(--white);
-            cursor: pointer;
-            transition: border-color 0.3s ease;
-        }
-        
-        .size-select:hover {
-            border-color: var(--orange);
-        }
-        
-        .size-select:focus {
-            outline: none;
-            border-color: var(--orange);
-        }
-        
         .product-actions {
             display: flex;
             gap: 0.5rem;
@@ -768,14 +741,14 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
     <script>
-        // Firebase Config - ProofMaster Database
+        // Firebase Config
         const firebaseConfig = {
-            apiKey: "AIzaSyAj2szYv9ynVFrxdH0tpUsOg7JmJn6Wq0g",
-            authDomain: "breadhub-proofmaster.firebaseapp.com",
-            projectId: "breadhub-proofmaster",
-            storageBucket: "breadhub-proofmaster.firebasestorage.app",
-            messagingSenderId: "222137689770",
-            appId: "1:222137689770:web:645c552afa835732c852d3"
+            apiKey: "AIzaSyCv_6FGxvhMVbGjfGI5VKI9PyXaMlQeH2k",
+            authDomain: "breadhub-ce8fd.firebaseapp.com",
+            projectId: "breadhub-ce8fd",
+            storageBucket: "breadhub-ce8fd.firebasestorage.app",
+            messagingSenderId: "644722238875",
+            appId: "1:644722238875:web:15b04e93f9bc909e40ed3e"
         };
         
         firebase.initializeApp(firebaseConfig);
@@ -848,7 +821,7 @@
             const grid = document.getElementById('productsGrid');
             
             try {
-                const snapshot = await db.collection('shopProducts')
+                const snapshot = await db.collection('products')
                     .where('isActive', '==', true)
                     .orderBy('createdAt', 'desc')
                     .get();
@@ -881,36 +854,6 @@
                 const slug = generateSlug(product.name);
                 const productPageUrl = product.productPageUrl || `products/template.html?id=${product.id}`;
                 
-                // Check if product has variants
-                const hasVariants = product.hasVariants && product.variants && product.variants.length > 0;
-                
-                // Build price display
-                let priceDisplay = `₱${product.price.toFixed(2)}`;
-                if (hasVariants) {
-                    const prices = product.variants.map(v => v.price);
-                    const minPrice = Math.min(...prices);
-                    const maxPrice = Math.max(...prices);
-                    if (minPrice !== maxPrice) {
-                        priceDisplay = `₱${minPrice.toFixed(2)} - ₱${maxPrice.toFixed(2)}`;
-                    } else {
-                        priceDisplay = `₱${minPrice.toFixed(2)}`;
-                    }
-                }
-                
-                // Build variant selector if has variants
-                let variantSelector = '';
-                if (hasVariants) {
-                    variantSelector = `
-                        <div class="variant-selector" style="margin-bottom:0.75rem;">
-                            <select id="variant-${product.id}" class="size-select" onchange="updateProductPrice('${product.id}')">
-                                ${product.variants.map((v, i) => `
-                                    <option value="${i}" data-price="${v.price}">${v.name}${v.size ? ' (' + v.size + ')' : ''} - ₱${v.price.toFixed(2)}</option>
-                                `).join('')}
-                            </select>
-                        </div>
-                    `;
-                }
-                
                 return `
                     <div class="product-card">
                         <div class="product-image" style="${product.imageUrl ? `background-image:url('${product.imageUrl}')` : ''}" onclick="window.location.href='${productPageUrl}'">
@@ -920,32 +863,17 @@
                             <div class="product-category">${catInfo.name}</div>
                             <h3 class="product-name" onclick="window.location.href='${productPageUrl}'">${product.name}</h3>
                             <p class="product-description">${truncateText(product.description, 80)}</p>
-                            ${variantSelector}
                             <div class="product-footer">
-                                <span class="product-price" id="price-${product.id}">${priceDisplay}</span>
+                                <span class="product-price">₱${product.price.toFixed(2)}</span>
                                 <div class="product-actions">
                                     <a href="${productPageUrl}" class="view-product">View</a>
-                                    <button class="add-to-cart" onclick="addToCart('${product.id}')">Add</button>
+                                    <button class="add-to-cart" onclick="addToCart('${product.id}')">Add to Cart</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
-        }
-        
-        // Update displayed price when variant changes
-        function updateProductPrice(productId) {
-            const product = allProducts.find(p => p.id === productId);
-            if (!product || !product.hasVariants) return;
-            
-            const select = document.getElementById(`variant-${productId}`);
-            const variantIndex = parseInt(select.value);
-            const variant = product.variants[variantIndex];
-            
-            if (variant) {
-                document.getElementById(`price-${productId}`).textContent = `₱${variant.price.toFixed(2)}`;
-            }
         }
         
         // Filter products by category
@@ -974,54 +902,26 @@
             const product = allProducts.find(p => p.id === productId);
             if (!product) return;
             
-            // Check if product has variants
-            let selectedVariant = null;
-            let cartItemId = productId;
-            let itemPrice = product.price;
-            let itemName = product.name;
-            
-            if (product.hasVariants && product.variants && product.variants.length > 0) {
-                const select = document.getElementById(`variant-${productId}`);
-                if (select) {
-                    const variantIndex = parseInt(select.value);
-                    selectedVariant = product.variants[variantIndex];
-                    if (selectedVariant) {
-                        cartItemId = `${productId}_${selectedVariant.name}`;
-                        itemPrice = selectedVariant.price;
-                        itemName = `${product.name} (${selectedVariant.name})`;
-                    }
-                }
-            }
-            
-            const existing = cart.find(item => item.cartId === cartItemId);
+            const existing = cart.find(item => item.id === productId);
             if (existing) {
                 existing.quantity++;
             } else {
-                cart.push({ 
-                    cartId: cartItemId,
-                    id: productId, 
-                    quantity: 1, 
-                    name: itemName,
-                    price: itemPrice,
-                    category: product.category,
-                    imageUrl: product.imageUrl,
-                    variant: selectedVariant
-                });
+                cart.push({ id: productId, quantity: 1, ...product });
             }
             
             saveCart();
             updateCartUI();
-            showToast(`${itemName} added to cart!`);
+            showToast(`${product.name} added to cart!`);
         }
         
         // Update cart quantity
-        function updateQuantity(cartItemId, delta) {
-            const item = cart.find(i => (i.cartId || i.id) === cartItemId);
+        function updateQuantity(productId, delta) {
+            const item = cart.find(i => i.id === productId);
             if (!item) return;
             
             item.quantity += delta;
             if (item.quantity <= 0) {
-                cart = cart.filter(i => (i.cartId || i.id) !== cartItemId);
+                cart = cart.filter(i => i.id !== productId);
             }
             
             saveCart();
@@ -1029,8 +929,8 @@
         }
         
         // Remove from cart
-        function removeFromCart(cartItemId) {
-            cart = cart.filter(i => (i.cartId || i.id) !== cartItemId);
+        function removeFromCart(productId) {
+            cart = cart.filter(i => i.id !== productId);
             saveCart();
             updateCartUI();
         }
@@ -1066,7 +966,6 @@
             
             cartItems.innerHTML = cart.map(item => {
                 const catInfo = categoryData[item.category] || { emoji: '🍞' };
-                const itemId = item.cartId || item.id;
                 return `
                     <div class="cart-item">
                         <div class="cart-item-image" style="${item.imageUrl ? `background-image:url('${item.imageUrl}')` : ''}">
@@ -1077,11 +976,11 @@
                             <div class="cart-item-price">₱${(item.price * item.quantity).toFixed(2)}</div>
                         </div>
                         <div class="cart-item-qty">
-                            <button class="qty-btn" onclick="updateQuantity('${itemId}', -1)">-</button>
+                            <button class="qty-btn" onclick="updateQuantity('${item.id}', -1)">-</button>
                             <span>${item.quantity}</span>
-                            <button class="qty-btn" onclick="updateQuantity('${itemId}', 1)">+</button>
+                            <button class="qty-btn" onclick="updateQuantity('${item.id}', 1)">+</button>
                         </div>
-                        <button class="remove-item" onclick="removeFromCart('${itemId}')">🗑️</button>
+                        <button class="remove-item" onclick="removeFromCart('${item.id}')">🗑️</button>
                     </div>
                 `;
             }).join('');
@@ -1125,7 +1024,7 @@
         }
         
         // Submit order via Messenger
-        async function submitOrder(e) {
+        function submitOrder(e) {
             e.preventDefault();
             
             const name = document.getElementById('customerName').value;
@@ -1135,37 +1034,8 @@
             
             const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             
-            // Generate short order ID
-            const orderId = 'BH' + Date.now().toString(36).toUpperCase();
-            
-            // Save order to Firebase
-            try {
-                await db.collection('orders').add({
-                    orderId: orderId,
-                    customer: {
-                        name: name,
-                        phone: phone,
-                        address: address,
-                        notes: notes || ''
-                    },
-                    items: cart.map(item => ({
-                        name: item.name,
-                        price: item.price,
-                        quantity: item.quantity,
-                        variant: item.variant || null
-                    })),
-                    total: totalPrice,
-                    status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                console.log('Order saved to Firebase:', orderId);
-            } catch (error) {
-                console.error('Error saving order:', error);
-                // Continue anyway - Messenger will still work
-            }
-            
-            // Build full order message
-            let message = `🍞 NEW ORDER #${orderId}\n\n`;
+            // Build order message
+            let message = `🍞 NEW ORDER from BreadHub Website\n\n`;
             message += `👤 Customer: ${name}\n`;
             message += `📞 Phone: ${phone}\n`;
             message += `📍 Address: ${address}\n`;
@@ -1174,29 +1044,17 @@
             message += cart.map(item => `• ${item.name} x${item.quantity} = ₱${(item.price * item.quantity).toFixed(2)}`).join('\n');
             message += `\n\n💰 TOTAL: ₱${totalPrice.toFixed(2)}`;
             
-            // Copy message to clipboard
-            try {
-                await navigator.clipboard.writeText(message);
-                showToast('Order copied! Paste it in Messenger.');
-            } catch (err) {
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = message;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                showToast('Order copied! Paste it in Messenger.');
-            }
-            
-            // Open Messenger without pre-filled text (more reliable)
-            window.open(MESSENGER_LINK, '_blank');
+            // Encode and open Messenger
+            const encodedMessage = encodeURIComponent(message);
+            window.open(`${MESSENGER_LINK}?text=${encodedMessage}`, '_blank');
             
             // Clear cart
             cart = [];
             saveCart();
             updateCartUI();
             closeCheckoutModal();
+            
+            showToast('Order sent! Please complete the conversation in Messenger.');
         }
         
         // Show toast notification

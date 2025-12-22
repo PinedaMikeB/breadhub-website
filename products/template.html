@@ -430,14 +430,14 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
     <script>
-        // Firebase Config
+        // Firebase Config - ProofMaster Database
         const firebaseConfig = {
-            apiKey: "AIzaSyCv_6FGxvhMVbGjfGI5VKI9PyXaMlQeH2k",
-            authDomain: "breadhub-ce8fd.firebaseapp.com",
-            projectId: "breadhub-ce8fd",
-            storageBucket: "breadhub-ce8fd.firebasestorage.app",
-            messagingSenderId: "644722238875",
-            appId: "1:644722238875:web:15b04e93f9bc909e40ed3e"
+            apiKey: "AIzaSyAj2szYv9ynVFrxdH0tpUsOg7JmJn6Wq0g",
+            authDomain: "breadhub-proofmaster.firebaseapp.com",
+            projectId: "breadhub-proofmaster",
+            storageBucket: "breadhub-proofmaster.firebasestorage.app",
+            messagingSenderId: "222137689770",
+            appId: "1:222137689770:web:645c552afa835732c852d3"
         };
         
         firebase.initializeApp(firebaseConfig);
@@ -471,7 +471,7 @@
             }
             
             try {
-                const doc = await db.collection('products').doc(productId).get();
+                const doc = await db.collection('shopProducts').doc(productId).get();
                 
                 if (!doc.exists) {
                     showError('Product not found');
@@ -680,7 +680,7 @@
             // 5. Smart Internal Linking
             try {
                 // Fetch all products to create smart links
-                const productsSnapshot = await db.collection('products').get();
+                const productsSnapshot = await db.collection('shopProducts').get();
                 const allProducts = productsSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()

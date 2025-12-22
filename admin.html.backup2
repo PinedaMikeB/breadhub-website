@@ -175,37 +175,14 @@
                         <input type="text" id="productName" required placeholder="e.g., Chocolate Donut">
                     </div>
                     
-                    <div class="form-group" id="priceGroup">
+                    <div class="form-group">
                         <label>Price (₱) *</label>
                         <input type="number" id="productPrice" required min="0" step="0.01" placeholder="0.00">
                     </div>
                     
-                    <!-- Size Variants Section (for drinks) -->
-                    <div class="form-group full-width" id="variantsSection" style="display:none; background:var(--cream);padding:1.5rem;border-radius:12px;">
-                        <label style="font-size:1.1rem;display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
-                            🥤 Size Variants
-                            <small style="font-weight:normal;color:var(--brown);">(for drinks with different sizes)</small>
-                        </label>
-                        
-                        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
-                            <input type="checkbox" id="hasVariants" onchange="toggleVariants()">
-                            <label for="hasVariants" style="font-weight:normal;margin:0;">This product has size variants (Tall, Grande, Venti)</label>
-                        </div>
-                        
-                        <div id="variantsContainer" style="display:none;">
-                            <div id="variantsList"></div>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="addVariant()" style="margin-top:0.5rem;">
-                                + Add Size Variant
-                            </button>
-                            <p style="font-size:0.85rem;color:var(--brown);margin-top:0.75rem;">
-                                💡 Common sizes: Tall (12oz), Grande (16oz), Venti (20oz)
-                            </p>
-                        </div>
-                    </div>
-                    
                     <div class="form-group">
                         <label>Category *</label>
-                        <select id="productCategory" required onchange="handleCategoryChange()">
+                        <select id="productCategory" required>
                             <option value="">Select category...</option>
                             <option value="donut">🍩 Donuts</option>
                             <option value="savory">🥐 Savory</option>
@@ -363,14 +340,13 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
     
     <script>
-        // Firebase Config - ProofMaster Database
         const firebaseConfig = {
-            apiKey: "AIzaSyAj2szYv9ynVFrxdH0tpUsOg7JmJn6Wq0g",
-            authDomain: "breadhub-proofmaster.firebaseapp.com",
-            projectId: "breadhub-proofmaster",
-            storageBucket: "breadhub-proofmaster.firebasestorage.app",
-            messagingSenderId: "222137689770",
-            appId: "1:222137689770:web:645c552afa835732c852d3"
+            apiKey: "AIzaSyCv_6FGxvhMVbGjfGI5VKI9PyXaMlQeH2k",
+            authDomain: "breadhub-ce8fd.firebaseapp.com",
+            projectId: "breadhub-ce8fd",
+            storageBucket: "breadhub-ce8fd.firebasestorage.app",
+            messagingSenderId: "644722238875",
+            appId: "1:644722238875:web:15b04e93f9bc909e40ed3e"
         };
         
         firebase.initializeApp(firebaseConfig);
@@ -399,94 +375,6 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         let imageData = { naturalWidth: 0, naturalHeight: 0, x: 0, y: 0, scale: 100 };
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
-        let productVariants = []; // For storing size variants
-        let imageIsEditable = false; // Track if image was loaded and is editable
-        
-        // Drinks categories that support variants
-        const drinkCategories = ['drinks', 'coffee', 'non-coffee'];
-        
-        // Show/hide variants section based on category
-        function handleCategoryChange() {
-            const category = document.getElementById('productCategory').value;
-            const variantsSection = document.getElementById('variantsSection');
-            const priceGroup = document.getElementById('priceGroup');
-            const hasVariants = document.getElementById('hasVariants');
-            
-            if (drinkCategories.includes(category)) {
-                variantsSection.style.display = 'block';
-            } else {
-                variantsSection.style.display = 'none';
-                hasVariants.checked = false;
-                toggleVariants();
-            }
-        }
-        
-        // Toggle variants container
-        function toggleVariants() {
-            const hasVariants = document.getElementById('hasVariants').checked;
-            const variantsContainer = document.getElementById('variantsContainer');
-            const priceInput = document.getElementById('productPrice');
-            
-            if (hasVariants) {
-                variantsContainer.style.display = 'block';
-                priceInput.removeAttribute('required');
-                priceInput.parentElement.querySelector('label').innerHTML = 'Base Price (₱) <small style="font-weight:normal;">(optional if variants set)</small>';
-                
-                // Add default variants if empty
-                if (productVariants.length === 0) {
-                    productVariants = [
-                        { name: 'Tall', size: '12oz', price: 0 },
-                        { name: 'Grande', size: '16oz', price: 0 },
-                        { name: 'Venti', size: '20oz', price: 0 }
-                    ];
-                }
-                renderVariants();
-            } else {
-                variantsContainer.style.display = 'none';
-                priceInput.setAttribute('required', 'required');
-                priceInput.parentElement.querySelector('label').innerHTML = 'Price (₱) *';
-                productVariants = [];
-            }
-        }
-        
-        // Render variants list
-        function renderVariants() {
-            const list = document.getElementById('variantsList');
-            list.innerHTML = productVariants.map((v, i) => `
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;margin-bottom:0.5rem;align-items:end;">
-                    <div>
-                        <label style="font-size:0.85rem;">Size Name</label>
-                        <input type="text" value="${v.name}" onchange="updateVariant(${i}, 'name', this.value)" placeholder="e.g., Tall" style="padding:0.5rem;">
-                    </div>
-                    <div>
-                        <label style="font-size:0.85rem;">Description</label>
-                        <input type="text" value="${v.size || ''}" onchange="updateVariant(${i}, 'size', this.value)" placeholder="e.g., 12oz" style="padding:0.5rem;">
-                    </div>
-                    <div>
-                        <label style="font-size:0.85rem;">Price (₱)</label>
-                        <input type="number" value="${v.price || ''}" onchange="updateVariant(${i}, 'price', parseFloat(this.value) || 0)" min="0" step="0.01" placeholder="0.00" style="padding:0.5rem;">
-                    </div>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="removeVariant(${i})" style="margin-bottom:2px;">🗑</button>
-                </div>
-            `).join('');
-        }
-        
-        // Update variant
-        function updateVariant(index, field, value) {
-            productVariants[index][field] = value;
-        }
-        
-        // Add new variant
-        function addVariant() {
-            productVariants.push({ name: '', size: '', price: 0 });
-            renderVariants();
-        }
-        
-        // Remove variant
-        function removeVariant(index) {
-            productVariants.splice(index, 1);
-            renderVariants();
-        }
         
         // Auth
         auth.onAuthStateChanged(user => {
@@ -522,7 +410,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         async function loadProducts() {
             const tbody = document.getElementById('productsTableBody');
             try {
-                const snapshot = await db.collection('shopProducts').orderBy('createdAt', 'desc').get();
+                const snapshot = await db.collection('products').orderBy('createdAt', 'desc').get();
                 if (snapshot.empty) {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;">No products yet.</td></tr>';
                     return;
@@ -564,117 +452,10 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                     document.getElementById('imagePlaceholder').style.display = 'none';
                     document.getElementById('imageControls').style.display = 'block';
                     setupDrag();
-                    imageIsEditable = true; // Mark as editable
-                    
-                    // Remove existing image note if present
-                    const note = document.getElementById('existingImageNote');
-                    if (note) note.remove();
                 };
                 img.src = ev.target.result;
             };
             reader.readAsDataURL(file);
-        }
-        
-        // Load existing image from URL and make it editable
-        async function loadExistingImage(imageUrl) {
-            // Show loading state
-            const imageBox = document.getElementById('imageBox');
-            document.getElementById('imagePlaceholder').innerHTML = '<span>⏳</span><p>Loading image...</p>';
-            
-            // Try to load via proxy to bypass CORS
-            // Using a public CORS proxy or Firebase function would be ideal
-            // For now, try direct loading first, then fallback
-            
-            // Method 1: Try creating a blob URL via fetch with no-cors and canvas
-            try {
-                // Create an image element and try to load it
-                const tempImg = new Image();
-                tempImg.crossOrigin = 'anonymous';
-                
-                // Create a promise to handle the image loading
-                const imageLoaded = new Promise((resolve, reject) => {
-                    tempImg.onload = () => resolve(tempImg);
-                    tempImg.onerror = () => reject(new Error('CORS blocked'));
-                });
-                
-                tempImg.src = imageUrl;
-                
-                const loadedImg = await imageLoaded;
-                
-                // If we get here, CORS worked - draw to canvas
-                const canvas = document.createElement('canvas');
-                canvas.width = loadedImg.naturalWidth;
-                canvas.height = loadedImg.naturalHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(loadedImg, 0, 0);
-                
-                const dataUrl = canvas.toDataURL('image/png');
-                loadImageIntoEditor(dataUrl);
-                
-            } catch (error) {
-                console.log('Direct load failed, trying alternative method...');
-                
-                // Method 2: Use allorigins.win proxy (free CORS proxy)
-                try {
-                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(imageUrl)}`;
-                    const response = await fetch(proxyUrl);
-                    const blob = await response.blob();
-                    
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        loadImageIntoEditor(e.target.result);
-                    };
-                    reader.readAsDataURL(blob);
-                    
-                } catch (proxyError) {
-                    console.log('Proxy also failed, showing preview only');
-                    showImagePreviewOnly(imageUrl);
-                }
-            }
-        }
-        
-        // Load image data URL into the editor (makes it fully editable)
-        function loadImageIntoEditor(dataUrl) {
-            const img = document.getElementById('previewImg');
-            img.onload = function() {
-                imageData.naturalWidth = img.naturalWidth;
-                imageData.naturalHeight = img.naturalHeight;
-                fitImage();
-                img.style.display = 'block';
-                document.getElementById('imagePlaceholder').style.display = 'none';
-                document.getElementById('imagePlaceholder').innerHTML = '<span>📷</span><p>Click to upload image</p>';
-                document.getElementById('imageControls').style.display = 'block';
-                setupDrag();
-                imageIsEditable = true;
-                
-                // Remove any existing note
-                const note = document.getElementById('existingImageNote');
-                if (note) note.remove();
-            };
-            img.src = dataUrl;
-        }
-        
-        // Show image as non-editable preview (fallback)
-        function showImagePreviewOnly(imageUrl) {
-            imageIsEditable = false;
-            
-            const imageBox = document.getElementById('imageBox');
-            imageBox.style.backgroundImage = `url('${imageUrl}')`;
-            imageBox.style.backgroundSize = 'contain';
-            imageBox.style.backgroundPosition = 'center';
-            imageBox.style.backgroundRepeat = 'no-repeat';
-            document.getElementById('imagePlaceholder').style.display = 'none';
-            document.getElementById('imagePlaceholder').innerHTML = '<span>📷</span><p>Click to upload image</p>';
-            document.getElementById('imageControls').style.display = 'block';
-            
-            // Add note
-            const note = document.createElement('p');
-            note.style.cssText = 'font-size:0.85rem;color:var(--orange);margin-top:0.5rem;text-align:center;';
-            note.textContent = '📷 Current image shown. Upload a new one to edit/replace it.';
-            note.id = 'existingImageNote';
-            if (!document.getElementById('existingImageNote')) {
-                document.getElementById('imageControls').appendChild(note);
-            }
         }
         
         function resizeImage(value) {
@@ -783,25 +564,13 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             document.getElementById('sizeValue').textContent = '100';
             imageData = { naturalWidth: 0, naturalHeight: 0, x: 0, y: 0, scale: 100 };
             existingImageUrl = null;
-            imageIsEditable = false;
-            
-            // Clear background image if set
-            const imageBox = document.getElementById('imageBox');
-            imageBox.style.backgroundImage = '';
-            imageBox.style.backgroundSize = '';
-            imageBox.style.backgroundPosition = '';
-            
-            // Remove existing image note if present
-            const note = document.getElementById('existingImageNote');
-            if (note) note.remove();
         }
         
         // Generate final image from canvas
         function generateFinalImage() {
             return new Promise((resolve) => {
                 const img = document.getElementById('previewImg');
-                // Only generate if image is editable (loaded as data URL, not just background preview)
-                if (!imageIsEditable || !img.src || img.style.display === 'none') {
+                if (!img.src || img.style.display === 'none') {
                     resolve(null);
                     return;
                 }
@@ -845,35 +614,15 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             
             try {
                 const productName = document.getElementById('productName').value;
-                const hasVariants = document.getElementById('hasVariants').checked;
-                const category = document.getElementById('productCategory').value;
-                
                 const productData = {
                     name: productName,
-                    price: parseFloat(document.getElementById('productPrice').value) || 0,
-                    category: category,
+                    price: parseFloat(document.getElementById('productPrice').value),
+                    category: document.getElementById('productCategory').value,
                     description: document.getElementById('productDescription').value,
                     fullDescription: document.getElementById('productFullDescription').value,
                     isActive: document.getElementById('productStatus').value === 'true',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
-                
-                // Add variants if enabled
-                if (hasVariants && productVariants.length > 0) {
-                    // Filter out empty variants and validate
-                    const validVariants = productVariants.filter(v => v.name && v.price > 0);
-                    if (validVariants.length > 0) {
-                        productData.hasVariants = true;
-                        productData.variants = validVariants;
-                        // Set base price to lowest variant price if not set
-                        if (!productData.price) {
-                            productData.price = Math.min(...validVariants.map(v => v.price));
-                        }
-                    }
-                } else {
-                    productData.hasVariants = false;
-                    productData.variants = [];
-                }
                 
                 // Generate slug and product page URL
                 const slug = productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -892,15 +641,15 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 }
                 
                 if (editingProductId) {
-                    await db.collection('shopProducts').doc(editingProductId).update(productData);
+                    await db.collection('products').doc(editingProductId).update(productData);
                     showToast('Product updated!', 'success');
                 } else {
                     productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    const docRef = await db.collection('shopProducts').add(productData);
+                    const docRef = await db.collection('products').add(productData);
                     
                     // Update product page URL with actual document ID
                     if (generatePage) {
-                        await db.collection('shopProducts').doc(docRef.id).update({
+                        await db.collection('products').doc(docRef.id).update({
                             productPageUrl: `products/template.html?id=${docRef.id}`
                         });
                     }
@@ -920,7 +669,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         
         async function editProduct(productId) {
             try {
-                const doc = await db.collection('shopProducts').doc(productId).get();
+                const doc = await db.collection('products').doc(productId).get();
                 if (!doc.exists) return;
                 
                 const p = doc.data();
@@ -936,23 +685,19 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 document.getElementById('productStatus').value = p.isActive.toString();
                 document.getElementById('generateProductPage').checked = !!p.productPageUrl;
                 
-                // Handle category change to show/hide variants section
-                handleCategoryChange();
-                
-                // Load variants if they exist
-                if (p.hasVariants && p.variants && p.variants.length > 0) {
-                    document.getElementById('hasVariants').checked = true;
-                    productVariants = [...p.variants];
-                    toggleVariants();
-                } else {
-                    document.getElementById('hasVariants').checked = false;
-                    productVariants = [];
-                    toggleVariants();
-                }
-                
                 if (p.imageUrl) {
-                    // Load image via fetch to avoid CORS issues with img.crossOrigin
-                    loadExistingImage(p.imageUrl);
+                    const img = document.getElementById('previewImg');
+                    img.crossOrigin = 'anonymous';
+                    img.onload = function() {
+                        imageData.naturalWidth = img.naturalWidth;
+                        imageData.naturalHeight = img.naturalHeight;
+                        fitImage();
+                        img.style.display = 'block';
+                        document.getElementById('imagePlaceholder').style.display = 'none';
+                        document.getElementById('imageControls').style.display = 'block';
+                        setupDrag();
+                    };
+                    img.src = p.imageUrl;
                 }
                 
                 document.getElementById('formTitle').textContent = '✏️ Edit Product';
@@ -967,7 +712,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             if (!confirm('Delete "' + productName + '"?')) return;
             showLoading(true);
             try {
-                await db.collection('shopProducts').doc(productId).delete();
+                await db.collection('products').doc(productId).delete();
                 showToast('Deleted', 'success');
                 loadProducts();
             } catch (error) {
@@ -989,14 +734,6 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             document.getElementById('formTitle').textContent = '➕ Add New Product';
             document.getElementById('submitBtn').textContent = 'Add Product';
             hideAIStatus();
-            
-            // Reset variants
-            productVariants = [];
-            document.getElementById('hasVariants').checked = false;
-            document.getElementById('variantsSection').style.display = 'none';
-            document.getElementById('variantsContainer').style.display = 'none';
-            document.getElementById('productPrice').setAttribute('required', 'required');
-            document.getElementById('productPrice').parentElement.querySelector('label').innerHTML = 'Price (₱) *';
         }
         
         // AI Content Generation

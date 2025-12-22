@@ -175,37 +175,14 @@
                         <input type="text" id="productName" required placeholder="e.g., Chocolate Donut">
                     </div>
                     
-                    <div class="form-group" id="priceGroup">
+                    <div class="form-group">
                         <label>Price (₱) *</label>
                         <input type="number" id="productPrice" required min="0" step="0.01" placeholder="0.00">
                     </div>
                     
-                    <!-- Size Variants Section (for drinks) -->
-                    <div class="form-group full-width" id="variantsSection" style="display:none; background:var(--cream);padding:1.5rem;border-radius:12px;">
-                        <label style="font-size:1.1rem;display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
-                            🥤 Size Variants
-                            <small style="font-weight:normal;color:var(--brown);">(for drinks with different sizes)</small>
-                        </label>
-                        
-                        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
-                            <input type="checkbox" id="hasVariants" onchange="toggleVariants()">
-                            <label for="hasVariants" style="font-weight:normal;margin:0;">This product has size variants (Tall, Grande, Venti)</label>
-                        </div>
-                        
-                        <div id="variantsContainer" style="display:none;">
-                            <div id="variantsList"></div>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="addVariant()" style="margin-top:0.5rem;">
-                                + Add Size Variant
-                            </button>
-                            <p style="font-size:0.85rem;color:var(--brown);margin-top:0.75rem;">
-                                💡 Common sizes: Tall (12oz), Grande (16oz), Venti (20oz)
-                            </p>
-                        </div>
-                    </div>
-                    
                     <div class="form-group">
                         <label>Category *</label>
-                        <select id="productCategory" required onchange="handleCategoryChange()">
+                        <select id="productCategory" required>
                             <option value="">Select category...</option>
                             <option value="donut">🍩 Donuts</option>
                             <option value="savory">🥐 Savory</option>
@@ -217,9 +194,6 @@
                             <option value="cakes">🎂 Cakes</option>
                             <option value="pandesal">🥯 Pandesal</option>
                             <option value="desserts">🧁 Desserts</option>
-                            <option value="drinks">🥤 Drinks</option>
-                            <option value="coffee">☕ Coffee</option>
-                            <option value="non-coffee">🧃 Non-Coffee Drinks</option>
                         </select>
                     </div>
                     
@@ -231,79 +205,9 @@
                         </select>
                     </div>
                     
-                    <div class="form-group full-width" style="background:var(--cream-dark);padding:1.5rem;border-radius:12px;margin-bottom:1.5rem;">
-                        <label style="font-size:1.1rem;display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
-                            🤖 AI Content Generator
-                        </label>
-                        <p style="color:var(--brown);font-size:0.9rem;margin-bottom:1rem;">
-                            Let AI generate SEO-optimized descriptions for your product. Just enter the basic info above and click generate!
-                        </p>
-                        
-                        <div style="margin-bottom:1rem;">
-                            <label style="font-weight:normal;font-size:0.9rem;">Quick Note (Optional):</label>
-                            <input type="text" id="aiQuickNote" placeholder="e.g., Rich chocolate with espresso notes" style="margin-top:0.5rem;">
-                            <small style="color:var(--brown);font-size:0.85rem;display:block;margin-top:0.25rem;">
-                                Add any special details to help AI understand your product better
-                            </small>
-                        </div>
-                        
-                        <!-- Advanced Settings Toggle -->
-                        <div style="margin-bottom:1rem;">
-                            <button type="button" onclick="toggleAdvancedSettings()" style="background:none;border:1px solid var(--brown);color:var(--brown);padding:0.5rem 1rem;border-radius:6px;cursor:pointer;font-size:0.9rem;width:100%;">
-                                <span id="advancedToggleIcon">▶</span> Advanced Settings (Custom AI Instructions)
-                            </button>
-                        </div>
-                        
-                        <!-- Advanced Settings Panel -->
-                        <div id="advancedSettings" style="display:none;background:white;padding:1rem;border-radius:8px;margin-bottom:1rem;border:1px solid var(--cream-dark);">
-                            <label style="font-weight:600;font-size:0.9rem;margin-bottom:0.5rem;display:block;">Additional Instructions for AI:</label>
-                            <textarea id="aiAdditionalInstructions" rows="4" placeholder="e.g., Emphasize the espresso notes, mention artisan crafting process, focus on breakfast appeal" style="width:100%;padding:0.75rem;border:2px solid var(--cream-dark);border-radius:6px;font-family:inherit;"></textarea>
-                            <small style="color:var(--brown);font-size:0.85rem;display:block;margin-top:0.5rem;">
-                                Add specific instructions to customize the AI-generated content. Leave blank to use default prompts.
-                            </small>
-                        </div>
-                        
-                        <button type="button" class="btn btn-primary" onclick="generateAIContent()" id="generateBtn" style="width:100%;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);display:flex;align-items:center;justify-content:center;gap:0.5rem;">
-                            <span>✨</span>
-                            <span id="generateBtnText">Generate SEO Content with AI</span>
-                        </button>
-                        
-                        <div id="aiStatus" style="margin-top:1rem;padding:1rem;border-radius:8px;display:none;"></div>
-                    </div>
-                    
                     <div class="form-group full-width">
-                        <label>Description (Short - for product cards)</label>
-                        <textarea id="productDescription" rows="3" placeholder="Brief description for product listing..."></textarea>
-                        <small style="color:var(--brown);font-size:0.85rem;">This will be truncated to ~80 characters on product cards</small>
-                    </div>
-                    
-                    <div class="form-group full-width">
-                        <label>Full Description (SEO - for product pages)</label>
-                        <textarea id="productFullDescription" rows="8" placeholder="Detailed description with keywords for SEO...
-
-Example:
-Our signature [Product Name] is baked fresh daily using premium ingredients...
-
-### What Makes It Special
-- Premium ingredients
-- Fresh daily
-- Artisan crafted
-
-### Perfect For
-- Breakfast with coffee
-- Afternoon snacks
-"></textarea>
-                        <small style="color:var(--brown);font-size:0.85rem;">Use this for SEO-rich content. Supports simple markdown (###, -, etc.)</small>
-                    </div>
-                    
-                    <div class="form-group full-width">
-                        <label>
-                            <input type="checkbox" id="generateProductPage" checked style="width:auto;margin-right:0.5rem;">
-                            Auto-generate individual product page
-                        </label>
-                        <small style="color:var(--brown);font-size:0.85rem;display:block;margin-top:0.5rem;">
-                            When checked, creates a dedicated page for this product (e.g., products/chocolate-donut.html?id=xxx)
-                        </small>
+                        <label>Description</label>
+                        <textarea id="productDescription" rows="3" placeholder="Describe your product..."></textarea>
                     </div>
                     
                     <div class="form-group full-width">
@@ -363,14 +267,13 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
     
     <script>
-        // Firebase Config - ProofMaster Database
         const firebaseConfig = {
-            apiKey: "AIzaSyAj2szYv9ynVFrxdH0tpUsOg7JmJn6Wq0g",
-            authDomain: "breadhub-proofmaster.firebaseapp.com",
-            projectId: "breadhub-proofmaster",
-            storageBucket: "breadhub-proofmaster.firebasestorage.app",
-            messagingSenderId: "222137689770",
-            appId: "1:222137689770:web:645c552afa835732c852d3"
+            apiKey: "AIzaSyCv_6FGxvhMVbGjfGI5VKI9PyXaMlQeH2k",
+            authDomain: "breadhub-ce8fd.firebaseapp.com",
+            projectId: "breadhub-ce8fd",
+            storageBucket: "breadhub-ce8fd.firebasestorage.app",
+            messagingSenderId: "644722238875",
+            appId: "1:644722238875:web:15b04e93f9bc909e40ed3e"
         };
         
         firebase.initializeApp(firebaseConfig);
@@ -388,10 +291,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             'roti': { name: 'Roti', emoji: '🫓' },
             'cakes': { name: 'Cakes', emoji: '🎂' },
             'pandesal': { name: 'Pandesal', emoji: '🥯' },
-            'desserts': { name: 'Desserts', emoji: '🧁' },
-            'drinks': { name: 'Drinks', emoji: '🥤' },
-            'coffee': { name: 'Coffee', emoji: '☕' },
-            'non-coffee': { name: 'Non-Coffee Drinks', emoji: '🧃' }
+            'desserts': { name: 'Desserts', emoji: '🧁' }
         };
         
         let editingProductId = null;
@@ -399,94 +299,6 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         let imageData = { naturalWidth: 0, naturalHeight: 0, x: 0, y: 0, scale: 100 };
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
-        let productVariants = []; // For storing size variants
-        let imageIsEditable = false; // Track if image was loaded and is editable
-        
-        // Drinks categories that support variants
-        const drinkCategories = ['drinks', 'coffee', 'non-coffee'];
-        
-        // Show/hide variants section based on category
-        function handleCategoryChange() {
-            const category = document.getElementById('productCategory').value;
-            const variantsSection = document.getElementById('variantsSection');
-            const priceGroup = document.getElementById('priceGroup');
-            const hasVariants = document.getElementById('hasVariants');
-            
-            if (drinkCategories.includes(category)) {
-                variantsSection.style.display = 'block';
-            } else {
-                variantsSection.style.display = 'none';
-                hasVariants.checked = false;
-                toggleVariants();
-            }
-        }
-        
-        // Toggle variants container
-        function toggleVariants() {
-            const hasVariants = document.getElementById('hasVariants').checked;
-            const variantsContainer = document.getElementById('variantsContainer');
-            const priceInput = document.getElementById('productPrice');
-            
-            if (hasVariants) {
-                variantsContainer.style.display = 'block';
-                priceInput.removeAttribute('required');
-                priceInput.parentElement.querySelector('label').innerHTML = 'Base Price (₱) <small style="font-weight:normal;">(optional if variants set)</small>';
-                
-                // Add default variants if empty
-                if (productVariants.length === 0) {
-                    productVariants = [
-                        { name: 'Tall', size: '12oz', price: 0 },
-                        { name: 'Grande', size: '16oz', price: 0 },
-                        { name: 'Venti', size: '20oz', price: 0 }
-                    ];
-                }
-                renderVariants();
-            } else {
-                variantsContainer.style.display = 'none';
-                priceInput.setAttribute('required', 'required');
-                priceInput.parentElement.querySelector('label').innerHTML = 'Price (₱) *';
-                productVariants = [];
-            }
-        }
-        
-        // Render variants list
-        function renderVariants() {
-            const list = document.getElementById('variantsList');
-            list.innerHTML = productVariants.map((v, i) => `
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;margin-bottom:0.5rem;align-items:end;">
-                    <div>
-                        <label style="font-size:0.85rem;">Size Name</label>
-                        <input type="text" value="${v.name}" onchange="updateVariant(${i}, 'name', this.value)" placeholder="e.g., Tall" style="padding:0.5rem;">
-                    </div>
-                    <div>
-                        <label style="font-size:0.85rem;">Description</label>
-                        <input type="text" value="${v.size || ''}" onchange="updateVariant(${i}, 'size', this.value)" placeholder="e.g., 12oz" style="padding:0.5rem;">
-                    </div>
-                    <div>
-                        <label style="font-size:0.85rem;">Price (₱)</label>
-                        <input type="number" value="${v.price || ''}" onchange="updateVariant(${i}, 'price', parseFloat(this.value) || 0)" min="0" step="0.01" placeholder="0.00" style="padding:0.5rem;">
-                    </div>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="removeVariant(${i})" style="margin-bottom:2px;">🗑</button>
-                </div>
-            `).join('');
-        }
-        
-        // Update variant
-        function updateVariant(index, field, value) {
-            productVariants[index][field] = value;
-        }
-        
-        // Add new variant
-        function addVariant() {
-            productVariants.push({ name: '', size: '', price: 0 });
-            renderVariants();
-        }
-        
-        // Remove variant
-        function removeVariant(index) {
-            productVariants.splice(index, 1);
-            renderVariants();
-        }
         
         // Auth
         auth.onAuthStateChanged(user => {
@@ -522,7 +334,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         async function loadProducts() {
             const tbody = document.getElementById('productsTableBody');
             try {
-                const snapshot = await db.collection('shopProducts').orderBy('createdAt', 'desc').get();
+                const snapshot = await db.collection('products').orderBy('createdAt', 'desc').get();
                 if (snapshot.empty) {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;">No products yet.</td></tr>';
                     return;
@@ -564,117 +376,10 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                     document.getElementById('imagePlaceholder').style.display = 'none';
                     document.getElementById('imageControls').style.display = 'block';
                     setupDrag();
-                    imageIsEditable = true; // Mark as editable
-                    
-                    // Remove existing image note if present
-                    const note = document.getElementById('existingImageNote');
-                    if (note) note.remove();
                 };
                 img.src = ev.target.result;
             };
             reader.readAsDataURL(file);
-        }
-        
-        // Load existing image from URL and make it editable
-        async function loadExistingImage(imageUrl) {
-            // Show loading state
-            const imageBox = document.getElementById('imageBox');
-            document.getElementById('imagePlaceholder').innerHTML = '<span>⏳</span><p>Loading image...</p>';
-            
-            // Try to load via proxy to bypass CORS
-            // Using a public CORS proxy or Firebase function would be ideal
-            // For now, try direct loading first, then fallback
-            
-            // Method 1: Try creating a blob URL via fetch with no-cors and canvas
-            try {
-                // Create an image element and try to load it
-                const tempImg = new Image();
-                tempImg.crossOrigin = 'anonymous';
-                
-                // Create a promise to handle the image loading
-                const imageLoaded = new Promise((resolve, reject) => {
-                    tempImg.onload = () => resolve(tempImg);
-                    tempImg.onerror = () => reject(new Error('CORS blocked'));
-                });
-                
-                tempImg.src = imageUrl;
-                
-                const loadedImg = await imageLoaded;
-                
-                // If we get here, CORS worked - draw to canvas
-                const canvas = document.createElement('canvas');
-                canvas.width = loadedImg.naturalWidth;
-                canvas.height = loadedImg.naturalHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(loadedImg, 0, 0);
-                
-                const dataUrl = canvas.toDataURL('image/png');
-                loadImageIntoEditor(dataUrl);
-                
-            } catch (error) {
-                console.log('Direct load failed, trying alternative method...');
-                
-                // Method 2: Use allorigins.win proxy (free CORS proxy)
-                try {
-                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(imageUrl)}`;
-                    const response = await fetch(proxyUrl);
-                    const blob = await response.blob();
-                    
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        loadImageIntoEditor(e.target.result);
-                    };
-                    reader.readAsDataURL(blob);
-                    
-                } catch (proxyError) {
-                    console.log('Proxy also failed, showing preview only');
-                    showImagePreviewOnly(imageUrl);
-                }
-            }
-        }
-        
-        // Load image data URL into the editor (makes it fully editable)
-        function loadImageIntoEditor(dataUrl) {
-            const img = document.getElementById('previewImg');
-            img.onload = function() {
-                imageData.naturalWidth = img.naturalWidth;
-                imageData.naturalHeight = img.naturalHeight;
-                fitImage();
-                img.style.display = 'block';
-                document.getElementById('imagePlaceholder').style.display = 'none';
-                document.getElementById('imagePlaceholder').innerHTML = '<span>📷</span><p>Click to upload image</p>';
-                document.getElementById('imageControls').style.display = 'block';
-                setupDrag();
-                imageIsEditable = true;
-                
-                // Remove any existing note
-                const note = document.getElementById('existingImageNote');
-                if (note) note.remove();
-            };
-            img.src = dataUrl;
-        }
-        
-        // Show image as non-editable preview (fallback)
-        function showImagePreviewOnly(imageUrl) {
-            imageIsEditable = false;
-            
-            const imageBox = document.getElementById('imageBox');
-            imageBox.style.backgroundImage = `url('${imageUrl}')`;
-            imageBox.style.backgroundSize = 'contain';
-            imageBox.style.backgroundPosition = 'center';
-            imageBox.style.backgroundRepeat = 'no-repeat';
-            document.getElementById('imagePlaceholder').style.display = 'none';
-            document.getElementById('imagePlaceholder').innerHTML = '<span>📷</span><p>Click to upload image</p>';
-            document.getElementById('imageControls').style.display = 'block';
-            
-            // Add note
-            const note = document.createElement('p');
-            note.style.cssText = 'font-size:0.85rem;color:var(--orange);margin-top:0.5rem;text-align:center;';
-            note.textContent = '📷 Current image shown. Upload a new one to edit/replace it.';
-            note.id = 'existingImageNote';
-            if (!document.getElementById('existingImageNote')) {
-                document.getElementById('imageControls').appendChild(note);
-            }
         }
         
         function resizeImage(value) {
@@ -783,25 +488,13 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             document.getElementById('sizeValue').textContent = '100';
             imageData = { naturalWidth: 0, naturalHeight: 0, x: 0, y: 0, scale: 100 };
             existingImageUrl = null;
-            imageIsEditable = false;
-            
-            // Clear background image if set
-            const imageBox = document.getElementById('imageBox');
-            imageBox.style.backgroundImage = '';
-            imageBox.style.backgroundSize = '';
-            imageBox.style.backgroundPosition = '';
-            
-            // Remove existing image note if present
-            const note = document.getElementById('existingImageNote');
-            if (note) note.remove();
         }
         
         // Generate final image from canvas
         function generateFinalImage() {
             return new Promise((resolve) => {
                 const img = document.getElementById('previewImg');
-                // Only generate if image is editable (loaded as data URL, not just background preview)
-                if (!imageIsEditable || !img.src || img.style.display === 'none') {
+                if (!img.src || img.style.display === 'none') {
                     resolve(null);
                     return;
                 }
@@ -844,45 +537,14 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             showLoading(true);
             
             try {
-                const productName = document.getElementById('productName').value;
-                const hasVariants = document.getElementById('hasVariants').checked;
-                const category = document.getElementById('productCategory').value;
-                
                 const productData = {
-                    name: productName,
-                    price: parseFloat(document.getElementById('productPrice').value) || 0,
-                    category: category,
+                    name: document.getElementById('productName').value,
+                    price: parseFloat(document.getElementById('productPrice').value),
+                    category: document.getElementById('productCategory').value,
                     description: document.getElementById('productDescription').value,
-                    fullDescription: document.getElementById('productFullDescription').value,
                     isActive: document.getElementById('productStatus').value === 'true',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
-                
-                // Add variants if enabled
-                if (hasVariants && productVariants.length > 0) {
-                    // Filter out empty variants and validate
-                    const validVariants = productVariants.filter(v => v.name && v.price > 0);
-                    if (validVariants.length > 0) {
-                        productData.hasVariants = true;
-                        productData.variants = validVariants;
-                        // Set base price to lowest variant price if not set
-                        if (!productData.price) {
-                            productData.price = Math.min(...validVariants.map(v => v.price));
-                        }
-                    }
-                } else {
-                    productData.hasVariants = false;
-                    productData.variants = [];
-                }
-                
-                // Generate slug and product page URL
-                const slug = productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-                const generatePage = document.getElementById('generateProductPage').checked;
-                
-                if (generatePage) {
-                    productData.productPageUrl = `products/template.html?id=${editingProductId || 'NEW'}`;
-                    productData.slug = slug;
-                }
                 
                 const imageBlob = await generateFinalImage();
                 if (imageBlob) {
@@ -892,19 +554,11 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 }
                 
                 if (editingProductId) {
-                    await db.collection('shopProducts').doc(editingProductId).update(productData);
+                    await db.collection('products').doc(editingProductId).update(productData);
                     showToast('Product updated!', 'success');
                 } else {
                     productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    const docRef = await db.collection('shopProducts').add(productData);
-                    
-                    // Update product page URL with actual document ID
-                    if (generatePage) {
-                        await db.collection('shopProducts').doc(docRef.id).update({
-                            productPageUrl: `products/template.html?id=${docRef.id}`
-                        });
-                    }
-                    
+                    await db.collection('products').add(productData);
                     showToast('Product added!', 'success');
                 }
                 
@@ -920,7 +574,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         
         async function editProduct(productId) {
             try {
-                const doc = await db.collection('shopProducts').doc(productId).get();
+                const doc = await db.collection('products').doc(productId).get();
                 if (!doc.exists) return;
                 
                 const p = doc.data();
@@ -932,27 +586,21 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 document.getElementById('productPrice').value = p.price;
                 document.getElementById('productCategory').value = p.category;
                 document.getElementById('productDescription').value = p.description || '';
-                document.getElementById('productFullDescription').value = p.fullDescription || '';
                 document.getElementById('productStatus').value = p.isActive.toString();
-                document.getElementById('generateProductPage').checked = !!p.productPageUrl;
-                
-                // Handle category change to show/hide variants section
-                handleCategoryChange();
-                
-                // Load variants if they exist
-                if (p.hasVariants && p.variants && p.variants.length > 0) {
-                    document.getElementById('hasVariants').checked = true;
-                    productVariants = [...p.variants];
-                    toggleVariants();
-                } else {
-                    document.getElementById('hasVariants').checked = false;
-                    productVariants = [];
-                    toggleVariants();
-                }
                 
                 if (p.imageUrl) {
-                    // Load image via fetch to avoid CORS issues with img.crossOrigin
-                    loadExistingImage(p.imageUrl);
+                    const img = document.getElementById('previewImg');
+                    img.crossOrigin = 'anonymous';
+                    img.onload = function() {
+                        imageData.naturalWidth = img.naturalWidth;
+                        imageData.naturalHeight = img.naturalHeight;
+                        fitImage();
+                        img.style.display = 'block';
+                        document.getElementById('imagePlaceholder').style.display = 'none';
+                        document.getElementById('imageControls').style.display = 'block';
+                        setupDrag();
+                    };
+                    img.src = p.imageUrl;
                 }
                 
                 document.getElementById('formTitle').textContent = '✏️ Edit Product';
@@ -967,7 +615,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
             if (!confirm('Delete "' + productName + '"?')) return;
             showLoading(true);
             try {
-                await db.collection('shopProducts').doc(productId).delete();
+                await db.collection('products').doc(productId).delete();
                 showToast('Deleted', 'success');
                 loadProducts();
             } catch (error) {
@@ -980,139 +628,11 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         function resetForm() {
             document.getElementById('productForm').reset();
             document.getElementById('productId').value = '';
-            document.getElementById('productFullDescription').value = '';
-            document.getElementById('aiQuickNote').value = '';
-            document.getElementById('generateProductPage').checked = true;
             editingProductId = null;
             existingImageUrl = null;
             removeImage();
             document.getElementById('formTitle').textContent = '➕ Add New Product';
             document.getElementById('submitBtn').textContent = 'Add Product';
-            hideAIStatus();
-            
-            // Reset variants
-            productVariants = [];
-            document.getElementById('hasVariants').checked = false;
-            document.getElementById('variantsSection').style.display = 'none';
-            document.getElementById('variantsContainer').style.display = 'none';
-            document.getElementById('productPrice').setAttribute('required', 'required');
-            document.getElementById('productPrice').parentElement.querySelector('label').innerHTML = 'Price (₱) *';
-        }
-        
-        // AI Content Generation
-        async function generateAIContent() {
-            const productName = document.getElementById('productName').value.trim();
-            const category = document.getElementById('productCategory').value;
-            const price = parseFloat(document.getElementById('productPrice').value) || 0;
-            const note = document.getElementById('aiQuickNote').value.trim();
-            const additionalInstructions = document.getElementById('aiAdditionalInstructions').value.trim();
-            
-            // Validation
-            if (!productName) {
-                showAIStatus('Please enter a product name first', 'error');
-                return;
-            }
-            
-            if (!category || category === 'Select category...') {
-                showAIStatus('Please select a category first', 'error');
-                return;
-            }
-            
-            // Disable button and show loading
-            const btn = document.getElementById('generateBtn');
-            const btnText = document.getElementById('generateBtnText');
-            btn.disabled = true;
-            btnText.textContent = 'Generating... This may take 10-15 seconds';
-            
-            showAIStatus('🤖 AI is crafting your SEO-optimized content...', 'loading');
-            
-            try {
-                const response = await fetch('/api/generate-content.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        productName,
-                        category,
-                        price,
-                        note,
-                        additionalInstructions
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(result.error || result.message || 'Generation failed');
-                }
-                
-                if (result.success && result.data) {
-                    // Populate the description fields
-                    document.getElementById('productDescription').value = result.data.shortDescription || '';
-                    document.getElementById('productFullDescription').value = result.data.fullDescription || '';
-                    
-                    showAIStatus(
-                        `✅ Success! Generated ${result.data.shortDescription?.length || 0} char short description and ${result.data.fullDescription?.length || 0} word full description. ` +
-                        `(${result.usage.callsToday} calls today, ${result.usage.remainingThisHour} remaining this hour)`,
-                        'success'
-                    );
-                    
-                    // Scroll to descriptions so user can see them
-                    document.getElementById('productDescription').scrollIntoView({ behavior: 'smooth', block: 'center' });
-                } else {
-                    throw new Error('Invalid response format');
-                }
-                
-            } catch (error) {
-                console.error('AI Generation Error:', error);
-                showAIStatus('❌ Error: ' + error.message, 'error');
-            } finally {
-                btn.disabled = false;
-                btnText.textContent = 'Generate SEO Content with AI';
-            }
-        }
-        
-        function showAIStatus(message, type) {
-            const status = document.getElementById('aiStatus');
-            status.style.display = 'block';
-            status.textContent = message;
-            
-            // Style based on type
-            if (type === 'success') {
-                status.style.background = '#d4edda';
-                status.style.color = '#155724';
-                status.style.border = '1px solid #c3e6cb';
-            } else if (type === 'error') {
-                status.style.background = '#f8d7da';
-                status.style.color = '#721c24';
-                status.style.border = '1px solid #f5c6cb';
-            } else if (type === 'loading') {
-                status.style.background = '#d1ecf1';
-                status.style.color = '#0c5460';
-                status.style.border = '1px solid #bee5eb';
-            } else {
-                status.style.background = '#fff3cd';
-                status.style.color = '#856404';
-                status.style.border = '1px solid #ffeaa7';
-            }
-        }
-        
-        function hideAIStatus() {
-            document.getElementById('aiStatus').style.display = 'none';
-        }
-        
-        function toggleAdvancedSettings() {
-            const panel = document.getElementById('advancedSettings');
-            const icon = document.getElementById('advancedToggleIcon');
-            
-            if (panel.style.display === 'none') {
-                panel.style.display = 'block';
-                icon.textContent = '▼';
-            } else {
-                panel.style.display = 'none';
-                icon.textContent = '▶';
-            }
         }
         
         function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('show', show); }
