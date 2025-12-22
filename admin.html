@@ -522,11 +522,11 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         
         function handleLogout() { auth.signOut(); }
         
-        // Products
+        // Products - UNIFIED COLLECTION
         async function loadProducts() {
             const tbody = document.getElementById('productsTableBody');
             try {
-                const snapshot = await db.collection('shopProducts').orderBy('createdAt', 'desc').get();
+                const snapshot = await db.collection('products').orderBy('name').get();
                 if (snapshot.empty) {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;">No products yet.</td></tr>';
                     return;
@@ -534,12 +534,15 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 tbody.innerHTML = snapshot.docs.map(doc => {
                     const p = doc.data();
                     const cat = categoryData[p.category] || { name: p.category, emoji: '🍞' };
+                    const imageUrl = p.shop?.imageUrl || '';
+                    const isActive = p.shop?.isPublished || false;
+                    const price = p.finalSRP || 0;
                     return `<tr>
-                        <td><div class="product-thumb" style="${p.imageUrl ? `background-image:url('${p.imageUrl}')` : ''}">${!p.imageUrl ? cat.emoji : ''}</div></td>
+                        <td><div class="product-thumb" style="${imageUrl ? `background-image:url('${imageUrl}')` : ''}">${!imageUrl ? cat.emoji : ''}</div></td>
                         <td><strong>${p.name}</strong></td>
                         <td>${cat.emoji} ${cat.name}</td>
-                        <td>₱${p.price.toFixed(2)}</td>
-                        <td><span class="status-badge ${p.isActive ? 'status-active' : 'status-inactive'}">${p.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td>₱${price.toFixed(2)}</td>
+                        <td><span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${isActive ? 'Published' : 'Draft'}</span></td>
                         <td class="action-btns">
                             <button class="btn btn-secondary btn-sm" onclick="editProduct('${doc.id}')">Edit</button>
                             <button class="btn btn-danger btn-sm" onclick="deleteProduct('${doc.id}','${p.name.replace(/'/g, "\\'")}')">Delete</button>
@@ -852,31 +855,30 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 const hasVariants = document.getElementById('hasVariants').checked;
                 const category = document.getElementById('productCategory').value;
                 
-                const productData = {
-                    name: productName,
-                    price: parseFloat(document.getElementById('productPrice').value) || 0,
-                    category: category,
+                // Build shop data for unified schema
+                const shopData = {
+                    isPublished: document.getElementById('productStatus').value === 'true',
                     description: document.getElementById('productDescription').value,
                     fullDescription: document.getElementById('productFullDescription').value,
-                    isActive: document.getElementById('productStatus').value === 'true',
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    hasVariants: false,
+                    variants: []
                 };
                 
                 // Add variants if enabled
                 if (hasVariants && productVariants.length > 0) {
-                    // Filter out empty variants and validate
                     const validVariants = productVariants.filter(v => v.name && v.price > 0);
                     if (validVariants.length > 0) {
-                        productData.hasVariants = true;
-                        productData.variants = validVariants;
-                        // Set base price to lowest variant price if not set
-                        if (!productData.price) {
-                            productData.price = Math.min(...validVariants.map(v => v.price));
-                        }
+                        shopData.hasVariants = true;
+                        shopData.variants = validVariants;
                     }
-                } else {
-                    productData.hasVariants = false;
-                    productData.variants = [];
+                }
+                
+                // Handle image
+                const imageBlob = await generateFinalImage();
+                if (imageBlob) {
+                    shopData.imageUrl = await uploadImage(imageBlob);
+                } else if (existingImageUrl) {
+                    shopData.imageUrl = existingImageUrl;
                 }
                 
                 // Generate slug and product page URL
@@ -884,28 +886,53 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 const generatePage = document.getElementById('generateProductPage').checked;
                 
                 if (generatePage) {
-                    productData.productPageUrl = `products/template.html?id=${editingProductId || 'NEW'}`;
-                    productData.slug = slug;
-                }
-                
-                const imageBlob = await generateFinalImage();
-                if (imageBlob) {
-                    productData.imageUrl = await uploadImage(imageBlob);
-                } else if (existingImageUrl) {
-                    productData.imageUrl = existingImageUrl;
+                    shopData.productPageUrl = `products/template.html?id=${editingProductId || 'NEW'}`;
+                    shopData.slug = slug;
                 }
                 
                 if (editingProductId) {
-                    await db.collection('shopProducts').doc(editingProductId).update(productData);
+                    // Update existing product - only update shop-related fields
+                    const updateData = {
+                        name: productName,
+                        category: category,
+                        finalSRP: parseFloat(document.getElementById('productPrice').value) || 0,
+                        shop: shopData,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    
+                    await db.collection('products').doc(editingProductId).update(updateData);
                     showToast('Product updated!', 'success');
                 } else {
-                    productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    const docRef = await db.collection('shopProducts').add(productData);
+                    // Create new product with unified schema
+                    const newProduct = {
+                        name: productName,
+                        category: category,
+                        finalSRP: parseFloat(document.getElementById('productPrice').value) || 0,
+                        
+                        // Empty recipe data (to be filled in ProofMaster)
+                        doughRecipeId: null,
+                        fillings: [],
+                        toppings: [],
+                        portioning: { doughWeight: 0, finalWeight: 0 },
+                        secondProof: { duration: 0, temperature: 0, humidity: 0 },
+                        baking: { ovenTempTop: 0, ovenTempBottom: 0, duration: 0, rotateAt: 0 },
+                        costs: { packaging: 0, labor: 0 },
+                        pricing: { markupPercent: 40 },
+                        
+                        // Shop data
+                        shop: shopData,
+                        
+                        notes: '',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    
+                    const docRef = await db.collection('products').add(newProduct);
                     
                     // Update product page URL with actual document ID
                     if (generatePage) {
-                        await db.collection('shopProducts').doc(docRef.id).update({
-                            productPageUrl: `products/template.html?id=${docRef.id}`
+                        await db.collection('products').doc(docRef.id).update({
+                            'shop.productPageUrl': `products/template.html?id=${docRef.id}`
                         });
                     }
                     
@@ -924,29 +951,29 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         
         async function editProduct(productId) {
             try {
-                const doc = await db.collection('shopProducts').doc(productId).get();
+                const doc = await db.collection('products').doc(productId).get();
                 if (!doc.exists) return;
                 
                 const p = doc.data();
                 editingProductId = productId;
-                existingImageUrl = p.imageUrl || null;
+                existingImageUrl = p.shop?.imageUrl || null;
                 
                 document.getElementById('productId').value = productId;
                 document.getElementById('productName').value = p.name;
-                document.getElementById('productPrice').value = p.price;
+                document.getElementById('productPrice').value = p.finalSRP || 0;
                 document.getElementById('productCategory').value = p.category;
-                document.getElementById('productDescription').value = p.description || '';
-                document.getElementById('productFullDescription').value = p.fullDescription || '';
-                document.getElementById('productStatus').value = p.isActive.toString();
-                document.getElementById('generateProductPage').checked = !!p.productPageUrl;
+                document.getElementById('productDescription').value = p.shop?.description || '';
+                document.getElementById('productFullDescription').value = p.shop?.fullDescription || '';
+                document.getElementById('productStatus').value = (p.shop?.isPublished || false).toString();
+                document.getElementById('generateProductPage').checked = !!(p.shop?.productPageUrl);
                 
                 // Handle category change to show/hide variants section
                 handleCategoryChange();
                 
                 // Load variants if they exist
-                if (p.hasVariants && p.variants && p.variants.length > 0) {
+                if (p.shop?.hasVariants && p.shop?.variants && p.shop.variants.length > 0) {
                     document.getElementById('hasVariants').checked = true;
-                    productVariants = [...p.variants];
+                    productVariants = [...p.shop.variants];
                     toggleVariants();
                 } else {
                     document.getElementById('hasVariants').checked = false;
@@ -954,9 +981,8 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                     toggleVariants();
                 }
                 
-                if (p.imageUrl) {
-                    // Load image via fetch to avoid CORS issues with img.crossOrigin
-                    loadExistingImage(p.imageUrl);
+                if (existingImageUrl) {
+                    loadExistingImage(existingImageUrl);
                 }
                 
                 document.getElementById('formTitle').textContent = '✏️ Edit Product';
@@ -968,10 +994,10 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
         }
         
         async function deleteProduct(productId, productName) {
-            if (!confirm('Delete "' + productName + '"?')) return;
+            if (!confirm('Delete "' + productName + '"?\n\n⚠️ This will also remove recipe data from ProofMaster!')) return;
             showLoading(true);
             try {
-                await db.collection('shopProducts').doc(productId).delete();
+                await db.collection('products').doc(productId).delete();
                 showToast('Deleted', 'success');
                 loadProducts();
             } catch (error) {

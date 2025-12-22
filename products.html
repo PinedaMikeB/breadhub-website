@@ -843,17 +843,37 @@
             filter.innerHTML = buttons.join('');
         }
         
-        // Load products from Firebase
+        // Load products from Firebase - UNIFIED products collection
         async function loadProducts() {
             const grid = document.getElementById('productsGrid');
             
             try {
-                const snapshot = await db.collection('shopProducts')
-                    .where('isActive', '==', true)
-                    .orderBy('createdAt', 'desc')
+                // Query unified products collection where shop.isPublished is true
+                const snapshot = await db.collection('products')
+                    .where('shop.isPublished', '==', true)
                     .get();
                 
-                allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Map to expected format from unified schema
+                allProducts = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        name: data.name,
+                        category: data.category,
+                        price: data.finalSRP || 0,
+                        description: data.shop?.description || '',
+                        imageUrl: data.shop?.imageUrl || '',
+                        images: data.shop?.images || [],
+                        hasVariants: data.shop?.hasVariants || false,
+                        variants: data.shop?.variants || [],
+                        isActive: data.shop?.isPublished || false,
+                        createdAt: data.createdAt
+                    };
+                });
+                
+                // Sort by name
+                allProducts.sort((a, b) => a.name.localeCompare(b.name));
+                
                 renderProducts();
                 
             } catch (error) {
