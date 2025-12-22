@@ -361,6 +361,7 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    <script src="js/proofmaster-integration.js"></script>
     
     <script>
         // Firebase Config - ProofMaster Database
@@ -495,6 +496,9 @@ Our signature [Product Name] is baked fresh daily using premium ingredients...
                 document.getElementById('adminDashboard').style.display = 'block';
                 document.getElementById('userEmail').textContent = user.email;
                 loadProducts();
+                
+                // Check for prefill from ProofMaster
+                setTimeout(() => checkPrefillFromProofMaster(), 500);
             } else {
                 document.getElementById('loginScreen').style.display = 'flex';
                 document.getElementById('adminDashboard').style.display = 'none';
