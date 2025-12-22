@@ -784,22 +784,34 @@
         // Messenger link
         const MESSENGER_LINK = 'https://m.me/61581500712810';
         
-        // Category data
-        const categoryData = {
-            'donut': { name: 'Donuts', emoji: '🍩' },
-            'savory': { name: 'Savory', emoji: '🥐' },
-            'loaf': { name: 'Loaf Breads', emoji: '🍞' },
-            'cookies': { name: 'Cookies', emoji: '🍪' },
-            'cinnamon-rolls': { name: 'Cinnamon Rolls', emoji: '🥮' },
-            'classic-filipino': { name: 'Classic Filipino', emoji: '🥖' },
-            'roti': { name: 'Roti', emoji: '🫓' },
-            'cakes': { name: 'Cakes', emoji: '🎂' },
-            'pandesal': { name: 'Pandesal', emoji: '🥯' },
-            'desserts': { name: 'Desserts', emoji: '🧁' },
-            'drinks': { name: 'Drinks', emoji: '🥤' },
-            'coffee': { name: 'Coffee', emoji: '☕' },
-            'non-coffee': { name: 'Non-Coffee Drinks', emoji: '🧃' }
+        // Category data with main category grouping
+        const mainCategories = {
+            'bread': { name: 'Bread & Pastries', emoji: '🍞' },
+            'drinks': { name: 'Drinks & Beverages', emoji: '🥤' }
         };
+        
+        const categoryData = {
+            // BREAD subcategories
+            'donut': { name: 'Donuts', emoji: '🍩', mainCategory: 'bread' },
+            'savory': { name: 'Savory', emoji: '🥐', mainCategory: 'bread' },
+            'loaf': { name: 'Loaf Breads', emoji: '🍞', mainCategory: 'bread' },
+            'cookies': { name: 'Cookies', emoji: '🍪', mainCategory: 'bread' },
+            'cinnamon-rolls': { name: 'Cinnamon Rolls', emoji: '🥮', mainCategory: 'bread' },
+            'classic-filipino': { name: 'Classic Filipino', emoji: '🥖', mainCategory: 'bread' },
+            'roti': { name: 'Roti', emoji: '🫓', mainCategory: 'bread' },
+            'cakes': { name: 'Cakes', emoji: '🎂', mainCategory: 'bread' },
+            'pandesal': { name: 'Pandesal', emoji: '🥯', mainCategory: 'bread' },
+            'desserts': { name: 'Desserts', emoji: '🧁', mainCategory: 'bread' },
+            // DRINKS subcategories  
+            'drinks': { name: 'Drinks', emoji: '🥤', mainCategory: 'drinks' },
+            'coffee': { name: 'Coffee', emoji: '☕', mainCategory: 'drinks' },
+            'non-coffee': { name: 'Non-Coffee Drinks', emoji: '🧃', mainCategory: 'drinks' }
+        };
+        
+        // Helper to get main category from subcategory
+        function getMainCategory(subcategory) {
+            return categoryData[subcategory]?.mainCategory || 'bread';
+        }
         
         // Cart state
         let cart = JSON.parse(localStorage.getItem('breadhub_cart') || '[]');
@@ -830,17 +842,30 @@
                 .replace(/^-+|-+$/g, '');
         }
         
-        // Render category filter buttons
+        // Render category filter buttons with main categories
         function renderCategoryFilter() {
             const filter = document.getElementById('categoryFilter');
-            const buttons = ['<button class="filter-btn' + (currentCategory === 'all' ? ' active' : '') + '" data-category="all" onclick="filterProducts(\'all\')">All</button>'];
             
-            Object.entries(categoryData).forEach(([slug, data]) => {
-                const isActive = currentCategory === slug ? ' active' : '';
-                buttons.push(`<button class="filter-btn${isActive}" data-category="${slug}" onclick="filterProducts('${slug}')">${data.emoji} ${data.name}</button>`);
+            // Get bread and drinks subcategories
+            const breadCats = Object.entries(categoryData).filter(([k, v]) => v.mainCategory === 'bread');
+            const drinksCats = Object.entries(categoryData).filter(([k, v]) => v.mainCategory === 'drinks');
+            
+            let html = `
+                <button class="filter-btn${currentCategory === 'all' ? ' active' : ''}" data-category="all" onclick="filterProducts('all')">All</button>
+                <button class="filter-btn${currentCategory === 'bread' ? ' active' : ''}" data-category="bread" onclick="filterProducts('bread')" style="background: ${currentCategory === 'bread' ? '#E65100' : '#FFF3E0'}; color: ${currentCategory === 'bread' ? 'white' : '#E65100'}; border-color: #E65100;">🍞 All Breads</button>
+                <button class="filter-btn${currentCategory === 'drinks' ? ' active' : ''}" data-category="drinks" onclick="filterProducts('drinks')" style="background: ${currentCategory === 'drinks' ? '#1565C0' : '#E3F2FD'}; color: ${currentCategory === 'drinks' ? 'white' : '#1565C0'}; border-color: #1565C0;">🥤 All Drinks</button>
+            `;
+            
+            // Add individual subcategories
+            breadCats.forEach(([slug, data]) => {
+                html += `<button class="filter-btn${currentCategory === slug ? ' active' : ''}" data-category="${slug}" onclick="filterProducts('${slug}')">${data.emoji} ${data.name}</button>`;
             });
             
-            filter.innerHTML = buttons.join('');
+            drinksCats.forEach(([slug, data]) => {
+                html += `<button class="filter-btn${currentCategory === slug ? ' active' : ''}" data-category="${slug}" onclick="filterProducts('${slug}')">${data.emoji} ${data.name}</button>`;
+            });
+            
+            filter.innerHTML = html;
         }
         
         // Load products from Firebase - UNIFIED products collection
@@ -860,6 +885,7 @@
                         id: doc.id,
                         name: data.name,
                         category: data.category,
+                        mainCategory: data.mainCategory || getMainCategory(data.category),
                         price: data.finalSRP || 0,
                         description: data.shop?.description || '',
                         imageUrl: data.shop?.imageUrl || '',
@@ -887,7 +913,15 @@
             const grid = document.getElementById('productsGrid');
             let products = allProducts;
             
-            if (currentCategory !== 'all') {
+            // Filter by main category or subcategory
+            if (currentCategory === 'bread') {
+                // Show all bread products
+                products = allProducts.filter(p => getMainCategory(p.category) === 'bread');
+            } else if (currentCategory === 'drinks') {
+                // Show all drinks products
+                products = allProducts.filter(p => getMainCategory(p.category) === 'drinks');
+            } else if (currentCategory !== 'all') {
+                // Filter by specific subcategory
                 products = allProducts.filter(p => p.category === currentCategory);
             }
             
