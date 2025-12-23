@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BreadHub - Add 5 Remaining Products</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
+        h1 { color: #f39c12; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .info { background: #3498db; }
+        .success { background: #27ae60; }
+        button { background: #f39c12; color: #000; border: none; padding: 15px 30px; font-size: 16px; cursor: pointer; border-radius: 5px; margin: 10px 5px; }
+        button:hover { background: #e67e22; }
+        #log { background: #0a0a15; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 13px; margin-top: 20px; }
+        .log-success { color: #2ecc71; }
+        .log-error { color: #e74c3c; }
+        .log-info { color: #3498db; }
+        .product-list { background: #0a0a15; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .product-item { padding: 10px; border-bottom: 1px solid #333; }
+        .product-item:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+    <h1>🍞 Add 5 Remaining Products</h1>
+    
+    <div class="status info">
+        These 5 products will be added to ProofMaster with exact Loyverse names for mapping.
+    </div>
+    
+    <h3>Products to Add:</h3>
+    <div class="product-list">
+        <div class="product-item">1. <strong>Ensaymada Parmy</strong> - ₱13,072 sales</div>
+        <div class="product-item">2. <strong>Custard</strong> - ₱750 sales</div>
+        <div class="product-item">3. <strong>Ube Twist</strong> - ₱594 sales</div>
+        <div class="product-item">4. <strong>Monggo Basket</strong> - ₱270 sales</div>
+        <div class="product-item">5. <strong>Choco Glaze</strong> - ₱240 sales</div>
+    </div>
+    
+    <button onclick="addProducts()">➕ Add These 5 Products to ProofMaster</button>
+    
+    <div id="log"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        firebase.initializeApp({
+            apiKey: "AIzaSyAj2szYv9ynVFrxdH0tpUsOg7JmJn6Wq0g",
+            authDomain: "breadhub-proofmaster.firebaseapp.com",
+            projectId: "breadhub-proofmaster",
+            storageBucket: "breadhub-proofmaster.firebasestorage.app",
+            messagingSenderId: "222137689770",
+            appId: "1:222137689770:web:645c552afa835732c852d3"
+        });
+        const db = firebase.firestore();
+        
+        const products = [
+            { name: "Ensaymada Parmy", category: "classic-filipino" },
+            { name: "Custard", category: "classic-filipino" },
+            { name: "Ube Twist", category: "classic-filipino" },
+            { name: "Monggo Basket", category: "classic-filipino" },
+            { name: "Choco Glaze", category: "classic-filipino" }
+        ];
+        
+        function log(msg, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        async function addProducts() {
+            log('Adding 5 products...', 'info');
+            
+            // Check existing
+            const snapshot = await db.collection('products').get();
+            const existing = snapshot.docs.map(d => d.data().name.toLowerCase());
+            
+            let added = 0;
+            
+            for (const product of products) {
+                if (existing.includes(product.name.toLowerCase())) {
+                    log(`Skipping (exists): ${product.name}`, 'info');
+                    continue;
+                }
+                
+                try {
+                    await db.collection('products').add({
+                        name: product.name,
+                        category: product.category,
+                        description: `[Loyverse Import] For mapping historical sales`,
+                        finalSRP: 0,
+                        isAvailable: false,
+                        showOnWebsite: false,
+                        hasVariants: false,
+                        costs: { totalCost: 0, ingredientsCost: 0, packagingCost: 0, laborCost: 0 },
+                        pricing: { markupPercent: 0 },
+                        createdAt: new Date().toISOString(),
+                        createdBy: 'loyverse-import-tool',
+                        isLoyverseImport: true
+                    });
+                    log(`✓ Added: ${product.name}`, 'success');
+                    added++;
+                } catch (error) {
+                    log(`✗ Error: ${product.name} - ${error.message}`, 'error');
+                }
+            }
+            
+            log(`Done! Added ${added} products.`, 'success');
+            log('Now go to setup-mappings.html to create mappings!', 'info');
+        }
+    </script>
+</body>
+</html>
