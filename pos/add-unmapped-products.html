@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BreadHub - Add Unmapped Products</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
+        h1 { color: #f39c12; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .info { background: #3498db; }
+        .warning { background: #f39c12; color: #000; }
+        .success { background: #27ae60; }
+        button { background: #f39c12; color: #000; border: none; padding: 15px 30px; font-size: 16px; cursor: pointer; border-radius: 5px; margin: 5px; }
+        button:hover { background: #e67e22; }
+        button.danger { background: #e74c3c; color: #fff; }
+        #log { background: #0a0a15; padding: 15px; border-radius: 5px; max-height: 500px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 20px; }
+        .log-success { color: #2ecc71; }
+        .log-error { color: #e74c3c; }
+        .log-info { color: #3498db; }
+        .product-list { background: #0a0a15; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .product-item { padding: 8px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
+        .product-item:last-child { border-bottom: none; }
+        .category { color: #95a5a6; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🍞 BreadHub - Add Unmapped Loyverse Products</h1>
+    
+    <div class="status info">
+        This tool will create placeholder products in ProofMaster for unmapped Loyverse items.
+        These products will have ₱0 cost and are only for mapping historical sales data.
+    </div>
+    
+    <div class="status warning">
+        ⚠️ <strong>38 products</strong> will be created. These are temporary products for Loyverse import mapping.
+    </div>
+    
+    <div style="margin: 20px 0;">
+        <button onclick="addProducts()">➕ Add All Unmapped Products to ProofMaster</button>
+        <button onclick="checkProducts()" class="secondary" style="background:#3498db;">🔍 Check First</button>
+    </div>
+    
+    <h3>Products to Add:</h3>
+    <div class="product-list" id="productList"></div>
+    
+    <div id="log"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        firebase.initializeApp({
+            apiKey: "AIzaSyAj2szYv9ynVFrxdH0tpUsOg7JmJn6Wq0g",
+            authDomain: "breadhub-proofmaster.firebaseapp.com",
+            projectId: "breadhub-proofmaster",
+            storageBucket: "breadhub-proofmaster.firebasestorage.app",
+            messagingSenderId: "222137689770",
+            appId: "1:222137689770:web:645c552afa835732c852d3"
+        });
+        const db = firebase.firestore();
+        
+        // Unmapped Loyverse products from your CSV
+        const unmappedProducts = [
+            { name: "1 Creamer And 1 Sugar", category: "add-ons", loyverseCategory: "Add Ons" },
+            { name: "Banana Bread Almond", category: "classic-filipino", loyverseCategory: "Breads" },
+            { name: "Banana Bread White Choco Chip (Chocochip)", category: "classic-filipino", loyverseCategory: "Breads" },
+            { name: "Banana Bread White Choco Chip (Walnut)", category: "classic-filipino", loyverseCategory: "Breads" },
+            { name: "Banana Walnut Choco Bread", category: "classic-filipino", loyverseCategory: "Breads" },
+            { name: "Biggest Box", category: "packaging", loyverseCategory: "Packaging" },
+            { name: "Biscof Cinnamon", category: "cinnamon", loyverseCategory: "Breads" },
+            { name: "Blueberry Donut Premium", category: "donut", loyverseCategory: "Donut" },
+            { name: "Box Christmas Large", category: "packaging", loyverseCategory: "Packaging" },
+            { name: "Box of 12", category: "packaging", loyverseCategory: "Packaging" },
+            { name: "Box of 6", category: "packaging", loyverseCategory: "Packaging" },
+            { name: "Chill Start", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Cinnamon Gift Bundle 4PC", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Cinnamon Glaze", category: "cinnamon", loyverseCategory: "Breads" },
+            { name: "Cinnamon Roll", category: "cinnamon", loyverseCategory: "Breads" },
+            { name: "Classic Wakeup", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Condensed Sweetener (22 oz - 90ml)", category: "add-ons", loyverseCategory: "Add Ons" },
+            { name: "Crispy Egg Cheese Toast", category: "savory", loyverseCategory: "Breads" },
+            { name: "Double Cheese Pandesal", category: "pandesal", loyverseCategory: "Breads" },
+            { name: "Event Hot Choco (8 oz)", category: "drinks", loyverseCategory: "Event" },
+            { name: "Grab A Bundle", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Grab B Bundle", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Grab C Bacon And Cheese", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Grab C Ham & Cheese", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Grab C Pig in a Blanket", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Grab C Spam And Cheese", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Grab C Tuna Melt", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Honey Garlic Toast", category: "savory", loyverseCategory: "Breads" },
+            { name: "Mocha Chiffon", category: "cakes", loyverseCategory: "Breads" },
+            { name: "Morning Boost", category: "bundles", loyverseCategory: "Bundles" },
+            { name: "Pistachio Donut", category: "donut", loyverseCategory: "Breads" },
+            { name: "S'mores Donut Classic", category: "donut", loyverseCategory: "Donut" },
+            { name: "Sprinkle Donut", category: "donut", loyverseCategory: "Breads" },
+            { name: "Strawberry Cinnamon", category: "cinnamon", loyverseCategory: "Breads" },
+            { name: "Sweet Drizzle Cinnamon", category: "cinnamon", loyverseCategory: "Breads" },
+            { name: "Vanilla Chiffon", category: "cakes", loyverseCategory: "Breads" },
+            { name: "White Almond", category: "classic-filipino", loyverseCategory: "Breads" },
+            { name: "Mango Cinnamon", category: "cinnamon", loyverseCategory: "Breads" }
+        ];
+        
+        // Show product list
+        const listDiv = document.getElementById('productList');
+        listDiv.innerHTML = unmappedProducts.map((p, i) => `
+            <div class="product-item">
+                <span><strong>${i+1}. ${p.name}</strong></span>
+                <span class="category">${p.category} (from: ${p.loyverseCategory})</span>
+            </div>
+        `).join('');
+        
+        function log(msg, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        async function checkProducts() {
+            log('Checking existing products...', 'info');
+            const snapshot = await db.collection('products').get();
+            const existing = snapshot.docs.map(d => d.data().name.toLowerCase());
+            
+            let found = 0;
+            unmappedProducts.forEach(p => {
+                if (existing.includes(p.name.toLowerCase())) {
+                    log(`Already exists: ${p.name}`, 'success');
+                    found++;
+                }
+            });
+            log(`Found ${found} already existing, ${unmappedProducts.length - found} to create`, 'info');
+        }
+        
+        async function addProducts() {
+            log('Starting to add products...', 'info');
+            
+            // Get existing products to avoid duplicates
+            const snapshot = await db.collection('products').get();
+            const existing = snapshot.docs.map(d => d.data().name.toLowerCase());
+            
+            let added = 0;
+            let skipped = 0;
+            
+            for (const product of unmappedProducts) {
+                // Skip if already exists
+                if (existing.includes(product.name.toLowerCase())) {
+                    log(`Skipping (exists): ${product.name}`, 'info');
+                    skipped++;
+                    continue;
+                }
+                
+                try {
+                    const productData = {
+                        name: product.name,
+                        category: product.category,
+                        description: `[Loyverse Import] Originally from ${product.loyverseCategory}`,
+                        finalSRP: 0,
+                        isAvailable: false,
+                        showOnWebsite: false,
+                        hasVariants: false,
+                        costs: {
+                            totalCost: 0,
+                            ingredientsCost: 0,
+                            packagingCost: 0,
+                            laborCost: 0
+                        },
+                        pricing: {
+                            markupPercent: 0
+                        },
+                        createdAt: new Date().toISOString(),
+                        createdBy: 'loyverse-import-tool',
+                        isLoyverseImport: true
+                    };
+                    
+                    await db.collection('products').add(productData);
+                    log(`✓ Added: ${product.name}`, 'success');
+                    added++;
+                } catch (error) {
+                    log(`✗ Error adding ${product.name}: ${error.message}`, 'error');
+                }
+            }
+            
+            log(`Done! Added: ${added}, Skipped: ${skipped}`, 'success');
+            log('Now go to the Mapping Setup tool to create the mappings!', 'info');
+        }
+    </script>
+</body>
+</html>
