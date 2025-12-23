@@ -1535,3 +1535,56 @@ details summary {
 .btn-success:hover {
     background: #218838;
 }
+
+
+/* Sales Management */
+.sales-manage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sales-manage-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.sale-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: var(--bg-input);
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.sale-item .sale-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sale-item .sale-info strong {
+    color: var(--primary);
+}
+
+.sale-item .sale-info small {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+.btn-xs {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+
+.text-muted {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    text-align: center;
+    margin-top: 10px;
+}

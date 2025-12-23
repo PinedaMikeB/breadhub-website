@@ -341,5 +341,79 @@ const Admin = {
                 Toast.success('Discount preset updated');
             }
         });
+    },
+    
+    // ========== MANAGE POS SALES ==========
+    
+    async showDeleteSales() {
+        const container = document.getElementById('salesManageList');
+        if (!container) return;
+        
+        container.innerHTML = '<p class="loading">Loading sales...</p>';
+        
+        try {
+            const sales = await DB.getAll('sales');
+            sales.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            if (sales.length === 0) {
+                container.innerHTML = '<p class="empty-state">No POS sales to manage</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="sales-manage-header">
+                    <span>${sales.length} total transactions</span>
+                    <button class="btn btn-danger btn-sm" onclick="Admin.deleteAllSales()">🗑️ Delete ALL</button>
+                </div>
+                <div class="sales-manage-list">
+                    ${sales.slice(0, 20).map(s => `
+                        <div class="sale-item">
+                            <div class="sale-info">
+                                <strong>${Utils.formatCurrency(s.total || 0)}</strong>
+                                <span>${s.items?.length || 0} items</span>
+                                <small>${new Date(s.timestamp).toLocaleString()}</small>
+                            </div>
+                            <button class="btn btn-danger btn-xs" onclick="Admin.deleteSale('${s.id}')">🗑️</button>
+                        </div>
+                    `).join('')}
+                </div>
+                ${sales.length > 20 ? `<p class="text-muted">Showing first 20 of ${sales.length}</p>` : ''}
+            `;
+        } catch (error) {
+            console.error('Error loading sales:', error);
+            container.innerHTML = '<p class="error">Failed to load sales</p>';
+        }
+    },
+    
+    async deleteSale(saleId) {
+        if (!confirm('Delete this transaction?')) return;
+        
+        try {
+            await DB.delete('sales', saleId);
+            Toast.success('Transaction deleted');
+            this.showDeleteSales();
+            this.loadTodayStats();
+        } catch (error) {
+            console.error('Error deleting sale:', error);
+            Toast.error('Failed to delete');
+        }
+    },
+    
+    async deleteAllSales() {
+        if (!confirm('⚠️ DELETE ALL POS SALES?\n\nThis cannot be undone!')) return;
+        if (!confirm('Are you REALLY sure? This will delete ALL transaction history.')) return;
+        
+        try {
+            const sales = await DB.getAll('sales');
+            for (const sale of sales) {
+                await DB.delete('sales', sale.id);
+            }
+            Toast.success(`Deleted ${sales.length} transactions`);
+            this.showDeleteSales();
+            this.loadTodayStats();
+        } catch (error) {
+            console.error('Error deleting sales:', error);
+            Toast.error('Failed to delete');
+        }
     }
 };
