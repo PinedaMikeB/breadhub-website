@@ -1580,12 +1580,24 @@ details summary {
 /* Date Filter */
 .date-filter {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 15px;
     margin-bottom: 20px;
     padding: 15px;
     background: var(--bg-card);
     border-radius: 8px;
+}
+
+.date-inputs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.date-quick-btns {
+    display: flex;
+    gap: 8px;
     flex-wrap: wrap;
 }
 

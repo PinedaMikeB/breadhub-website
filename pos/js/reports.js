@@ -273,17 +273,21 @@ const Reports = {
             this.destroyChart();
             const ctx = document.getElementById('monthlyChart').getContext('2d');
             this.chart = new Chart(ctx, {
-                type: 'line',
+                type: 'bar',
                 data: {
                     labels: months.map(m => m.month),
-                    datasets: [{
-                        label: 'Total Sales',
-                        data: months.map(m => m.posSales + m.importSales),
-                        borderColor: '#D4894A',
-                        backgroundColor: 'rgba(212, 137, 74, 0.2)',
-                        fill: true,
-                        tension: 0.3
-                    }]
+                    datasets: [
+                        {
+                            label: 'POS Sales',
+                            data: months.map(m => m.posSales),
+                            backgroundColor: '#D4894A'
+                        },
+                        {
+                            label: 'Imported Sales',
+                            data: months.map(m => m.importSales),
+                            backgroundColor: '#3498db'
+                        }
+                    ]
                 },
                 options: { responsive: true, scales: { y: { beginAtZero: true } } }
             });

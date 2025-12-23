@@ -165,14 +165,18 @@
                 
                 <!-- Date Range Filter -->
                 <div class="date-filter">
-                    <label>From:</label>
-                    <input type="date" id="reportDateFrom" class="form-input" onchange="Reports.applyDateFilter()">
-                    <label>To:</label>
-                    <input type="date" id="reportDateTo" class="form-input" onchange="Reports.applyDateFilter()">
-                    <button class="btn btn-sm btn-secondary" onclick="Reports.setQuickRange('today')">Today</button>
-                    <button class="btn btn-sm btn-secondary" onclick="Reports.setQuickRange('week')">This Week</button>
-                    <button class="btn btn-sm btn-secondary" onclick="Reports.setQuickRange('month')">This Month</button>
-                    <button class="btn btn-sm btn-secondary" onclick="Reports.setQuickRange('all')">All Time</button>
+                    <div class="date-inputs">
+                        <label>From:</label>
+                        <input type="date" id="reportDateFrom" class="form-input" onchange="Reports.applyDateFilter()">
+                        <label>To:</label>
+                        <input type="date" id="reportDateTo" class="form-input" onchange="Reports.applyDateFilter()">
+                    </div>
+                    <div class="date-quick-btns">
+                        <button class="btn btn-sm btn-secondary" onclick="Reports.setQuickRange('today')">Today</button>
+                        <button class="btn btn-sm btn-secondary" onclick="Reports.setQuickRange('week')">This Week</button>
+                        <button class="btn btn-sm btn-secondary" onclick="Reports.setQuickRange('month')">This Month</button>
+                        <button class="btn btn-sm btn-secondary" onclick="Reports.setQuickRange('all')">All Time</button>
+                    </div>
                 </div>
                 
                 <div class="reports-tabs">
