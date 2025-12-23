@@ -1,5 +1,5 @@
 /**
- * BreadHub POS - Loyverse Import System v2
+ * BreadHub POS - Loyverse Import System v3 - Fixed undefined mainCategory
  * 
  * RULES:
  * 1. ProofMaster product names = FINAL (never overwritten)
