@@ -79,6 +79,19 @@
                     <!-- Discount Bar (Like Loyverse) -->
                     <div id="discountBar" class="discount-bar-container"></div>
                     
+                    <!-- Main Category Filter (Breads vs Drinks) -->
+                    <div class="main-category-filter">
+                        <button class="main-cat-btn active" data-main="all" onclick="POS.filterByMainCategory('all')">
+                            📦 All
+                        </button>
+                        <button class="main-cat-btn" data-main="breads" onclick="POS.filterByMainCategory('breads')">
+                            🍞 Breads & Pastries
+                        </button>
+                        <button class="main-cat-btn" data-main="drinks" onclick="POS.filterByMainCategory('drinks')">
+                            🥤 Drinks & Beverages
+                        </button>
+                    </div>
+                    
                     <!-- Category Tabs -->
                     <div class="category-tabs" id="categoryTabs">
                         <button class="category-tab active" data-category="all">All</button>

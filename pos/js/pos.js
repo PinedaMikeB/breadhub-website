@@ -14,6 +14,9 @@ const POS = {
     categories: [],
     cart: [],
     
+    // Main category filter (breads vs drinks)
+    currentMainCategory: 'all',
+    
     // Discount presets (like Loyverse)
     discountPresets: [
         { id: 'senior', name: 'Senior Citizen', percent: 20, icon: '👴' },
@@ -167,6 +170,22 @@ const POS = {
         container.innerHTML = html;
     },
     
+    // ========== MAIN CATEGORY FILTER (Breads vs Drinks) ==========
+    
+    filterByMainCategory(mainCat) {
+        this.currentMainCategory = mainCat;
+        this.currentCategory = 'all'; // Reset sub-category
+        
+        // Update button states
+        document.querySelectorAll('.main-cat-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.main === mainCat);
+        });
+        
+        // Update sub-category tabs based on main category
+        this.renderCategories();
+        this.renderProducts();
+    },
+    
     filterByCategory(category) {
         this.currentCategory = category;
         document.querySelectorAll('.category-tab').forEach(tab => {
@@ -188,7 +207,17 @@ const POS = {
         const search = document.getElementById('productSearch')?.value.toLowerCase() || '';
         
         let filtered = this.products.filter(p => {
+            // Main category filter (breads vs drinks)
+            if (this.currentMainCategory !== 'all') {
+                const mainCat = p.mainCategory?.toLowerCase() || '';
+                if (this.currentMainCategory === 'breads' && mainCat !== 'breads') return false;
+                if (this.currentMainCategory === 'drinks' && mainCat !== 'drinks') return false;
+            }
+            
+            // Sub-category filter
             if (this.currentCategory !== 'all' && p.category !== this.currentCategory) return false;
+            
+            // Search filter
             if (search && !p.name.toLowerCase().includes(search)) return false;
             return true;
         });
