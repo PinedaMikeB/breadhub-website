@@ -343,28 +343,10 @@ const SalesImport = {
             </div>
             
             ${autoMapped.length > 0 ? `
-                <details open>
-                    <summary>🤖 Auto-Matched (${autoMapped.length}) - Review & Confirm</summary>
-                    <div class="mapping-table-wrapper">
-                        <table class="mapping-table">
-                            <thead>
-                                <tr><th>Loyverse Name</th><th>Match Score</th><th>→ ProofMaster Product</th><th>Action</th></tr>
-                            </thead>
-                            <tbody>
-                                ${autoMapped.map((item, idx) => `
-                                    <tr>
-                                        <td><strong>${item.loyverseName}</strong></td>
-                                        <td><span class="score-badge">${Math.round(item.score * 100)}%</span></td>
-                                        <td>${item.product.name}${item.variantIndex !== null ? ` (${item.product.variants[item.variantIndex].name})` : ''}</td>
-                                        <td>
-                                            <label><input type="checkbox" class="auto-accept" data-idx="${idx}"> Accept</label>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </details>
+                <div class="info-box">
+                    ℹ️ <strong>${autoMapped.length} items</strong> could be auto-matched but will be <strong>skipped</strong> to avoid errors. 
+                    Use the Mapping Setup tool to add them first.
+                </div>
             ` : ''}
 
             ${unmapped.length > 0 ? `
