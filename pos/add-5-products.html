@@ -22,10 +22,10 @@
     </style>
 </head>
 <body>
-    <h1>🍞 Add 5 Remaining Products</h1>
+    <h1>🍞 Add 6 Remaining Products</h1>
     
     <div class="status info">
-        These 5 products will be added to ProofMaster with exact Loyverse names for mapping.
+        These 6 products will be added to ProofMaster with exact Loyverse names for mapping.
     </div>
     
     <h3>Products to Add:</h3>
@@ -35,9 +35,10 @@
         <div class="product-item">3. <strong>Ube Twist</strong> - ₱594 sales</div>
         <div class="product-item">4. <strong>Monggo Basket</strong> - ₱270 sales</div>
         <div class="product-item">5. <strong>Choco Glaze</strong> - ₱240 sales</div>
+        <div class="product-item">6. <strong>Tasty Loaf</strong></div>
     </div>
     
-    <button onclick="addProducts()">➕ Add These 5 Products to ProofMaster</button>
+    <button onclick="addProducts()">➕ Add These 6 Products to ProofMaster</button>
     
     <div id="log"></div>
 
@@ -60,7 +61,8 @@
             { name: "Custard", category: "classic-filipino" },
             { name: "Ube Twist", category: "classic-filipino" },
             { name: "Monggo Basket", category: "classic-filipino" },
-            { name: "Choco Glaze", category: "classic-filipino" }
+            { name: "Choco Glaze", category: "classic-filipino" },
+            { name: "Tasty Loaf", category: "classic-filipino" }
         ];
         
         function log(msg, type = 'info') {
@@ -73,7 +75,7 @@
         }
         
         async function addProducts() {
-            log('Adding 5 products...', 'info');
+            log('Adding 6 products...', 'info');
             
             // Check existing
             const snapshot = await db.collection('products').get();
