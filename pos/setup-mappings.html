@@ -347,17 +347,21 @@
                             ? match.product.variants[match.variantIndex].name
                             : null;
                         
-                        await db.collection('productMapping').add({
+                        const mappingData = {
                             loyverseName: loyName,
                             productId: match.product.id,
                             productName: match.product.name,
-                            variantIndex: match.variantIndex,
-                            variantName: variantName,
-                            category: match.product.category,
-                            mainCategory: match.product.mainCategory,
+                            variantIndex: match.variantIndex !== null ? match.variantIndex : null,
+                            variantName: variantName || null,
+                            category: match.product.category || 'other',
                             score: match.score,
                             createdAt: new Date().toISOString()
-                        });
+                        };
+                        // Only add mainCategory if it exists
+                        if (match.product.mainCategory) {
+                            mappingData.mainCategory = match.product.mainCategory;
+                        }
+                        await db.collection('productMapping').add(mappingData);
                         
                         log(`✓ ${loyName} → ${match.product.name}${variantName ? ' (' + variantName + ')' : ''} (${Math.round(match.score * 100)}%)`, 'success');
                         mapped++;
