@@ -1,5 +1,5 @@
 /**
- * BreadHub POS - Point of Sale System
+ * BreadHub POS - Point of Sale System v2 - Added main category filter
  * 
  * Uses products from ProofMaster (shared database)
  * Saves sales to 'sales' collection
