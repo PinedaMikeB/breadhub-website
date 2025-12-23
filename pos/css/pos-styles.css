@@ -1663,12 +1663,18 @@ details summary {
 /* Report Filters */
 .report-filters {
     display: flex;
+    flex-direction: column;
     gap: 15px;
-    align-items: center;
     margin-bottom: 20px;
-    padding: 15px;
+    padding: 20px;
     background: var(--bg-card);
     border-radius: 8px;
+}
+
+.filter-row {
+    display: flex;
+    gap: 15px;
+    align-items: center;
     flex-wrap: wrap;
 }
 
@@ -1684,7 +1690,7 @@ details summary {
     border-radius: 6px;
     color: var(--text-primary);
     font-size: 0.9rem;
-    min-width: 150px;
+    min-width: 180px;
 }
 
 .report-summary h3 {

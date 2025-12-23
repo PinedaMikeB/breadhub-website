@@ -315,7 +315,6 @@ const Reports = {
                         if (!this.isInDateRange(imp.dateKey || '2025-01-01')) return;
                         const name = item.productName || item.loyverseName;
                         if (!productData[name]) {
-                            // Find product info
                             const prod = products.find(p => p.name === name);
                             productData[name] = { 
                                 name, 
@@ -340,25 +339,48 @@ const Reports = {
                 return;
             }
             
-            const top10 = allProducts.slice(0, 10);
             const totalSales = allProducts.reduce((s, p) => s + p.sales, 0);
             const totalQty = allProducts.reduce((s, p) => s + p.qty, 0);
             
+            // Store for chart updates
+            this.productsData = allProducts;
+            this.chartMetric = 'sales';
+            this.chartView = 'top';
+            this.chartMainCat = 'all';
+            
             container.innerHTML = `
                 <div class="report-filters">
-                    <label>Main Category:</label>
-                    <select id="filterMainCat" onchange="Reports.filterProductsTable()">
-                        <option value="all">All</option>
-                        ${[...mainCategories].sort().map(c => `<option value="${c}">${c}</option>`).join('')}
-                    </select>
-                    <label>Sub-Category:</label>
-                    <select id="filterSubCat" onchange="Reports.filterProductsTable()">
-                        <option value="all">All</option>
-                        ${[...categories].sort().map(c => `<option value="${c}">${c}</option>`).join('')}
-                    </select>
+                    <div class="filter-row">
+                        <label>Main Category:</label>
+                        <select id="filterMainCat" onchange="Reports.updateProductsChart()">
+                            <option value="all">All</option>
+                            <option value="Breads">🍞 Breads Only</option>
+                            <option value="Drinks">🥤 Drinks Only</option>
+                        </select>
+                        <label>Sub-Category:</label>
+                        <select id="filterSubCat" onchange="Reports.filterProductsTable()">
+                            <option value="all">All</option>
+                            ${[...categories].sort().map(c => `<option value="${c}">${c}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-row">
+                        <label>Chart Shows:</label>
+                        <select id="chartMetric" onchange="Reports.updateProductsChart()">
+                            <option value="sales">💰 Sales Amount (₱)</option>
+                            <option value="qty">📦 Quantity Sold</option>
+                        </select>
+                        <label>Display:</label>
+                        <select id="chartView" onchange="Reports.updateProductsChart()">
+                            <option value="top">🏆 Top 10 Best Sellers</option>
+                            <option value="top20">🏆 Top 20 Best Sellers</option>
+                            <option value="bottom">🐌 Bottom 10 Slow Moving</option>
+                            <option value="bottom20">🐌 Bottom 20 Slow Moving</option>
+                            <option value="all">📊 All Products</option>
+                        </select>
+                    </div>
                 </div>
                 
-                <div class="chart-container">
+                <div class="chart-container" style="max-height:500px;">
                     <canvas id="productsChart"></canvas>
                 </div>
                 
@@ -377,11 +399,11 @@ const Reports = {
                     </div>
                 </div>
                 
-                <h3>🏆 Best Sellers</h3>
+                <h3>📋 Product Rankings</h3>
                 <table class="report-table" id="productsTable">
                     <thead><tr><th>#</th><th>Product</th><th>Main</th><th>Category</th><th>Qty Sold</th><th>Sales</th></tr></thead>
                     <tbody>
-                        ${allProducts.slice(0, 50).map((p, i) => `
+                        ${allProducts.map((p, i) => `
                             <tr data-main="${p.mainCategory}" data-cat="${p.category}">
                                 <td>${i + 1}</td>
                                 <td><strong>${p.name}</strong></td>
@@ -395,23 +417,7 @@ const Reports = {
                 </table>
             `;
             
-            // Store for filtering
-            this.productsData = allProducts;
-            
-            this.destroyChart();
-            const ctx = document.getElementById('productsChart').getContext('2d');
-            this.chart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: top10.map(p => p.name.substring(0, 15)),
-                    datasets: [{
-                        label: 'Sales (₱)',
-                        data: top10.map(p => p.sales),
-                        backgroundColor: '#D4894A'
-                    }]
-                },
-                options: { indexAxis: 'y', responsive: true }
-            });
+            this.updateProductsChart();
             
         } catch (error) {
             console.error('Error loading products report:', error);
@@ -419,9 +425,81 @@ const Reports = {
         }
     },
     
-    filterProductsTable() {
+    updateProductsChart() {
+        const metric = document.getElementById('chartMetric').value;
+        const view = document.getElementById('chartView').value;
         const mainCat = document.getElementById('filterMainCat').value;
-        const subCat = document.getElementById('filterSubCat').value;
+        
+        // Filter by main category
+        let filtered = this.productsData;
+        if (mainCat !== 'all') {
+            filtered = filtered.filter(p => p.mainCategory === mainCat);
+        }
+        
+        // Sort based on metric
+        filtered = [...filtered].sort((a, b) => metric === 'sales' ? b.sales - a.sales : b.qty - a.qty);
+        
+        // Select view
+        let chartData;
+        let chartTitle;
+        if (view === 'top') {
+            chartData = filtered.slice(0, 10);
+            chartTitle = 'Top 10 Best Sellers';
+        } else if (view === 'top20') {
+            chartData = filtered.slice(0, 20);
+            chartTitle = 'Top 20 Best Sellers';
+        } else if (view === 'bottom') {
+            chartData = filtered.slice(-10).reverse();
+            chartTitle = 'Bottom 10 Slow Moving';
+        } else if (view === 'bottom20') {
+            chartData = filtered.slice(-20).reverse();
+            chartTitle = 'Bottom 20 Slow Moving';
+        } else {
+            chartData = filtered;
+            chartTitle = 'All Products';
+        }
+        
+        // Update table filter too
+        this.filterProductsTable();
+        
+        // Create chart
+        this.destroyChart();
+        const ctx = document.getElementById('productsChart').getContext('2d');
+        
+        const isQty = metric === 'qty';
+        const label = isQty ? 'Quantity Sold' : 'Sales (₱)';
+        const data = chartData.map(p => isQty ? p.qty : p.sales);
+        const bgColor = view.includes('bottom') ? '#e74c3c' : '#D4894A';
+        
+        this.chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.map(p => p.name.length > 20 ? p.name.substring(0, 18) + '...' : p.name),
+                datasets: [{
+                    label: label,
+                    data: data,
+                    backgroundColor: bgColor
+                }]
+            },
+            options: { 
+                indexAxis: 'y', 
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: chartTitle + (mainCat !== 'all' ? ` - ${mainCat}` : ''),
+                        color: '#fff',
+                        font: { size: 16 }
+                    }
+                }
+            }
+        });
+    },
+    
+    filterProductsTable() {
+        const mainCat = document.getElementById('filterMainCat')?.value || 'all';
+        const subCat = document.getElementById('filterSubCat')?.value || 'all';
         const rows = document.querySelectorAll('#productsTable tbody tr');
         
         rows.forEach(row => {
