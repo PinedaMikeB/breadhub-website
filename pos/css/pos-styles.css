@@ -1581,9 +1581,9 @@ details summary {
 .date-filter {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
     margin-bottom: 20px;
-    padding: 15px;
+    padding: 20px;
     background: var(--bg-card);
     border-radius: 8px;
 }
@@ -1591,23 +1591,25 @@ details summary {
 .date-inputs {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 15px;
     flex-wrap: wrap;
 }
 
 .date-quick-btns {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
+    margin-top: 5px;
 }
 
 .date-filter label {
     color: var(--text-secondary);
     font-size: 0.9rem;
+    min-width: 40px;
 }
 
 .date-filter input[type="date"] {
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -1626,4 +1628,34 @@ details summary {
 
 .chart-container canvas {
     max-height: 300px;
+}
+
+
+/* Reports Tabs */
+.reports-tabs {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.report-tab {
+    padding: 10px 20px;
+    background: var(--bg-input);
+    border: none;
+    border-radius: 20px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.report-tab:hover {
+    background: var(--bg-card);
+}
+
+.report-tab.active {
+    background: var(--primary);
+    color: white;
 }
