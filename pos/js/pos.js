@@ -209,9 +209,15 @@ const POS = {
         let filtered = this.products.filter(p => {
             // Main category filter (breads vs drinks)
             if (this.currentMainCategory !== 'all') {
-                const mainCat = p.mainCategory?.toLowerCase() || '';
-                if (this.currentMainCategory === 'breads' && mainCat !== 'breads') return false;
-                if (this.currentMainCategory === 'drinks' && mainCat !== 'drinks') return false;
+                const category = (p.category || '').toLowerCase();
+                const mainCat = (p.mainCategory || '').toLowerCase();
+                
+                // Drinks categories
+                const drinkCategories = ['coffee', 'non-coffee', 'drinks', 'beverages'];
+                const isDrink = mainCat === 'drinks' || drinkCategories.some(c => category.includes(c));
+                
+                if (this.currentMainCategory === 'drinks' && !isDrink) return false;
+                if (this.currentMainCategory === 'breads' && isDrink) return false;
             }
             
             // Sub-category filter
