@@ -1,5 +1,5 @@
 /**
- * BreadHub POS - Admin Panel
+ * BreadHub POS - Admin Panel v2 - Added delete sales
  * Manager-only features: shifts, stock alerts, product availability
  */
 
