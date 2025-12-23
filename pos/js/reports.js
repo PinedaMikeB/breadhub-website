@@ -304,43 +304,90 @@ const Reports = {
         
         try {
             const imports = await DB.getAll('salesImports');
+            const products = await DB.getAll('products');
             const productData = {};
+            const categories = new Set();
+            const mainCategories = new Set();
             
             imports.forEach(imp => {
                 if (imp.items) {
                     imp.items.forEach(item => {
                         if (!this.isInDateRange(imp.dateKey || '2025-01-01')) return;
                         const name = item.productName || item.loyverseName;
-                        if (!productData[name]) productData[name] = { name, qty: 0, sales: 0, category: item.category };
+                        if (!productData[name]) {
+                            // Find product info
+                            const prod = products.find(p => p.name === name);
+                            productData[name] = { 
+                                name, 
+                                qty: 0, 
+                                sales: 0, 
+                                category: item.category || prod?.category || 'Other',
+                                mainCategory: prod?.mainCategory || 'Breads'
+                            };
+                        }
                         productData[name].qty += item.quantity || 0;
                         productData[name].sales += item.netSales || 0;
+                        categories.add(productData[name].category);
+                        mainCategories.add(productData[name].mainCategory);
                     });
                 }
             });
             
-            const products = Object.values(productData).sort((a, b) => b.sales - a.sales);
+            const allProducts = Object.values(productData).sort((a, b) => b.sales - a.sales);
             
-            if (products.length === 0) {
+            if (allProducts.length === 0) {
                 container.innerHTML = '<p class="empty-state">No product data for selected period</p>';
                 return;
             }
             
-            const top10 = products.slice(0, 10);
+            const top10 = allProducts.slice(0, 10);
+            const totalSales = allProducts.reduce((s, p) => s + p.sales, 0);
+            const totalQty = allProducts.reduce((s, p) => s + p.qty, 0);
             
             container.innerHTML = `
+                <div class="report-filters">
+                    <label>Main Category:</label>
+                    <select id="filterMainCat" onchange="Reports.filterProductsTable()">
+                        <option value="all">All</option>
+                        ${[...mainCategories].sort().map(c => `<option value="${c}">${c}</option>`).join('')}
+                    </select>
+                    <label>Sub-Category:</label>
+                    <select id="filterSubCat" onchange="Reports.filterProductsTable()">
+                        <option value="all">All</option>
+                        ${[...categories].sort().map(c => `<option value="${c}">${c}</option>`).join('')}
+                    </select>
+                </div>
+                
                 <div class="chart-container">
                     <canvas id="productsChart"></canvas>
                 </div>
                 
-                <table class="report-table">
-                    <thead><tr><th>#</th><th>Product</th><th>Category</th><th>Qty Sold</th><th>Sales</th></tr></thead>
+                <div class="report-summary">
+                    <div class="summary-card">
+                        <div class="summary-value">${Utils.formatNumber(totalQty)}</div>
+                        <div class="summary-label">Items Sold</div>
+                    </div>
+                    <div class="summary-card highlight">
+                        <div class="summary-value">${Utils.formatCurrency(totalSales)}</div>
+                        <div class="summary-label">Total Sales</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value">${allProducts.length}</div>
+                        <div class="summary-label">Products</div>
+                    </div>
+                </div>
+                
+                <h3>🏆 Best Sellers</h3>
+                <table class="report-table" id="productsTable">
+                    <thead><tr><th>#</th><th>Product</th><th>Main</th><th>Category</th><th>Qty Sold</th><th>Sales</th></tr></thead>
                     <tbody>
-                        ${products.slice(0, 50).map((p, i) => `
-                            <tr>
+                        ${allProducts.slice(0, 50).map((p, i) => `
+                            <tr data-main="${p.mainCategory}" data-cat="${p.category}">
                                 <td>${i + 1}</td>
                                 <td><strong>${p.name}</strong></td>
-                                <td>${p.category || '-'}</td>
-                                <td>${p.qty}</td>
+                                <td>${p.mainCategory}</td>
+                                <td>${p.category}</td>
+                                <td>${Utils.formatNumber(p.qty)}</td>
                                 <td>${Utils.formatCurrency(p.sales)}</td>
                             </tr>
                         `).join('')}
@@ -348,14 +395,17 @@ const Reports = {
                 </table>
             `;
             
+            // Store for filtering
+            this.productsData = allProducts;
+            
             this.destroyChart();
             const ctx = document.getElementById('productsChart').getContext('2d');
             this.chart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: top10.map(p => p.name.substring(0, 20)),
+                    labels: top10.map(p => p.name.substring(0, 15)),
                     datasets: [{
-                        label: 'Sales',
+                        label: 'Sales (₱)',
                         data: top10.map(p => p.sales),
                         backgroundColor: '#D4894A'
                     }]
@@ -367,6 +417,20 @@ const Reports = {
             console.error('Error loading products report:', error);
             container.innerHTML = '<p class="error">Failed to load report</p>';
         }
+    },
+    
+    filterProductsTable() {
+        const mainCat = document.getElementById('filterMainCat').value;
+        const subCat = document.getElementById('filterSubCat').value;
+        const rows = document.querySelectorAll('#productsTable tbody tr');
+        
+        rows.forEach(row => {
+            const rowMain = row.dataset.main;
+            const rowCat = row.dataset.cat;
+            const showMain = mainCat === 'all' || rowMain === mainCat;
+            const showSub = subCat === 'all' || rowCat === subCat;
+            row.style.display = (showMain && showSub) ? '' : 'none';
+        });
     },
 
     async loadCategories() {

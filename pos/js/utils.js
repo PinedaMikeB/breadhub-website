@@ -1,10 +1,15 @@
 /**
- * BreadHub POS - Utility Functions
+ * BreadHub POS - Utility Functions v2
  */
 
 const Utils = {
     formatCurrency(amount) {
-        return `₱${(amount || 0).toFixed(2)}`;
+        const num = parseFloat(amount) || 0;
+        return '₱' + num.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    },
+    
+    formatNumber(num) {
+        return (num || 0).toLocaleString('en-PH');
     },
     
     formatDate(date) {
