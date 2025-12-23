@@ -81,12 +81,15 @@ const SalesImport = {
             loyverseName: loyverseName.trim(),
             productId,
             productName: product.name,
-            variantIndex,
-            variantName,
-            category: product.category,
-            mainCategory: product.mainCategory,
+            variantIndex: variantIndex !== null ? variantIndex : null,
+            variantName: variantName || null,
+            category: product.category || 'other',
             createdAt: new Date().toISOString()
         };
+        // Only add mainCategory if it exists (Firebase doesn't allow undefined)
+        if (product.mainCategory) {
+            data.mainCategory = product.mainCategory;
+        }
         
         try {
             if (this.productMapping[key]?.id) {
@@ -542,16 +545,15 @@ const SalesImport = {
             const totalCost = trueCost * qty;
             const trueProfit = netSales - totalCost;
             
-            importedItems.push({
+            const itemRecord = {
                 loyverseName: name,
-                loyverseSKU: item['SKU'],
-                loyverseCategory: item['Category'],
+                loyverseSKU: item['SKU'] || '',
+                loyverseCategory: item['Category'] || '',
                 productId: mapped.product.id,
                 productName: mapped.product.name,
-                category: mapped.product.category,
-                mainCategory: mapped.product.mainCategory,
-                variantIndex: mapped.variantIndex,
-                variantName: mapped.variantName,
+                category: mapped.product.category || 'other',
+                variantIndex: mapped.variantIndex !== null ? mapped.variantIndex : null,
+                variantName: mapped.variantName || null,
                 quantity: qty,
                 grossSales,
                 discounts,
@@ -560,7 +562,12 @@ const SalesImport = {
                 trueTotalCost: totalCost,
                 trueProfit,
                 trueMargin: netSales > 0 ? (trueProfit / netSales) * 100 : 0
-            });
+            };
+            // Only add mainCategory if it exists
+            if (mapped.product.mainCategory) {
+                itemRecord.mainCategory = mapped.product.mainCategory;
+            }
+            importedItems.push(itemRecord);
             
             totalQty += qty;
             totalNetSales += netSales;
