@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BreadHub - Loyverse Mapping Setup</title>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
+        body { font-family: system-ui, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
         h1 { color: #f39c12; }
+        h2 { color: #3498db; border-bottom: 1px solid #333; padding-bottom: 10px; }
         .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
         .success { background: #27ae60; }
         .error { background: #e74c3c; }
@@ -14,38 +15,75 @@
         .warning { background: #f39c12; color: #000; }
         button { background: #f39c12; color: #000; border: none; padding: 15px 30px; font-size: 16px; cursor: pointer; border-radius: 5px; margin: 5px; }
         button:hover { background: #e67e22; }
+        button.danger { background: #e74c3c; color: #fff; }
+        button.danger:hover { background: #c0392b; }
         button:disabled { background: #666; cursor: not-allowed; }
-        #log { background: #0a0a15; padding: 15px; border-radius: 5px; max-height: 500px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+        .stat-card { background: #2c3e50; padding: 20px; border-radius: 10px; text-align: center; }
+        .stat-value { font-size: 36px; font-weight: bold; color: #f39c12; }
+        .stat-label { color: #95a5a6; margin-top: 5px; }
+        .stat-card.success .stat-value { color: #2ecc71; }
+        .stat-card.error .stat-value { color: #e74c3c; }
+        
+        .mapping-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+        .mapping-section { background: #0a0a15; padding: 15px; border-radius: 10px; max-height: 500px; overflow-y: auto; }
+        .mapping-section h3 { margin-top: 0; position: sticky; top: 0; background: #0a0a15; padding: 10px 0; }
+        
+        .item { padding: 8px 12px; margin: 4px 0; border-radius: 5px; font-size: 13px; }
+        .item.mapped { background: #1a3d2a; border-left: 3px solid #2ecc71; }
+        .item.unmapped { background: #3d1a1a; border-left: 3px solid #e74c3c; }
+        .item .arrow { color: #f39c12; margin: 0 8px; }
+        .item .pm-name { color: #2ecc71; }
+        .item .score { color: #95a5a6; font-size: 11px; }
+        
+        #log { background: #0a0a15; padding: 15px; border-radius: 5px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 20px; }
         .log-entry { margin: 2px 0; padding: 2px 5px; }
         .log-success { color: #2ecc71; }
         .log-error { color: #e74c3c; }
         .log-info { color: #3498db; }
         .log-warning { color: #f39c12; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #333; }
-        th { background: #2c3e50; }
-        .mapped { color: #2ecc71; }
-        .unmapped { color: #e74c3c; }
+        
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <h1>🍞 BreadHub - Loyverse Product Mapping Setup</h1>
-    
-    <div class="status info">
-        This tool will automatically map your Loyverse products to ProofMaster products.
-    </div>
+    <h1>🍞 BreadHub - Loyverse Product Mapping</h1>
     
     <div style="margin: 20px 0;">
-        <button onclick="loadProducts()">1. Load ProofMaster Products</button>
-        <button onclick="createMappings()" id="mapBtn" disabled>2. Create Mappings</button>
-        <button onclick="clearMappings()">Clear All Mappings</button>
+        <button onclick="checkMappings()">🔍 Check Current Mappings</button>
+        <button onclick="createMappings()" id="mapBtn">➕ Create Missing Mappings</button>
+        <button onclick="clearMappings()" class="danger">🗑️ Clear All Mappings</button>
     </div>
     
-    <div id="stats" style="display:none;">
-        <h3>📊 Statistics</h3>
-        <p>ProofMaster Products: <span id="pmCount">0</span></p>
-        <p>Loyverse Items: <span id="loyCount">160</span></p>
-        <p>Mapped: <span id="mappedCount">0</span></p>
+    <div class="stats-grid" id="stats">
+        <div class="stat-card">
+            <div class="stat-value" id="pmCount">-</div>
+            <div class="stat-label">ProofMaster Products</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="loyCount">160</div>
+            <div class="stat-label">Loyverse Items</div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-value" id="mappedCount">-</div>
+            <div class="stat-label">✓ Mapped</div>
+        </div>
+        <div class="stat-card error">
+            <div class="stat-value" id="unmappedCount">-</div>
+            <div class="stat-label">✗ Unmapped</div>
+        </div>
+    </div>
+    
+    <div class="mapping-grid" id="mappingResults" style="display:none;">
+        <div class="mapping-section">
+            <h3 style="color:#2ecc71;">✓ Mapped Products (<span id="mappedTotal">0</span>)</h3>
+            <div id="mappedList"></div>
+        </div>
+        <div class="mapping-section">
+            <h3 style="color:#e74c3c;">✗ Unmapped Products (<span id="unmappedTotal">0</span>)</h3>
+            <div id="unmappedList"></div>
+        </div>
     </div>
     
     <div id="log"></div>
@@ -55,7 +93,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
     <script>
-        // Firebase config
         firebase.initializeApp({
             apiKey: "AIzaSyAj2szYv9ynVFrxdH0tpUsOg7JmJn6Wq0g",
             authDomain: "breadhub-proofmaster.firebaseapp.com",
@@ -67,170 +104,51 @@
         const db = firebase.firestore();
         
         let proofmasterProducts = [];
+        let existingMappings = {};
         
-        // Loyverse product names from your CSV
         const loyverseItems = [
-            "1 Creamer And 1 Sugar",
-            "Alcapone",
-            "Alcapone Classic",
-            "Avocado Shake (12 oz)",
-            "Avocado Shake (16 oz)",
-            "Avocado Shake (22 oz)",
-            "Bacon And Cheese",
-            "Banana Bread Almond",
-            "Banana Bread White Choco Chip (Chocochip)",
-            "Banana Bread White Choco Chip (Walnut)",
-            "Banana Walnut Choco Bread",
-            "Bavarian Donut Classic",
-            "Biggest Box",
-            "Birthday Donut Classic",
-            "Biscof Cinnamon",
-            "Biscoff Donut Classic",
-            "Biscoff Donut Premium",
-            "Biscoff Frappe (Grande 16 oz)",
-            "Biscoff Frappe (Venti 22 oz)",
-            "Blueberry Cinnamon",
-            "Blueberry Donut Premium",
-            "Blueberry Fizz (12 oz)",
-            "Blueberry Fizz (16 oz)",
-            "Blueberry Fizz (22 oz)",
-            "Blueberry Shake (22 oz)",
-            "Blueberry Yogurt Drink (Grande 16 oz)",
-            "Blueberry Yogurt Drink (Venti 22 oz)",
-            "Bottled Water",
-            "Box Christmas Large",
-            "Box of 12",
-            "Box of 6",
-            "Brewed Coffee (12 oz)",
-            "Brewed Coffee (8 oz)",
-            "Butter Melt Cheese Roll",
-            "C2 Solo",
-            "Cheese Bread",
-            "Cheesy Dog Twist",
-            "Chicken Floss",
-            "Chill Start",
-            "Choco Bread",
-            "Choco Cinnamon Bread",
-            "Choco Glaze",
-            "ChocoChip cookies",
-            "Cinnamon Gift Bundle 4PC",
-            "Cinnamon Glaze",
-            "Cinnamon Roll",
-            "Classic Wakeup",
-            "Coffee Bun",
-            "Coke Sakto",
-            "Condensed Sweetener (22 oz - 90ml)",
-            "Crinkles",
-            "Crispy Egg Cheese Toast",
-            "Custard",
-            "Double Cheese Pandesal",
-            "Ensaymada Parmy",
-            "Espresso (1 Shot)",
-            "Espresso (2 Shots)",
-            "Event Hot Choco (8 oz)",
-            "Grab A Bundle",
-            "Grab B Bundle",
-            "Grab C Bacon And Cheese",
-            "Grab C Ham & Cheese",
-            "Grab C Pig in a Blanket",
-            "Grab C Spam And Cheese",
-            "Grab C Tuna Melt",
-            "Green Apple Fizz (12 oz)",
-            "Green Apple Fizz (16 oz)",
-            "Green Apple Fizz (22 oz)",
-            "Ham And Cheese",
-            "Honey Garlic Toast",
-            "Hot Cafe Americano (12 oz)",
-            "Hot Cafe Americano (8 oz)",
-            "Hot Cafe Latte (12 oz)",
-            "Hot Cafe Latte (8 oz)",
-            "Hot Cappucino (12 oz)",
-            "Hot Cappucino (8 oz)",
-            "Hot Caramel Machiato (12 oz)",
-            "Hot Caramel Machiato (8 oz)",
-            "Hot Matcha Latte (12 oz)",
-            "Hot Matcha Latte (8 oz)",
-            "Hot Milk (8 oz)",
-            "Hot Spanish Latte (12 oz)",
-            "Hot Spanish Latte (8 oz)",
-            "Iced Brewed Coffee (12 oz)",
-            "Iced Brewed Coffee (16 oz)",
-            "Iced Cafe Americano (12 oz)",
-            "Iced Cafe Americano (16 oz)",
-            "Iced Cafe Americano (22 oz)",
-            "Iced Cafe Latte (12 oz)",
-            "Iced Cafe Latte (16 oz)",
-            "Iced Cafe Latte (22 oz)",
-            "Iced Cappucino (12 oz)",
-            "Iced Cappucino (16 oz)",
-            "Iced Cappucino (22 oz)",
-            "Iced Caramel Machiatto (12 oz)",
-            "Iced Caramel Machiatto (16 oz)",
-            "Iced Caramel Machiatto (22 oz)",
-            "Iced Matcha Latte (12 oz)",
-            "Iced Matcha Latte (16 oz)",
-            "Iced Matcha Latte (22 oz)",
-            "Iced Spanish Latte (12 oz)",
-            "Iced Spanish Latte (16 oz)",
-            "Iced Spanish Latte (22 oz)",
-            "Kiwi Fizz (12 oz)",
-            "Kiwi Fizz (16 oz)",
-            "Kiwi Fizz (22 oz)",
-            "Lemon Fizz (12 oz)",
-            "Lemon Fizz (16 oz)",
-            "Lemon Fizz (22 oz)",
-            "Lychee Fizz (12 oz)",
-            "Lychee Fizz (16 oz)",
-            "Lychee Fizz (22 oz)",
-            "Malunggay Cheese Pandesal",
-            "Mango Cinnamon",
-            "Mango Yogurt Drink (Grande 16 oz)",
-            "Mango Yogurt Drink (Venti 22 oz)",
-            "Milky Cheesy Roll",
-            "Mocha Chiffon",
-            "Monggo Basket",
-            "Morning Boost",
-            "Nuttela Donut Classic",
-            "Nuttella Donut Premium",
-            "Oreo Cream Donut Premium",
-            "Pan De Coco",
-            "Peach Fizz (12 oz)",
-            "Peach Fizz (16 oz)",
-            "Peach Fizz (22 oz)",
-            "Pig In A Blanket",
-            "Pistachio Donut",
-            "Pork Floss",
-            "Pudding",
-            "Royal Sakto",
-            "S'mores Donut Classic",
-            "Spam And Cheese",
-            "Spanish Bread",
-            "Spicy Pork Floss",
-            "Spring In The City",
-            "Sprinkle Donut",
-            "Sprite Sakto",
-            "Strawberry Bavarian Donut Classic",
-            "Strawberry Cinnamon",
-            "Strawberry Fizz (12 oz)",
-            "Strawberry Fizz (16 oz)",
-            "Strawberry Fizz (22 oz)",
-            "Strawberry Frappe (Grande 16 oz)",
-            "Strawberry Frappe (Venti 22 oz)",
-            "Strawberry Shake (16 oz)",
-            "Strawberry Yogurt Drink (Grande 16 oz)",
-            "Strawberry Yogurt Drink (Venti 22 oz)",
-            "Sweet Drizzle Cinnamon",
-            "Tasty Loaf",
-            "Tiramisu Cinnamon",
-            "Tiramisu Donut",
-            "Tiramisu Donut Classic",
-            "Tuna Melt",
-            "Ube Twist",
-            "Vanilla Chiffon",
-            "White Almond",
-            "White Chocochip Cookie"
+            "1 Creamer And 1 Sugar","Alcapone","Alcapone Classic","Avocado Shake (12 oz)","Avocado Shake (16 oz)",
+            "Avocado Shake (22 oz)","Bacon And Cheese","Banana Bread Almond","Banana Bread White Choco Chip (Chocochip)",
+            "Banana Bread White Choco Chip (Walnut)","Banana Walnut Choco Bread","Bavarian Donut Classic","Biggest Box",
+            "Birthday Donut Classic","Biscof Cinnamon","Biscoff Donut Classic","Biscoff Donut Premium",
+            "Biscoff Frappe (Grande 16 oz)","Biscoff Frappe (Venti 22 oz)","Blueberry Cinnamon","Blueberry Donut Premium",
+            "Blueberry Fizz (12 oz)","Blueberry Fizz (16 oz)","Blueberry Fizz (22 oz)","Blueberry Shake (22 oz)",
+            "Blueberry Yogurt Drink (Grande 16 oz)","Blueberry Yogurt Drink (Venti 22 oz)","Bottled Water",
+            "Box Christmas Large","Box of 12","Box of 6","Brewed Coffee (12 oz)","Brewed Coffee (8 oz)",
+            "Butter Melt Cheese Roll","C2 Solo","Cheese Bread","Cheesy Dog Twist","Chicken Floss","Chill Start",
+            "Choco Bread","Choco Cinnamon Bread","Choco Glaze","ChocoChip cookies","Cinnamon Gift Bundle 4PC",
+            "Cinnamon Glaze","Cinnamon Roll","Classic Wakeup","Coffee Bun","Coke Sakto",
+            "Condensed Sweetener (22 oz - 90ml)","Crinkles","Crispy Egg Cheese Toast","Custard",
+            "Double Cheese Pandesal","Ensaymada Parmy","Espresso (1 Shot)","Espresso (2 Shots)",
+            "Event Hot Choco (8 oz)","Grab A Bundle","Grab B Bundle","Grab C Bacon And Cheese",
+            "Grab C Ham & Cheese","Grab C Pig in a Blanket","Grab C Spam And Cheese","Grab C Tuna Melt",
+            "Green Apple Fizz (12 oz)","Green Apple Fizz (16 oz)","Green Apple Fizz (22 oz)","Ham And Cheese",
+            "Honey Garlic Toast","Hot Cafe Americano (12 oz)","Hot Cafe Americano (8 oz)","Hot Cafe Latte (12 oz)",
+            "Hot Cafe Latte (8 oz)","Hot Cappucino (12 oz)","Hot Cappucino (8 oz)","Hot Caramel Machiato (12 oz)",
+            "Hot Caramel Machiato (8 oz)","Hot Matcha Latte (12 oz)","Hot Matcha Latte (8 oz)","Hot Milk (8 oz)",
+            "Hot Spanish Latte (12 oz)","Hot Spanish Latte (8 oz)","Iced Brewed Coffee (12 oz)",
+            "Iced Brewed Coffee (16 oz)","Iced Cafe Americano (12 oz)","Iced Cafe Americano (16 oz)",
+            "Iced Cafe Americano (22 oz)","Iced Cafe Latte (12 oz)","Iced Cafe Latte (16 oz)",
+            "Iced Cafe Latte (22 oz)","Iced Cappucino (12 oz)","Iced Cappucino (16 oz)","Iced Cappucino (22 oz)",
+            "Iced Caramel Machiatto (12 oz)","Iced Caramel Machiatto (16 oz)","Iced Caramel Machiatto (22 oz)",
+            "Iced Matcha Latte (12 oz)","Iced Matcha Latte (16 oz)","Iced Matcha Latte (22 oz)",
+            "Iced Spanish Latte (12 oz)","Iced Spanish Latte (16 oz)","Iced Spanish Latte (22 oz)",
+            "Kiwi Fizz (12 oz)","Kiwi Fizz (16 oz)","Kiwi Fizz (22 oz)","Lemon Fizz (12 oz)",
+            "Lemon Fizz (16 oz)","Lemon Fizz (22 oz)","Lychee Fizz (12 oz)","Lychee Fizz (16 oz)",
+            "Lychee Fizz (22 oz)","Malunggay Cheese Pandesal","Mango Cinnamon",
+            "Mango Yogurt Drink (Grande 16 oz)","Mango Yogurt Drink (Venti 22 oz)","Milky Cheesy Roll",
+            "Mocha Chiffon","Monggo Basket","Morning Boost","Nuttela Donut Classic","Nuttella Donut Premium",
+            "Oreo Cream Donut Premium","Pan De Coco","Peach Fizz (12 oz)","Peach Fizz (16 oz)",
+            "Peach Fizz (22 oz)","Pig In A Blanket","Pistachio Donut","Pork Floss","Pudding","Royal Sakto",
+            "S'mores Donut Classic","Spam And Cheese","Spanish Bread","Spicy Pork Floss","Spring In The City",
+            "Sprinkle Donut","Sprite Sakto","Strawberry Bavarian Donut Classic","Strawberry Cinnamon",
+            "Strawberry Fizz (12 oz)","Strawberry Fizz (16 oz)","Strawberry Fizz (22 oz)",
+            "Strawberry Frappe (Grande 16 oz)","Strawberry Frappe (Venti 22 oz)","Strawberry Shake (16 oz)",
+            "Strawberry Yogurt Drink (Grande 16 oz)","Strawberry Yogurt Drink (Venti 22 oz)",
+            "Sweet Drizzle Cinnamon","Tasty Loaf","Tiramisu Cinnamon","Tiramisu Donut","Tiramisu Donut Classic",
+            "Tuna Melt","Ube Twist","Vanilla Chiffon","White Almond","White Chocochip Cookie"
         ];
-        
+
         function log(msg, type = 'info') {
             const logDiv = document.getElementById('log');
             const entry = document.createElement('div');
@@ -240,32 +158,66 @@
             logDiv.scrollTop = logDiv.scrollHeight;
         }
         
-        async function loadProducts() {
-            log('Loading ProofMaster products...', 'info');
-            try {
-                const snapshot = await db.collection('products').get();
-                proofmasterProducts = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                log(`Loaded ${proofmasterProducts.length} ProofMaster products`, 'success');
-                document.getElementById('pmCount').textContent = proofmasterProducts.length;
-                document.getElementById('stats').style.display = 'block';
-                document.getElementById('mapBtn').disabled = false;
-                
-                // List products
-                proofmasterProducts.forEach(p => {
-                    log(`  - ${p.name} (${p.category})`, 'info');
-                });
-            } catch (error) {
-                log(`Error: ${error.message}`, 'error');
-            }
+        async function checkMappings() {
+            log('Loading data...', 'info');
+            
+            // Load ProofMaster products
+            const prodSnapshot = await db.collection('products').get();
+            proofmasterProducts = prodSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            document.getElementById('pmCount').textContent = proofmasterProducts.length;
+            log(`Loaded ${proofmasterProducts.length} ProofMaster products`, 'success');
+            
+            // Load existing mappings
+            const mapSnapshot = await db.collection('productMapping').get();
+            existingMappings = {};
+            mapSnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                existingMappings[data.loyverseName.toLowerCase()] = { id: doc.id, ...data };
+            });
+            log(`Found ${mapSnapshot.size} existing mappings`, 'info');
+            
+            // Check each Loyverse item
+            const mapped = [];
+            const unmapped = [];
+            
+            loyverseItems.forEach(loyName => {
+                const mapping = existingMappings[loyName.toLowerCase()];
+                if (mapping) {
+                    mapped.push({ loyName, mapping });
+                } else {
+                    unmapped.push(loyName);
+                }
+            });
+            
+            // Update stats
+            document.getElementById('mappedCount').textContent = mapped.length;
+            document.getElementById('unmappedCount').textContent = unmapped.length;
+            document.getElementById('mappedTotal').textContent = mapped.length;
+            document.getElementById('unmappedTotal').textContent = unmapped.length;
+            
+            // Show mapped list
+            const mappedList = document.getElementById('mappedList');
+            mappedList.innerHTML = mapped.map(m => `
+                <div class="item mapped">
+                    <strong>${m.loyName}</strong>
+                    <span class="arrow">→</span>
+                    <span class="pm-name">${m.mapping.productName}${m.mapping.variantName ? ' (' + m.mapping.variantName + ')' : ''}</span>
+                </div>
+            `).join('');
+            
+            // Show unmapped list
+            const unmappedList = document.getElementById('unmappedList');
+            unmappedList.innerHTML = unmapped.map(name => `
+                <div class="item unmapped">${name}</div>
+            `).join('');
+            
+            document.getElementById('mappingResults').style.display = 'grid';
+            
+            log(`Results: ${mapped.length} mapped, ${unmapped.length} unmapped`, mapped.length > unmapped.length ? 'success' : 'warning');
         }
-
+        
         function normalize(str) {
-            return str.toLowerCase()
-                .replace(/[^a-z0-9]/g, '')
-                .replace(/\s+/g, '');
+            return str.toLowerCase().replace(/[^a-z0-9]/g, '');
         }
         
         function findMatch(loyverseName) {
@@ -274,15 +226,10 @@
             let bestScore = 0;
             
             for (const p of proofmasterProducts) {
-                // Direct name match
                 const pNorm = normalize(p.name);
                 
-                // Exact match
-                if (loyNorm === pNorm) {
-                    return { product: p, variantIndex: null, score: 1.0 };
-                }
+                if (loyNorm === pNorm) return { product: p, variantIndex: null, score: 1.0 };
                 
-                // Contains match
                 if (loyNorm.includes(pNorm) || pNorm.includes(loyNorm)) {
                     const score = Math.min(loyNorm.length, pNorm.length) / Math.max(loyNorm.length, pNorm.length);
                     if (score > bestScore) {
@@ -291,107 +238,113 @@
                     }
                 }
                 
-                // Check variants
                 if (p.hasVariants && p.variants) {
                     for (let i = 0; i < p.variants.length; i++) {
                         const v = p.variants[i];
                         const fullNorm = normalize(p.name + ' ' + v.name);
-                        const vNorm = normalize(v.name);
                         
                         if (loyNorm === fullNorm || loyNorm.includes(fullNorm) || fullNorm.includes(loyNorm)) {
                             return { product: p, variantIndex: i, score: 0.95 };
                         }
                         
-                        // Size matching for drinks (12oz, 16oz, 22oz)
-                        if (loyverseName.includes('oz)')) {
-                            const sizeMatch = loyverseName.match(/\((\d+)\s*oz\)/i);
-                            if (sizeMatch) {
-                                const size = sizeMatch[1];
-                                if (v.name && v.name.includes(size)) {
-                                    const baseMatch = loyNorm.replace(/\d+oz/g, '').includes(pNorm.replace(/\d+oz/g, ''));
-                                    if (baseMatch || pNorm.includes(loyNorm.split('(')[0].trim().replace(/[^a-z0-9]/g, ''))) {
-                                        return { product: p, variantIndex: i, score: 0.9 };
-                                    }
+                        // Size matching for drinks
+                        if (loyverseName.includes('oz)') && v.name) {
+                            const sizeMatch = loyverseName.match(/(\d+)\s*oz/i);
+                            if (sizeMatch && v.name.includes(sizeMatch[1])) {
+                                const baseLoy = normalize(loyverseName.split('(')[0]);
+                                if (pNorm.includes(baseLoy) || baseLoy.includes(pNorm)) {
+                                    return { product: p, variantIndex: i, score: 0.9 };
                                 }
                             }
                         }
                     }
                 }
             }
-            
-            return bestMatch && bestScore > 0.5 ? bestMatch : null;
+            return bestMatch && bestScore > 0.4 ? bestMatch : null;
         }
-        
+
         async function createMappings() {
-            log('Creating mappings...', 'info');
-            let mapped = 0;
-            let unmapped = 0;
+            if (proofmasterProducts.length === 0) {
+                log('Please click "Check Current Mappings" first!', 'error');
+                return;
+            }
+            
+            log('Creating missing mappings...', 'info');
+            let created = 0;
+            let skipped = 0;
+            let failed = 0;
             
             for (const loyName of loyverseItems) {
-                const match = findMatch(loyName);
+                // Skip if already mapped
+                if (existingMappings[loyName.toLowerCase()]) {
+                    skipped++;
+                    continue;
+                }
                 
-                if (match && match.score >= 0.5) {
-                    try {
-                        // Check if mapping already exists
-                        const existing = await db.collection('productMapping')
-                            .where('loyverseName', '==', loyName)
-                            .get();
-                        
-                        if (!existing.empty) {
-                            log(`Already mapped: ${loyName}`, 'warning');
-                            mapped++;
-                            continue;
-                        }
-                        
-                        const variantName = match.variantIndex !== null && match.product.variants
-                            ? match.product.variants[match.variantIndex].name
-                            : null;
-                        
-                        const mappingData = {
-                            loyverseName: loyName,
-                            productId: match.product.id,
-                            productName: match.product.name,
-                            variantIndex: match.variantIndex !== null ? match.variantIndex : null,
-                            variantName: variantName || null,
-                            category: match.product.category || 'other',
-                            score: match.score,
-                            createdAt: new Date().toISOString()
-                        };
-                        // Only add mainCategory if it exists
-                        if (match.product.mainCategory) {
-                            mappingData.mainCategory = match.product.mainCategory;
-                        }
-                        await db.collection('productMapping').add(mappingData);
-                        
-                        log(`✓ ${loyName} → ${match.product.name}${variantName ? ' (' + variantName + ')' : ''} (${Math.round(match.score * 100)}%)`, 'success');
-                        mapped++;
-                    } catch (error) {
-                        log(`Error mapping ${loyName}: ${error.message}`, 'error');
+                const match = findMatch(loyName);
+                if (!match) {
+                    log(`✗ No match found: ${loyName}`, 'error');
+                    failed++;
+                    continue;
+                }
+                
+                try {
+                    const variantName = match.variantIndex !== null && match.product.variants
+                        ? match.product.variants[match.variantIndex].name : null;
+                    
+                    const mappingData = {
+                        loyverseName: loyName,
+                        productId: match.product.id,
+                        productName: match.product.name,
+                        variantIndex: match.variantIndex !== null ? match.variantIndex : null,
+                        variantName: variantName || null,
+                        category: match.product.category || 'other',
+                        score: match.score,
+                        createdAt: new Date().toISOString()
+                    };
+                    if (match.product.mainCategory) {
+                        mappingData.mainCategory = match.product.mainCategory;
                     }
-                } else {
-                    log(`✗ No match: ${loyName}`, 'error');
-                    unmapped++;
+                    
+                    await db.collection('productMapping').add(mappingData);
+                    log(`✓ ${loyName} → ${match.product.name}${variantName ? ' (' + variantName + ')' : ''}`, 'success');
+                    created++;
+                } catch (error) {
+                    log(`Error: ${loyName} - ${error.message}`, 'error');
+                    failed++;
                 }
             }
             
-            log(`Done! Mapped: ${mapped}, Unmapped: ${unmapped}`, mapped > unmapped ? 'success' : 'warning');
-            document.getElementById('mappedCount').textContent = mapped;
+            log(`Done! Created: ${created}, Skipped (already mapped): ${skipped}, Failed: ${failed}`, 'success');
+            
+            // Refresh the view
+            await checkMappings();
         }
         
         async function clearMappings() {
-            if (!confirm('Delete ALL product mappings?')) return;
+            if (!confirm('⚠️ Delete ALL product mappings? This cannot be undone!')) return;
             
             log('Clearing all mappings...', 'warning');
             try {
                 const snapshot = await db.collection('productMapping').get();
-                const batch = db.batch();
-                snapshot.docs.forEach(doc => batch.delete(doc.ref));
-                await batch.commit();
-                log(`Deleted ${snapshot.size} mappings`, 'success');
+                let count = 0;
+                for (const doc of snapshot.docs) {
+                    await doc.ref.delete();
+                    count++;
+                }
+                log(`Deleted ${count} mappings`, 'success');
+                existingMappings = {};
+                document.getElementById('mappedCount').textContent = '0';
+                document.getElementById('unmappedCount').textContent = loyverseItems.length;
+                document.getElementById('mappedList').innerHTML = '<div class="item unmapped">No mappings</div>';
+                document.getElementById('unmappedList').innerHTML = loyverseItems.map(n => `<div class="item unmapped">${n}</div>`).join('');
             } catch (error) {
                 log(`Error: ${error.message}`, 'error');
             }
         }
+        
+        // Auto-check on load
+        window.onload = () => checkMappings();
     </script>
 </body>
 </html>
