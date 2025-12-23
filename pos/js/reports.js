@@ -1,0 +1,379 @@
+/**
+ * BreadHub POS - Reports Module
+ * Combines data from POS sales and Loyverse imports
+ */
+
+const Reports = {
+    currentTab: 'daily',
+    
+    async init() {
+        // Initial load handled by showTab
+    },
+    
+    showTab(tab) {
+        this.currentTab = tab;
+        
+        // Update tab styles
+        document.querySelectorAll('.report-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.report === tab);
+        });
+        
+        // Load content
+        switch (tab) {
+            case 'daily': this.loadDaily(); break;
+            case 'monthly': this.loadMonthly(); break;
+            case 'products': this.loadProducts(); break;
+            case 'categories': this.loadCategories(); break;
+        }
+    },
+    
+    async loadDaily() {
+        const container = document.getElementById('reportsContent');
+        container.innerHTML = '<p class="loading">Loading...</p>';
+        
+        try {
+            // Get POS sales
+            const sales = await DB.getAll('sales');
+            
+            // Get Loyverse imports
+            const imports = await DB.getAll('salesImports');
+            
+            // Aggregate by day
+            const dailyData = {};
+            
+            // POS sales
+            sales.forEach(sale => {
+                const day = sale.dateKey;
+                if (!dailyData[day]) {
+                    dailyData[day] = { date: day, posSales: 0, posCount: 0, importSales: 0, source: 'pos' };
+                }
+                dailyData[day].posSales += sale.total || 0;
+                dailyData[day].posCount++;
+            });
+            
+            // Import daily summaries
+            imports.forEach(imp => {
+                if (imp.dailySummaries) {
+                    imp.dailySummaries.forEach(day => {
+                        const dateKey = this.parseDate(day.date);
+                        if (!dailyData[dateKey]) {
+                            dailyData[dateKey] = { date: dateKey, posSales: 0, posCount: 0, importSales: 0, source: 'import' };
+                        }
+                        dailyData[dateKey].importSales += day.netSales || 0;
+                        dailyData[dateKey].source = dailyData[dateKey].posSales > 0 ? 'both' : 'import';
+                    });
+                }
+            });
+            
+            // Sort by date descending
+            const days = Object.values(dailyData).sort((a, b) => b.date.localeCompare(a.date));
+            
+            if (days.length === 0) {
+                container.innerHTML = '<p class="empty-state">No sales data yet</p>';
+                return;
+            }
+            
+            // Calculate totals
+            const totalPOS = days.reduce((s, d) => s + d.posSales, 0);
+            const totalImport = days.reduce((s, d) => s + d.importSales, 0);
+            
+            container.innerHTML = `
+                <div class="report-summary">
+                    <div class="summary-card">
+                        <div class="summary-value">${Utils.formatCurrency(totalPOS)}</div>
+                        <div class="summary-label">POS Sales</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value">${Utils.formatCurrency(totalImport)}</div>
+                        <div class="summary-label">Imported (Loyverse)</div>
+                    </div>
+                    <div class="summary-card highlight">
+                        <div class="summary-value">${Utils.formatCurrency(totalPOS + totalImport)}</div>
+                        <div class="summary-label">Total</div>
+                    </div>
+                </div>
+                
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>POS Sales</th>
+                            <th>Imported Sales</th>
+                            <th>Total</th>
+                            <th>Source</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${days.slice(0, 30).map(d => `
+                            <tr>
+                                <td>${d.date}</td>
+                                <td>${d.posSales > 0 ? Utils.formatCurrency(d.posSales) : '-'}</td>
+                                <td>${d.importSales > 0 ? Utils.formatCurrency(d.importSales) : '-'}</td>
+                                <td><strong>${Utils.formatCurrency(d.posSales + d.importSales)}</strong></td>
+                                <td><span class="source-badge ${d.source}">${d.source}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+        } catch (error) {
+            console.error('Error loading daily report:', error);
+            container.innerHTML = '<p class="error">Failed to load report</p>';
+        }
+    },
+    
+    parseDate(dateStr) {
+        // Convert MM/DD/YY to YYYY-MM-DD
+        if (dateStr.includes('/')) {
+            const [m, d, y] = dateStr.split('/');
+            return `20${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+        return dateStr;
+    },
+
+    async loadMonthly() {
+        const container = document.getElementById('reportsContent');
+        container.innerHTML = '<p class="loading">Loading...</p>';
+        
+        try {
+            const sales = await DB.getAll('sales');
+            const imports = await DB.getAll('salesImports');
+            
+            const monthlyData = {};
+            
+            // POS sales by month
+            sales.forEach(sale => {
+                const month = sale.dateKey?.slice(0, 7); // YYYY-MM
+                if (!month) return;
+                if (!monthlyData[month]) {
+                    monthlyData[month] = { month, posSales: 0, posCount: 0, importSales: 0, importQty: 0 };
+                }
+                monthlyData[month].posSales += sale.total || 0;
+                monthlyData[month].posCount++;
+            });
+            
+            // Import items by month (aggregate from items)
+            imports.forEach(imp => {
+                if (imp.dailySummaries) {
+                    imp.dailySummaries.forEach(day => {
+                        const dateKey = this.parseDate(day.date);
+                        const month = dateKey.slice(0, 7);
+                        if (!monthlyData[month]) {
+                            monthlyData[month] = { month, posSales: 0, posCount: 0, importSales: 0, importQty: 0 };
+                        }
+                        monthlyData[month].importSales += day.netSales || 0;
+                    });
+                }
+            });
+            
+            const months = Object.values(monthlyData).sort((a, b) => b.month.localeCompare(a.month));
+            
+            if (months.length === 0) {
+                container.innerHTML = '<p class="empty-state">No monthly data yet</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>POS Sales</th>
+                            <th>Imported Sales</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${months.map(m => {
+                            const monthName = new Date(m.month + '-01').toLocaleDateString('en-PH', { year: 'numeric', month: 'long' });
+                            return `
+                                <tr>
+                                    <td><strong>${monthName}</strong></td>
+                                    <td>${m.posSales > 0 ? Utils.formatCurrency(m.posSales) : '-'}</td>
+                                    <td>${m.importSales > 0 ? Utils.formatCurrency(m.importSales) : '-'}</td>
+                                    <td><strong>${Utils.formatCurrency(m.posSales + m.importSales)}</strong></td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+        } catch (error) {
+            console.error('Error loading monthly report:', error);
+            container.innerHTML = '<p class="error">Failed to load report</p>';
+        }
+    },
+    
+    async loadProducts() {
+        const container = document.getElementById('reportsContent');
+        container.innerHTML = '<p class="loading">Loading...</p>';
+        
+        try {
+            const sales = await DB.getAll('sales');
+            const imports = await DB.getAll('salesImports');
+            
+            const productData = {};
+            
+            // POS sales by product
+            sales.forEach(sale => {
+                (sale.items || []).forEach(item => {
+                    const key = item.variantName 
+                        ? `${item.productId}|${item.variantIndex}` 
+                        : item.productId;
+                    
+                    if (!productData[key]) {
+                        productData[key] = {
+                            productName: item.productName,
+                            variantName: item.variantName,
+                            posQty: 0, posSales: 0,
+                            importQty: 0, importSales: 0
+                        };
+                    }
+                    productData[key].posQty += item.quantity || 0;
+                    productData[key].posSales += item.lineTotal || 0;
+                });
+            });
+            
+            // Import items by product
+            imports.forEach(imp => {
+                (imp.items || []).forEach(item => {
+                    const key = item.variantName 
+                        ? `${item.productId}|${item.variantIndex}` 
+                        : item.productId;
+                    
+                    if (!productData[key]) {
+                        productData[key] = {
+                            productName: item.productName,
+                            variantName: item.variantName,
+                            posQty: 0, posSales: 0,
+                            importQty: 0, importSales: 0
+                        };
+                    }
+                    productData[key].importQty += item.quantity || 0;
+                    productData[key].importSales += item.netSales || 0;
+                });
+            });
+            
+            const products = Object.values(productData)
+                .map(p => ({ ...p, totalSales: p.posSales + p.importSales, totalQty: p.posQty + p.importQty }))
+                .sort((a, b) => b.totalSales - a.totalSales);
+            
+            if (products.length === 0) {
+                container.innerHTML = '<p class="empty-state">No product data yet</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Qty Sold</th>
+                            <th>Total Sales</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${products.slice(0, 50).map(p => `
+                            <tr>
+                                <td>
+                                    <strong>${p.productName}</strong>
+                                    ${p.variantName ? `<br><small>${p.variantName}</small>` : ''}
+                                </td>
+                                <td>${p.totalQty.toLocaleString()}</td>
+                                <td><strong>${Utils.formatCurrency(p.totalSales)}</strong></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+        } catch (error) {
+            console.error('Error loading products report:', error);
+            container.innerHTML = '<p class="error">Failed to load report</p>';
+        }
+    },
+
+    async loadCategories() {
+        const container = document.getElementById('reportsContent');
+        container.innerHTML = '<p class="loading">Loading...</p>';
+        
+        try {
+            const sales = await DB.getAll('sales');
+            const imports = await DB.getAll('salesImports');
+            
+            const categoryData = {};
+            
+            // POS sales by category
+            sales.forEach(sale => {
+                (sale.items || []).forEach(item => {
+                    const cat = item.category || 'other';
+                    if (!categoryData[cat]) {
+                        categoryData[cat] = { category: cat, posQty: 0, posSales: 0, importQty: 0, importSales: 0 };
+                    }
+                    categoryData[cat].posQty += item.quantity || 0;
+                    categoryData[cat].posSales += item.lineTotal || 0;
+                });
+            });
+            
+            // Import items by category
+            imports.forEach(imp => {
+                (imp.items || []).forEach(item => {
+                    const cat = item.category || 'other';
+                    if (!categoryData[cat]) {
+                        categoryData[cat] = { category: cat, posQty: 0, posSales: 0, importQty: 0, importSales: 0 };
+                    }
+                    categoryData[cat].importQty += item.quantity || 0;
+                    categoryData[cat].importSales += item.netSales || 0;
+                });
+            });
+            
+            const categories = Object.values(categoryData)
+                .map(c => ({ ...c, totalSales: c.posSales + c.importSales, totalQty: c.posQty + c.importQty }))
+                .sort((a, b) => b.totalSales - a.totalSales);
+            
+            if (categories.length === 0) {
+                container.innerHTML = '<p class="empty-state">No category data yet</p>';
+                return;
+            }
+            
+            const grandTotal = categories.reduce((s, c) => s + c.totalSales, 0);
+            
+            container.innerHTML = `
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Items Sold</th>
+                            <th>Total Sales</th>
+                            <th>% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${categories.map(c => `
+                            <tr>
+                                <td><strong>${c.category}</strong></td>
+                                <td>${c.totalQty.toLocaleString()}</td>
+                                <td><strong>${Utils.formatCurrency(c.totalSales)}</strong></td>
+                                <td>${((c.totalSales / grandTotal) * 100).toFixed(1)}%</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td><strong>TOTAL</strong></td>
+                            <td><strong>${categories.reduce((s, c) => s + c.totalQty, 0).toLocaleString()}</strong></td>
+                            <td><strong>${Utils.formatCurrency(grandTotal)}</strong></td>
+                            <td>100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+            
+        } catch (error) {
+            console.error('Error loading categories report:', error);
+            container.innerHTML = '<p class="error">Failed to load report</p>';
+        }
+    }
+};

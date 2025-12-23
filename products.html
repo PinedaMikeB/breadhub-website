@@ -1189,37 +1189,55 @@
             
             const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             
-            // Generate short order ID
-            const orderId = 'BH' + Date.now().toString(36).toUpperCase();
+            // Generate order number (matches POS format)
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+            const orderNum = Math.floor(Math.random() * 900 + 100); // 3 digit random
+            const orderNumber = `O-${dateStr}-${orderNum}`;
             
-            // Save order to Firebase
+            // Save order to Firebase (format matches POS expectations)
             try {
                 await db.collection('orders').add({
-                    orderId: orderId,
-                    customer: {
-                        name: name,
-                        phone: phone,
-                        address: address,
-                        notes: notes || ''
-                    },
+                    orderNumber: orderNumber,
+                    
+                    // Customer info (flat structure for POS compatibility)
+                    customerName: name,
+                    customerPhone: phone,
+                    customerAddress: address,
+                    notes: notes || '',
+                    
+                    // Items with POS-compatible structure
                     items: cart.map(item => ({
-                        name: item.name,
-                        price: item.price,
+                        productId: item.id,
+                        productName: item.name,
+                        category: item.category,
+                        variantName: item.variant?.name || null,
                         quantity: item.quantity,
-                        variant: item.variant || null
+                        price: item.price,
+                        lineTotal: item.price * item.quantity
                     })),
+                    
+                    subtotal: totalPrice,
+                    discount: 0,
                     total: totalPrice,
+                    
+                    deliveryMethod: 'delivery',
+                    paymentMethod: 'cod', // Cash on delivery
+                    
                     status: 'pending',
+                    source: 'website',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                console.log('Order saved to Firebase:', orderId);
+                console.log('Order saved to Firebase:', orderNumber);
+                showToast(`Order ${orderNumber} placed successfully!`);
             } catch (error) {
                 console.error('Error saving order:', error);
-                // Continue anyway - Messenger will still work
+                showToast('Error placing order. Please try again.');
+                return;
             }
             
-            // Build full order message
-            let message = `🍞 NEW ORDER #${orderId}\n\n`;
+            // Build full order message for Messenger
+            let message = `🍞 NEW ORDER #${orderNumber}\n\n`;
             message += `👤 Customer: ${name}\n`;
             message += `📞 Phone: ${phone}\n`;
             message += `📍 Address: ${address}\n`;
@@ -1231,7 +1249,7 @@
             // Copy message to clipboard
             try {
                 await navigator.clipboard.writeText(message);
-                showToast('Order copied! Paste it in Messenger.');
+                showToast('Order copied! Opening Messenger...');
             } catch (err) {
                 // Fallback for older browsers
                 const textArea = document.createElement('textarea');
@@ -1240,10 +1258,9 @@
                 textArea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textArea);
-                showToast('Order copied! Paste it in Messenger.');
             }
             
-            // Open Messenger without pre-filled text (more reliable)
+            // Open Messenger
             window.open(MESSENGER_LINK, '_blank');
             
             // Clear cart
