@@ -147,20 +147,35 @@ const POS = {
         const container = document.getElementById('categoryTabs');
         if (!container) return;
         
-        const defaultCats = [
+        // Bread sub-categories
+        const breadCats = [
             { value: 'donut', label: 'Donuts', emoji: '🍩' },
             { value: 'savory', label: 'Savory', emoji: '🥐' },
             { value: 'cinnamon-rolls', label: 'Cinnamon', emoji: '🥮' },
             { value: 'classic-filipino', label: 'Classic', emoji: '🥖' },
             { value: 'pandesal', label: 'Pandesal', emoji: '🥯' },
-            { value: 'cookies', label: 'Cookies', emoji: '🍪' },
+            { value: 'cookies', label: 'Cookies', emoji: '🍪' }
+        ];
+        
+        // Drink sub-categories
+        const drinkCats = [
             { value: 'coffee', label: 'Coffee', emoji: '☕' },
             { value: 'non-coffee', label: 'Non-Coffee', emoji: '🧃' }
         ];
         
+        // Select which categories to show based on main category filter
+        let catsToShow = [];
+        if (this.currentMainCategory === 'breads') {
+            catsToShow = breadCats;
+        } else if (this.currentMainCategory === 'drinks') {
+            catsToShow = drinkCats;
+        } else {
+            catsToShow = [...breadCats, ...drinkCats]; // All
+        }
+        
         let html = '<button class="category-tab active" data-category="all" onclick="POS.filterByCategory(\'all\')">All</button>';
         
-        defaultCats.forEach(cat => {
+        catsToShow.forEach(cat => {
             if (this.categories.includes(cat.value)) {
                 html += `<button class="category-tab" data-category="${cat.value}" 
                          onclick="POS.filterByCategory('${cat.value}')">${cat.emoji} ${cat.label}</button>`;
