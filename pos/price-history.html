@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BreadHub - Price Change History</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
+        h1 { color: #f39c12; }
+        .btn { background: #f39c12; color: #000; border: none; padding: 12px 24px; font-size: 14px; cursor: pointer; border-radius: 5px; margin: 5px; }
+        .btn:hover { background: #e67e22; }
+        .btn-secondary { background: #3498db; color: #fff; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #0a0a15; color: #f39c12; }
+        tr:hover { background: #0a0a15; }
+        .price-up { color: #e74c3c; }
+        .price-down { color: #27ae60; }
+        .price-same { color: #95a5a6; }
+        .filter-bar { display: flex; gap: 15px; margin: 20px 0; align-items: center; flex-wrap: wrap; }
+        .filter-bar select, .filter-bar input { padding: 10px; background: #0f3460; border: 1px solid #333; border-radius: 5px; color: #fff; }
+        .stats { display: flex; gap: 20px; margin: 20px 0; }
+        .stat-box { background: #0a0a15; padding: 20px; border-radius: 8px; text-align: center; flex: 1; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: #f39c12; }
+        .stat-label { color: #888; font-size: 0.9rem; }
+        #log { background: #0a0a15; padding: 15px; border-radius: 5px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 20px; display: none; }
+    </style>
+</head>
+<body>
+    <h1>📈 Price Change History</h1>
+    <p>Track how price changes affect your sales</p>
+    
+    <div class="filter-bar">
+        <label>Product:</label>
+        <select id="filterProduct">
+            <option value="all">All Products</option>
+        </select>
+        <label>From:</label>
+        <input type="date" id="filterFrom">
+        <label>To:</label>
+        <input type="date" id="filterTo">
+        <button class="btn" onclick="loadHistory()">🔍 Filter</button>
+        <button class="btn btn-secondary" onclick="exportCSV()">📥 Export CSV</button>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-box">
+            <div class="stat-value" id="totalChanges">0</div>
+            <div class="stat-label">Total Changes</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" id="avgIncrease">₱0</div>
+            <div class="stat-label">Avg Increase</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" id="productsChanged">0</div>
+            <div class="stat-label">Products Changed</div>
+        </div>
+    </div>
+    
+    <table id="historyTable">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Old Price</th>
+                <th>New Price</th>
+                <th>Change</th>
+                <th>Changed By</th>
+            </tr>
+        </thead>
+        <tbody id="historyBody">
+            <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+    </table>
+    
+    <div id="log"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        firebase.initializeApp({
+            apiKey: "AIzaSyAj2szYv9ynVFrxdH0tpUsOg7JmJn6Wq0g",
+            authDomain: "breadhub-proofmaster.firebaseapp.com",
+            projectId: "breadhub-proofmaster",
+            storageBucket: "breadhub-proofmaster.firebasestorage.app",
+            messagingSenderId: "222137689770",
+            appId: "1:222137689770:web:645c552afa835732c852d3"
+        });
+        const db = firebase.firestore();
+        
+        let allHistory = [];
+        let products = [];
+        
+        async function init() {
+            // Load products for filter
+            const prodSnap = await db.collection('products').get();
+            products = prodSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            products.sort((a, b) => a.name.localeCompare(b.name));
+            
+            const select = document.getElementById('filterProduct');
+            products.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name;
+                select.appendChild(opt);
+            });
+            
+            // Set default date range (last 3 months)
+            const today = new Date();
+            const threeMonthsAgo = new Date(today);
+            threeMonthsAgo.setMonth(today.getMonth() - 3);
+            document.getElementById('filterTo').value = today.toISOString().split('T')[0];
+            document.getElementById('filterFrom').value = threeMonthsAgo.toISOString().split('T')[0];
+            
+            loadHistory();
+        }
+        
+        async function loadHistory() {
+            const tbody = document.getElementById('historyBody');
+            tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+            
+            try {
+                const snap = await db.collection('priceHistory').orderBy('changedAt', 'desc').get();
+                allHistory = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                
+                // Apply filters
+                const productFilter = document.getElementById('filterProduct').value;
+                const fromDate = document.getElementById('filterFrom').value;
+                const toDate = document.getElementById('filterTo').value;
+                
+                let filtered = allHistory;
+                
+                if (productFilter !== 'all') {
+                    filtered = filtered.filter(h => h.productId === productFilter);
+                }
+                if (fromDate) {
+                    filtered = filtered.filter(h => h.dateKey >= fromDate);
+                }
+                if (toDate) {
+                    filtered = filtered.filter(h => h.dateKey <= toDate);
+                }
+                
+                // Update stats
+                document.getElementById('totalChanges').textContent = filtered.length;
+                const increases = filtered.filter(h => h.newPrice > h.oldPrice);
+                const avgInc = increases.length > 0 
+                    ? increases.reduce((s, h) => s + (h.newPrice - h.oldPrice), 0) / increases.length 
+                    : 0;
+                document.getElementById('avgIncrease').textContent = '₱' + avgInc.toFixed(2);
+                document.getElementById('productsChanged').textContent = new Set(filtered.map(h => h.productId)).size;
+                
+                // Render table
+                if (filtered.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6">No price changes recorded</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = filtered.map(h => {
+                    const change = h.newPrice - h.oldPrice;
+                    const changeClass = change > 0 ? 'price-up' : (change < 0 ? 'price-down' : 'price-same');
+                    const changeText = change > 0 ? `+₱${change.toFixed(2)}` : `₱${change.toFixed(2)}`;
+                    const date = h.changedAt?.toDate ? h.changedAt.toDate().toLocaleString() : h.dateKey;
+                    
+                    return `
+                        <tr>
+                            <td>${date}</td>
+                            <td><strong>${h.productName}</strong></td>
+                            <td>₱${(h.oldPrice || 0).toFixed(2)}</td>
+                            <td>₱${(h.newPrice || 0).toFixed(2)}</td>
+                            <td class="${changeClass}">${changeText}</td>
+                            <td>${h.changedBy || 'System'}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error loading history:', error);
+                tbody.innerHTML = '<tr><td colspan="6">Error loading data</td></tr>';
+            }
+        }
+        
+        function exportCSV() {
+            const rows = [['Date', 'Product', 'Old Price', 'New Price', 'Change', 'Changed By']];
+            allHistory.forEach(h => {
+                const date = h.changedAt?.toDate ? h.changedAt.toDate().toISOString() : h.dateKey;
+                rows.push([date, h.productName, h.oldPrice, h.newPrice, h.newPrice - h.oldPrice, h.changedBy || 'System']);
+            });
+            
+            const csv = rows.map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'price-history.csv';
+            a.click();
+        }
+        
+        init();
+    </script>
+</body>
+</html>
