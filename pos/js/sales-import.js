@@ -357,7 +357,7 @@ const SalesImport = {
                                         <td><span class="score-badge">${Math.round(item.score * 100)}%</span></td>
                                         <td>${item.product.name}${item.variantIndex !== null ? ` (${item.product.variants[item.variantIndex].name})` : ''}</td>
                                         <td>
-                                            <label><input type="checkbox" class="auto-accept" data-idx="${idx}" checked> Accept</label>
+                                            <label><input type="checkbox" class="auto-accept" data-idx="${idx}"> Accept</label>
                                         </td>
                                     </tr>
                                 `).join('')}
