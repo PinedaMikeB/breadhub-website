@@ -204,7 +204,7 @@ body {
 
 /* Main Category Filter (Breads vs Drinks) */
 .main-category-filter {
-    display: flex;
+    display: flex !important;
     gap: 8px;
     margin-bottom: 16px;
     padding-bottom: 12px;
@@ -212,11 +212,11 @@ body {
 }
 
 .main-cat-btn {
-    padding: 10px 20px;
-    background: var(--bg-input);
-    border: none;
-    border-radius: 20px;
-    color: var(--text-secondary);
+    padding: 10px 20px !important;
+    background: var(--bg-input) !important;
+    border: none !important;
+    border-radius: 20px !important;
+    color: var(--text-secondary) !important;
     cursor: pointer;
     font-size: 0.95rem;
     font-weight: 500;
@@ -224,12 +224,12 @@ body {
 }
 
 .main-cat-btn:hover {
-    background: var(--bg-card);
+    background: var(--bg-card) !important;
 }
 
 .main-cat-btn.active {
-    background: var(--primary);
-    color: white;
+    background: var(--primary) !important;
+    color: white !important;
 }
 
 .category-tabs {
