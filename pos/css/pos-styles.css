@@ -2582,3 +2582,665 @@ details summary {
         grid-template-columns: 1fr;
     }
 }
+
+
+/* ==========================================
+   SHIFT DRAFT CLOSE STYLES v12
+   ========================================== */
+
+/* Unclosed Shift Modal */
+.unclosed-shift-info {
+    padding: 10px 0;
+}
+
+.shift-alert {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.shift-alert.active {
+    background: rgba(231, 76, 60, 0.15);
+    border: 1px solid #e74c3c;
+}
+
+.shift-alert.draft {
+    background: rgba(241, 196, 15, 0.15);
+    border: 1px solid #f1c40f;
+}
+
+.unclosed-shift-details {
+    background: var(--bg-main);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.unclosed-shift-details .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.unclosed-shift-details .detail-row:last-child {
+    border-bottom: none;
+}
+
+.unclosed-shift-details .label {
+    color: var(--text-secondary);
+}
+
+.unclosed-shift-details .value {
+    font-weight: 600;
+}
+
+.unclosed-shift-details .status-active {
+    color: #e74c3c;
+}
+
+.unclosed-shift-details .status-draft {
+    color: #f39c12;
+}
+
+
+.unclosed-shift-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px 0 10px;
+}
+
+.unclosed-shift-buttons .btn-lg {
+    padding: 15px 20px;
+    font-size: 1rem;
+}
+
+/* End Shift Footer with Draft Close */
+.end-shift-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 15px 0 5px;
+    border-top: 1px solid var(--border);
+    margin-top: 15px;
+}
+
+.end-shift-main-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.end-shift-main-buttons .btn-lg {
+    flex: 1;
+    padding: 15px 20px;
+    font-size: 1rem;
+}
+
+.draft-close-section {
+    background: rgba(241, 196, 15, 0.1);
+    border: 1px dashed #f1c40f;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+}
+
+.draft-close-hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0 0 10px 0;
+}
+
+.draft-close-section .btn-warning {
+    background: #f39c12;
+    color: #000;
+    border: none;
+}
+
+.draft-close-section .btn-warning:hover {
+    background: #e67e22;
+}
+
+
+/* Draft Saved Confirmation */
+.draft-saved-info {
+    text-align: center;
+    padding: 20px;
+}
+
+.draft-saved-info .draft-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.draft-saved-info h3 {
+    margin: 0 0 10px;
+    color: var(--primary);
+}
+
+.draft-saved-info p {
+    color: var(--text-secondary);
+    margin: 5px 0;
+}
+
+.draft-saved-info .note {
+    margin-top: 20px;
+    color: #f39c12;
+    font-weight: 500;
+}
+
+.draft-saved-info ul {
+    text-align: left;
+    margin: 10px 0 0 20px;
+    color: var(--text-secondary);
+}
+
+.draft-saved-info ul li {
+    margin: 5px 0;
+}
+
+/* Shift indicator badge styles */
+.shift-indicator .draft-badge {
+    background: #f39c12;
+    color: #000;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* Modal custom footer support */
+.modal .custom-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--border);
+}
+
+
+/* ==========================================
+   CASH HANDOVER STYLES
+   ========================================== */
+
+/* Handover Modal */
+.handover-info,
+.handover-receive-info {
+    padding: 10px 0;
+}
+
+.handover-summary {
+    background: var(--bg-main);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.handover-summary h4 {
+    margin: 0 0 12px 0;
+    color: var(--primary);
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+.summary-row.expense {
+    color: #e74c3c;
+}
+
+.summary-row.expected {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 2px solid var(--border);
+    font-size: 1.1rem;
+}
+
+.handover-form {
+    margin: 20px 0;
+}
+
+.form-input-lg {
+    font-size: 1.5rem;
+    padding: 15px;
+    text-align: center;
+}
+
+
+.handover-note {
+    background: rgba(241, 196, 15, 0.1);
+    border: 1px solid #f1c40f;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 15px;
+}
+
+.handover-note p {
+    margin: 5px 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.handover-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px 0 5px;
+}
+
+.handover-footer .btn-lg {
+    padding: 15px 20px;
+    font-size: 1rem;
+}
+
+.handover-amount {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 1.1rem;
+}
+
+.handover-amount-big {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+    text-align: center;
+    margin: 10px 0;
+}
+
+.variance-warning {
+    color: #e74c3c;
+    text-align: center;
+    font-weight: 500;
+}
+
+
+/* Handover Receive Modal */
+.handover-from {
+    background: var(--bg-main);
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+}
+
+.handover-from h4 {
+    margin: 0 0 10px 0;
+    color: var(--text-secondary);
+}
+
+.previous-cashier-info {
+    padding-left: 10px;
+    border-left: 3px solid var(--primary);
+}
+
+.previous-cashier-info p {
+    margin: 5px 0;
+}
+
+.handover-declared {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.handover-declared h4 {
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.declared-amount {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.outgoing-variance {
+    color: #f39c12;
+    font-size: 0.9rem;
+    margin-top: 10px;
+}
+
+.handover-receipt {
+    background: var(--bg-main);
+    padding: 20px;
+    border-radius: 8px;
+    margin: 15px 0;
+}
+
+
+/* ==========================================
+   CHANGE FUND & REQUIRED FIELD STYLES
+   ========================================== */
+
+.change-fund-info {
+    background: linear-gradient(135deg, rgba(212, 137, 74, 0.1), rgba(212, 137, 74, 0.05));
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    padding: 15px;
+    margin: 15px 0;
+    text-align: center;
+}
+
+.change-fund-info h4 {
+    margin: 0 0 5px 0;
+    color: var(--primary);
+}
+
+.change-fund-info small {
+    color: var(--text-secondary);
+}
+
+.change-fund-reminder {
+    background: rgba(212, 137, 74, 0.15);
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.change-fund-reminder h4 {
+    margin: 0;
+    color: var(--primary);
+    font-size: 1.2rem;
+}
+
+.change-fund-reminder p {
+    margin: 5px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Required field indicator */
+.required {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+
+/* Starting cash warning */
+.starting-cash-warning {
+    background: rgba(231, 76, 60, 0.15);
+    border: 1px solid #e74c3c;
+    color: #e74c3c;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-top: 10px;
+    font-weight: 500;
+}
+
+/* Critical variance (below change fund) */
+.variance-status.critical {
+    background: #e74c3c;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    font-weight: bold;
+    animation: pulse-warning 1s infinite;
+}
+
+@keyframes pulse-warning {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.critical-warning {
+    color: #e74c3c;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: rgba(231, 76, 60, 0.1);
+    border-radius: 6px;
+}
+
+/* Form hint */
+.form-hint {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 5px;
+}
+
+
+/* ==========================================
+   CASHIER QUICK PANEL & ADMIN UPDATES v15
+   ========================================== */
+
+/* Cashier Quick Panel */
+.cashier-quick-panel {
+    margin-top: 15px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+}
+
+.quick-panel-toggle {
+    width: 100%;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.quick-panel-toggle:hover {
+    background: rgba(212, 137, 74, 0.1);
+    border-color: var(--primary);
+}
+
+.quick-panel-content {
+    margin-top: 10px;
+    background: var(--bg-main);
+    border-radius: 8px;
+    padding: 12px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.quick-section {
+    margin-bottom: 15px;
+}
+
+.quick-section:last-child {
+    margin-bottom: 0;
+}
+
+.quick-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+
+.quick-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+}
+
+.quick-item.critical {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+
+.quick-item.warning {
+    background: rgba(241, 196, 15, 0.2);
+    color: #f1c40f;
+}
+
+.quick-item.unavailable {
+    background: rgba(155, 89, 182, 0.2);
+    color: #9b59b6;
+}
+
+.success-text {
+    color: #27ae60;
+    font-size: 0.85rem;
+}
+
+.error-text {
+    color: #e74c3c;
+    font-size: 0.85rem;
+}
+
+/* Delete zone in Admin */
+.admin-card.danger-zone {
+    border: 1px dashed #e74c3c;
+    background: rgba(231, 76, 60, 0.05);
+}
+
+.admin-card.danger-zone h3 {
+    color: #e74c3c;
+}
+
+.delete-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.delete-manage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+
+.delete-manage-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.delete-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.delete-item:last-child {
+    border-bottom: none;
+}
+
+.delete-item .item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.delete-item .item-info small {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+/* Staff Setup Modal */
+.staff-setup-modal {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.staff-list-header,
+.staff-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 100px 100px;
+    gap: 10px;
+    padding: 10px;
+    align-items: center;
+}
+
+.staff-list-header {
+    background: var(--bg-main);
+    font-weight: 600;
+    border-radius: 6px;
+    margin-bottom: 5px;
+}
+
+.staff-row {
+    border-bottom: 1px solid var(--border);
+}
+
+.staff-row:hover {
+    background: rgba(212, 137, 74, 0.1);
+}
+
+.staff-actions {
+    display: flex;
+    gap: 5px;
+}
+
+
+/* Permissions section in staff form */
+.permissions-section {
+    background: var(--bg-main);
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+}
+
+.permissions-section h4 {
+    margin: 0 0 10px 0;
+    color: var(--text-secondary);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* Staff item in admin list */
+.staff-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.staff-item:last-child {
+    border-bottom: none;
+}
+
+.staff-role {
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--bg-main);
+    text-transform: capitalize;
+}
+
+/* Role tag colors */
+.role-tag {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: capitalize;
+}
+
+.role-tag.owner { background: #9b59b6; color: white; }
+.role-tag.manager { background: #3498db; color: white; }
+.role-tag.cashier { background: #27ae60; color: white; }
+.role-tag.baker { background: #e67e22; color: white; }

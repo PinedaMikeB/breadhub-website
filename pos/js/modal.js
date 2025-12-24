@@ -1,11 +1,13 @@
 /**
- * BreadHub POS - Modal Component
+ * BreadHub POS - Modal Component v2
+ * Added: customFooter and hideFooter support
  */
 
 const Modal = {
     overlay: null,
     modal: null,
     onSaveCallback: null,
+    onCancelCallback: null,
     
     init() {
         this.overlay = document.getElementById('modalOverlay');
@@ -20,17 +22,41 @@ const Modal = {
         
         const footer = document.getElementById('modalFooter');
         const saveBtn = document.getElementById('modalSaveBtn');
+        const cancelBtn = document.getElementById('modalCancelBtn');
         
-        if (options.showFooter === false) {
+        // Handle custom footer
+        if (options.customFooter) {
+            footer.innerHTML = options.customFooter;
+            footer.style.display = 'block';
+            footer.className = 'modal-footer custom-footer';
+        } else if (options.hideFooter) {
             footer.style.display = 'none';
         } else {
+            // Reset to default footer
             footer.style.display = 'flex';
-            saveBtn.textContent = options.saveText || 'Save';
-            saveBtn.className = `btn ${options.saveClass || 'btn-primary'}`;
+            footer.className = 'modal-footer';
+            footer.innerHTML = `
+                <button class="btn btn-outline" id="modalCancelBtn">Cancel</button>
+                <button class="btn btn-primary" id="modalSaveBtn">Save</button>
+            `;
+            
+            const newSaveBtn = document.getElementById('modalSaveBtn');
+            const newCancelBtn = document.getElementById('modalCancelBtn');
+            
+            newSaveBtn.textContent = options.saveText || 'Save';
+            newSaveBtn.className = `btn ${options.saveClass || 'btn-primary'}`;
+            newSaveBtn.onclick = () => this.save();
+            
+            if (options.cancelText === null) {
+                newCancelBtn.style.display = 'none';
+            } else {
+                newCancelBtn.textContent = options.cancelText || 'Cancel';
+                newCancelBtn.onclick = () => this.cancel();
+            }
         }
         
         this.onSaveCallback = options.onSave;
-        saveBtn.onclick = () => this.save();
+        this.onCancelCallback = options.onCancel;
         
         if (options.width) {
             this.modal.style.maxWidth = options.width;
@@ -46,6 +72,14 @@ const Modal = {
             this.overlay.classList.remove('active');
         }
         this.onSaveCallback = null;
+        this.onCancelCallback = null;
+    },
+    
+    cancel() {
+        if (this.onCancelCallback) {
+            this.onCancelCallback();
+        }
+        this.close();
     },
     
     async save() {

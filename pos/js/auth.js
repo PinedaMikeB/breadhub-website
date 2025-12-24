@@ -1,14 +1,24 @@
 /**
- * BreadHub POS - Authentication v2
+ * BreadHub POS - Authentication v10
  * PIN-based login for cashiers with shift management
+ * 
+ * CHANGE FUND RULES:
+ * - Change fund is FIXED and set by Owner/Manager
+ * - Can only be INCREASED (bank withdrawal, etc.) - never reduced
+ * - Must be handed over exactly as-is between shifts
+ * - Starting cash is REQUIRED, not optional
  */
 
 const Auth = {
     currentUser: null,      // Firebase auth user (for admins)
     userData: null,         // Current staff member data
     currentShift: null,     // Active shift
+    changeFund: 0,          // Store's fixed change fund amount
     
-    init() {
+    async init() {
+        // Load store settings including change fund
+        await this.loadStoreSettings();
+        
         // Check if there's a saved session
         const savedStaff = localStorage.getItem('pos_staff');
         const savedShift = localStorage.getItem('pos_shift');
@@ -19,6 +29,21 @@ const Auth = {
             this.showPOS();
         } else {
             this.showLogin();
+        }
+    },
+    
+    async loadStoreSettings() {
+        try {
+            const settings = await DB.get('settings', 'pos');
+            if (settings) {
+                this.changeFund = settings.changeFund || 1000; // Default ₱1,000
+            } else {
+                // Create default settings if not exists
+                this.changeFund = 1000;
+            }
+        } catch (error) {
+            console.log('Using default change fund');
+            this.changeFund = 1000;
         }
     },
     
@@ -51,8 +76,14 @@ const Auth = {
             
             Toast.success(`Welcome, ${staff.name}!`);
             
-            // Owners/Managers can skip shift, others must start shift
-            if (staff.role === 'owner' || staff.role === 'manager') {
+            // Check for unclosed shifts for this staff member
+            const unclosedShifts = await this.getUnclosedShifts(staff.id);
+            
+            if (unclosedShifts.length > 0) {
+                // Show unclosed shift options
+                this.showUnclosedShiftModal(unclosedShifts);
+            } else if (staff.role === 'owner' || staff.role === 'manager') {
+                // Owners/Managers can skip shift, others must start shift
                 this.showOwnerOptions();
             } else {
                 this.showShiftStartModal();
@@ -64,6 +95,127 @@ const Auth = {
             console.error('Login error:', error);
             Toast.error('Login failed. Please try again.');
             return false;
+        }
+    },
+    
+    // ========== UNCLOSED SHIFT HANDLING ==========
+    
+    async getUnclosedShifts(staffId) {
+        // Query shifts that are 'active' or 'draft' for this staff member
+        const allShifts = await DB.getAll('shifts');
+        return allShifts.filter(s => 
+            s.staffId === staffId && 
+            (s.status === 'active' || s.status === 'draft')
+        ).sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+    },
+    
+    showUnclosedShiftModal(unclosedShifts) {
+        const shift = unclosedShifts[0]; // Most recent unclosed shift
+        const statusLabel = shift.status === 'draft' ? '📋 Draft (needs finalization)' : '⚠️ Still Active';
+        const statusClass = shift.status === 'draft' ? 'draft' : 'active';
+        
+        Modal.open({
+            title: '⚠️ Unclosed Shift Found',
+            content: `
+                <div class="unclosed-shift-info">
+                    <div class="shift-alert ${statusClass}">
+                        <p>You have an unclosed shift that needs attention:</p>
+                    </div>
+                    
+                    <div class="unclosed-shift-details">
+                        <div class="detail-row">
+                            <span class="label">Shift #:</span>
+                            <span class="value">${shift.shiftNumber}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Date:</span>
+                            <span class="value">${shift.dateKey}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Start Time:</span>
+                            <span class="value">${Utils.formatTime(shift.startTime)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Status:</span>
+                            <span class="value status-${statusClass}">${statusLabel}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Starting Cash:</span>
+                            <span class="value">${Utils.formatCurrency(shift.startingCash || 0)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="unclosed-shift-options">
+                        <p><strong>What would you like to do?</strong></p>
+                    </div>
+                </div>
+            `,
+            hideFooter: true,
+            customFooter: `
+                <div class="unclosed-shift-buttons">
+                    <button class="btn btn-primary btn-lg" onclick="Auth.resumeShift('${shift.id}')">
+                        ▶️ Resume This Shift
+                    </button>
+                    <button class="btn btn-warning btn-lg" onclick="Auth.showEndShiftForUnclosed('${shift.id}')">
+                        🏁 Close This Shift
+                    </button>
+                    <button class="btn btn-outline btn-sm" onclick="Auth.logout(); Modal.close();">
+                        Cancel & Logout
+                    </button>
+                </div>
+            `
+        });
+    },
+    
+    async resumeShift(shiftId) {
+        try {
+            const shift = await DB.get('shifts', shiftId);
+            if (!shift) {
+                Toast.error('Shift not found');
+                return;
+            }
+            
+            // If shift was draft, reactivate it
+            if (shift.status === 'draft') {
+                await DB.update('shifts', shiftId, { status: 'active' });
+                shift.status = 'active';
+            }
+            
+            this.currentShift = { id: shiftId, ...shift };
+            localStorage.setItem('pos_shift', JSON.stringify(this.currentShift));
+            
+            Modal.close();
+            Toast.success(`Resumed Shift #${shift.shiftNumber}`);
+            this.showPOS();
+            
+        } catch (error) {
+            console.error('Error resuming shift:', error);
+            Toast.error('Failed to resume shift');
+        }
+    },
+    
+    async showEndShiftForUnclosed(shiftId) {
+        try {
+            const shift = await DB.get('shifts', shiftId);
+            if (!shift) {
+                Toast.error('Shift not found');
+                return;
+            }
+            
+            // Temporarily set as current shift to use endShift flow
+            this.currentShift = { id: shiftId, ...shift };
+            localStorage.setItem('pos_shift', JSON.stringify(this.currentShift));
+            
+            Modal.close();
+            
+            // Small delay then show end shift
+            setTimeout(() => {
+                this.endShift();
+            }, 300);
+            
+        } catch (error) {
+            console.error('Error:', error);
+            Toast.error('Failed to load shift');
         }
     },
     
@@ -118,7 +270,194 @@ const Auth = {
     
     // ========== SHIFT MANAGEMENT ==========
     
-    showShiftStartModal() {
+    async showShiftStartModal() {
+        // Check if there's a pending handover from previous cashier
+        const pendingHandover = await this.getPendingHandover();
+        
+        if (pendingHandover) {
+            // Show handover verification modal
+            this.showHandoverVerificationModal(pendingHandover);
+        } else {
+            // Normal shift start (no handover)
+            this.showNormalShiftStartModal();
+        }
+    },
+    
+    async getPendingHandover() {
+        try {
+            // Find the most recent draft shift with handover data
+            const allShifts = await DB.getAll('shifts');
+            const today = Utils.getTodayKey();
+            
+            // Look for draft shifts from today or yesterday with handover cash
+            const draftShifts = allShifts.filter(s => 
+                s.status === 'draft' && 
+                s.handoverCash > 0 &&
+                !s.handoverReceivedBy // Not yet received by another cashier
+            ).sort((a, b) => new Date(b.handoverTime) - new Date(a.handoverTime));
+            
+            return draftShifts.length > 0 ? draftShifts[0] : null;
+        } catch (error) {
+            console.error('Error checking handover:', error);
+            return null;
+        }
+    },
+    
+    showHandoverVerificationModal(previousShift) {
+        Modal.open({
+            title: '🤝 Receive Cash Handover',
+            content: `
+                <div class="handover-receive-info">
+                    <div class="staff-welcome">
+                        <div class="staff-avatar">${this.userData.name.charAt(0).toUpperCase()}</div>
+                        <div>
+                            <h3>${this.userData.name}</h3>
+                            <span class="role-badge">${this.userData.role}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="handover-from">
+                        <h4>📋 Receiving handover from:</h4>
+                        <div class="previous-cashier-info">
+                            <p><strong>${previousShift.staffName}</strong> (Shift #${previousShift.shiftNumber})</p>
+                            <p>Handed over at: ${Utils.formatTime(previousShift.handoverTime)}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="handover-declared">
+                        <h4>💰 Declared Handover Amount:</h4>
+                        <div class="declared-amount">${Utils.formatCurrency(previousShift.handoverCash)}</div>
+                        ${previousShift.handoverVariance && Math.abs(previousShift.handoverVariance) >= 1 ? `
+                            <p class="outgoing-variance">
+                                ⚠️ ${previousShift.staffName} reported ${previousShift.handoverVariance > 0 ? 'OVER' : 'SHORT'} 
+                                ${Utils.formatCurrency(Math.abs(previousShift.handoverVariance))}
+                            </p>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>💵 Actual Cash You Received</label>
+                        <input type="number" id="receivedCash" class="form-input form-input-lg" 
+                               placeholder="Count and enter amount" step="0.01"
+                               oninput="Auth.calculateReceivedVariance(${previousShift.handoverCash})">
+                        <small class="form-hint">Count the cash carefully before confirming</small>
+                    </div>
+                    
+                    <div id="receivedVarianceDisplay" class="variance-display">
+                        Enter the cash you received above
+                    </div>
+                </div>
+            `,
+            customFooter: `
+                <div class="handover-footer">
+                    <button class="btn btn-success btn-lg" onclick="Auth.confirmHandoverReceived('${previousShift.id}', ${previousShift.handoverCash})">
+                        ✅ Confirm & Start Shift
+                    </button>
+                    <button class="btn btn-outline" onclick="Auth.skipHandover('${previousShift.id}')">
+                        Skip (No Handover)
+                    </button>
+                </div>
+            `,
+            hideFooter: true
+        });
+    },
+    
+    calculateReceivedVariance(declared) {
+        const received = parseFloat(document.getElementById('receivedCash')?.value) || 0;
+        const variance = received - declared;
+        
+        const display = document.getElementById('receivedVarianceDisplay');
+        
+        if (received === 0) {
+            display.innerHTML = 'Enter the cash you received above';
+            return;
+        }
+        
+        let status, statusClass;
+        if (Math.abs(variance) < 1) {
+            status = '✅ MATCHES - No discrepancy';
+            statusClass = 'balanced';
+        } else if (variance > 0) {
+            status = `⬆️ RECEIVED MORE by ${Utils.formatCurrency(variance)}`;
+            statusClass = 'over';
+        } else {
+            status = `⬇️ RECEIVED LESS by ${Utils.formatCurrency(Math.abs(variance))}`;
+            statusClass = 'short';
+        }
+        
+        display.innerHTML = `<div class="variance-status ${statusClass}">${status}</div>`;
+    },
+    
+    async confirmHandoverReceived(previousShiftId, declaredAmount) {
+        const receivedCash = parseFloat(document.getElementById('receivedCash')?.value) || 0;
+        
+        if (receivedCash <= 0) {
+            Toast.error('Please enter the cash amount you received');
+            return;
+        }
+        
+        const handoverVariance = receivedCash - declaredAmount;
+        
+        try {
+            // Update previous shift to mark handover as received
+            await DB.update('shifts', previousShiftId, {
+                handoverReceivedBy: this.userData.name,
+                handoverReceivedById: this.userData.id,
+                handoverReceivedAmount: receivedCash,
+                handoverReceivedTime: new Date().toISOString(),
+                handoverReceivedVariance: handoverVariance
+            });
+            
+            // Log discrepancy if any
+            if (Math.abs(handoverVariance) >= 1) {
+                const previousShift = await DB.get('shifts', previousShiftId);
+                await this.logHandoverDiscrepancy({
+                    type: 'incoming',
+                    shiftId: previousShiftId,
+                    shiftNumber: previousShift.shiftNumber,
+                    dateKey: previousShift.dateKey,
+                    outgoingCashier: previousShift.staffName,
+                    incomingCashier: this.userData.name,
+                    declared: declaredAmount,
+                    received: receivedCash,
+                    variance: handoverVariance,
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
+            Modal.close();
+            
+            // Now start the new shift with received cash as starting cash
+            await this.createNewShift(receivedCash, previousShiftId);
+            
+        } catch (error) {
+            console.error('Error confirming handover:', error);
+            Toast.error('Failed to confirm handover');
+        }
+    },
+    
+    async skipHandover(previousShiftId) {
+        // Only Owner/Manager can skip handover
+        if (this.userData.role !== 'owner' && this.userData.role !== 'manager') {
+            Toast.error('Only Owner/Manager can skip handover verification');
+            return;
+        }
+        
+        // Mark the handover as skipped
+        await DB.update('shifts', previousShiftId, {
+            handoverSkipped: true,
+            handoverSkippedBy: this.userData.name,
+            handoverSkippedTime: new Date().toISOString()
+        });
+        
+        Modal.close();
+        this.showNormalShiftStartModal();
+    },
+    
+    showNormalShiftStartModal() {
+        const isCashier = this.userData.role === 'cashier';
+        const canCancel = !isCashier; // Only owner/manager can cancel
+        
         Modal.open({
             title: '🕐 Start Your Shift',
             content: `
@@ -134,26 +473,74 @@ const Auth = {
                         <p><strong>Date:</strong> ${new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                         <p><strong>Time:</strong> ${new Date().toLocaleTimeString('en-PH')}</p>
                     </div>
+                    
+                    <div class="change-fund-info">
+                        <h4>💰 Change Fund</h4>
+                        <p>Standard Change Fund: <strong>${Utils.formatCurrency(this.changeFund)}</strong></p>
+                        <small>This amount must be in the cash drawer before starting.</small>
+                    </div>
+                    
                     <div class="form-group">
-                        <label>Starting Cash (Optional)</label>
-                        <input type="number" id="startingCash" class="form-input" placeholder="0.00" step="0.01">
+                        <label>Starting Cash (Count your drawer) <span class="required">*</span></label>
+                        <input type="number" id="startingCash" class="form-input form-input-lg" 
+                               placeholder="Enter exact amount" step="0.01" required
+                               value="${this.changeFund}">
+                        <small class="form-hint">Must match or exceed the change fund of ${Utils.formatCurrency(this.changeFund)}</small>
+                    </div>
+                    
+                    <div id="startingCashWarning" class="starting-cash-warning" style="display: none;">
+                        ⚠️ Starting cash is below the required change fund!
                     </div>
                 </div>
             `,
             saveText: '▶️ Start Shift',
-            cancelText: 'Cancel',
+            cancelText: canCancel ? 'Cancel' : null,
             onSave: async () => {
-                await this.startShift();
+                const startingCash = parseFloat(document.getElementById('startingCash')?.value) || 0;
+                
+                // Validate starting cash
+                if (startingCash <= 0) {
+                    Toast.error('Starting cash is required');
+                    return false; // Prevent modal close
+                }
+                
+                if (startingCash < this.changeFund) {
+                    // Warn but allow if owner/manager
+                    if (isCashier) {
+                        Toast.error(`Starting cash must be at least ${Utils.formatCurrency(this.changeFund)}`);
+                        return false;
+                    } else {
+                        // Owner/manager can override
+                        if (!confirm(`Starting cash is below the standard change fund. Continue anyway?`)) {
+                            return false;
+                        }
+                    }
+                }
+                
+                await this.createNewShift(startingCash, null);
             },
-            onCancel: () => {
+            onCancel: canCancel ? () => {
                 this.logout();
-            }
+            } : null
         });
+        
+        // Add input validation listener
+        setTimeout(() => {
+            const input = document.getElementById('startingCash');
+            if (input) {
+                input.addEventListener('input', () => {
+                    const val = parseFloat(input.value) || 0;
+                    const warning = document.getElementById('startingCashWarning');
+                    if (warning) {
+                        warning.style.display = val < this.changeFund ? 'block' : 'none';
+                    }
+                });
+            }
+        }, 100);
     },
     
-    async startShift() {
+    async createNewShift(startingCash, previousShiftId) {
         const today = Utils.getTodayKey();
-        const startingCash = parseFloat(document.getElementById('startingCash')?.value) || 0;
         
         try {
             // Get shift number for today
@@ -168,6 +555,7 @@ const Auth = {
                 shiftNumber: shiftNumber,
                 startTime: new Date().toISOString(),
                 startingCash: startingCash,
+                previousShiftId: previousShiftId, // Link to handover source
                 endTime: null,
                 endingCash: null,
                 totalSales: 0,
@@ -179,7 +567,7 @@ const Auth = {
             this.currentShift = { id: shiftId, ...shiftData };
             localStorage.setItem('pos_shift', JSON.stringify(this.currentShift));
             
-            Toast.success(`Shift #${shiftNumber} started!`);
+            Toast.success(`Shift #${shiftNumber} started with ${Utils.formatCurrency(startingCash)}!`);
             this.showPOS();
             
         } catch (error) {
@@ -298,11 +686,299 @@ const Auth = {
             saveText: '✅ End Shift & Generate Report',
             onSave: async () => {
                 await this.finalizeEndShift();
-            }
+            },
+            customFooter: `
+                <div class="end-shift-footer">
+                    <div class="end-shift-main-buttons">
+                        <button class="btn btn-success btn-lg" onclick="Auth.finalizeEndShift()">
+                            ✅ End Shift & Generate Report
+                        </button>
+                    </div>
+                    <div class="draft-close-section">
+                        <p class="draft-close-hint">Need to let another cashier start? Use Draft Close to hand over quickly.</p>
+                        <button class="btn btn-warning" onclick="Auth.draftCloseShift()">
+                            📋 Draft Close (Finalize Later)
+                        </button>
+                    </div>
+                    <button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
+                </div>
+            `,
+            hideFooter: true
         });
         
         // Initialize expenses array
         this.shiftExpenses = [];
+    },
+    
+    // ========== DRAFT CLOSE ==========
+    
+    async draftCloseShift() {
+        if (!this.currentShift || !this.endShiftData) {
+            Toast.error('No shift data available');
+            return;
+        }
+        
+        // Show handover modal - require cash count for next cashier
+        Modal.close();
+        setTimeout(() => {
+            this.showHandoverModal();
+        }, 300);
+    },
+    
+    showHandoverModal() {
+        const { cashSales, gcashSales, totalSales, transactionCount, expectedCash } = this.endShiftData;
+        const expensesData = this.getExpensesData();
+        const totalExpenses = expensesData.reduce((sum, e) => sum + e.amount, 0);
+        const adjustedExpected = expectedCash - totalExpenses;
+        
+        // Calculate breakdown: Change Fund + Net Cash
+        const changeFund = this.changeFund;
+        const netCashFromSales = (this.currentShift.startingCash || 0) + cashSales - totalExpenses - changeFund;
+        
+        Modal.open({
+            title: '🤝 Cash Handover',
+            content: `
+                <div class="handover-info">
+                    <div class="change-fund-reminder">
+                        <h4>💰 Change Fund: ${Utils.formatCurrency(changeFund)}</h4>
+                        <p>This amount must ALWAYS be handed over exactly.</p>
+                    </div>
+                    
+                    <div class="handover-summary">
+                        <h4>📊 Cash Calculation</h4>
+                        <div class="summary-row">
+                            <span>Change Fund (Fixed):</span>
+                            <span>${Utils.formatCurrency(changeFund)}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Starting Cash:</span>
+                            <span>${Utils.formatCurrency(this.currentShift.startingCash || 0)}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>+ Cash Sales:</span>
+                            <span>${Utils.formatCurrency(cashSales)}</span>
+                        </div>
+                        ${totalExpenses > 0 ? `
+                        <div class="summary-row expense">
+                            <span>- Expenses:</span>
+                            <span>${Utils.formatCurrency(totalExpenses)}</span>
+                        </div>
+                        ` : ''}
+                        <div class="summary-row expected">
+                            <span><strong>Total Expected in Drawer:</strong></span>
+                            <span><strong>${Utils.formatCurrency(adjustedExpected)}</strong></span>
+                        </div>
+                    </div>
+                    
+                    <div class="handover-form">
+                        <div class="form-group">
+                            <label>💵 Total Cash You're Handing Over <span class="required">*</span></label>
+                            <input type="number" id="handoverCash" class="form-input form-input-lg" 
+                                   placeholder="Count and enter total amount" step="0.01" 
+                                   oninput="Auth.calculateHandoverVariance(${adjustedExpected}, ${changeFund})">
+                            <small class="form-hint">Must include the change fund of ${Utils.formatCurrency(changeFund)}</small>
+                        </div>
+                        
+                        <div id="handoverVarianceDisplay" class="variance-display">
+                            Enter the cash amount above
+                        </div>
+                    </div>
+                    
+                    <div class="handover-note">
+                        <p>⚠️ The next cashier will verify this exact amount.</p>
+                        <p>Any shortage will be recorded and reported to management.</p>
+                    </div>
+                </div>
+            `,
+            customFooter: `
+                <div class="handover-footer">
+                    <button class="btn btn-success btn-lg" onclick="Auth.completeDraftClose()">
+                        ✅ Confirm & Hand Over
+                    </button>
+                    <button class="btn btn-outline" onclick="Auth.cancelHandover()">Cancel</button>
+                </div>
+            `,
+            hideFooter: true
+        });
+        
+        // Store expected for validation
+        this.handoverExpected = adjustedExpected;
+    },
+    
+    calculateHandoverVariance(expected, changeFund) {
+        const handoverCash = parseFloat(document.getElementById('handoverCash')?.value) || 0;
+        const variance = handoverCash - expected;
+        
+        const display = document.getElementById('handoverVarianceDisplay');
+        
+        if (handoverCash === 0) {
+            display.innerHTML = 'Enter the cash amount above';
+            return;
+        }
+        
+        // Check if change fund is intact
+        const changeFundShort = handoverCash < changeFund;
+        
+        let status, statusClass, details = '';
+        if (changeFundShort) {
+            status = `🚨 CRITICAL: Below Change Fund!`;
+            statusClass = 'critical';
+            details = `<p class="critical-warning">Cash is less than the ${Utils.formatCurrency(changeFund)} change fund!</p>`;
+        } else if (Math.abs(variance) < 1) {
+            status = '✅ BALANCED';
+            statusClass = 'balanced';
+        } else if (variance > 0) {
+            status = `⬆️ OVER by ${Utils.formatCurrency(variance)}`;
+            statusClass = 'over';
+        } else {
+            status = `⬇️ SHORT by ${Utils.formatCurrency(Math.abs(variance))}`;
+            statusClass = 'short';
+        }
+        
+        display.innerHTML = `
+            ${details}
+            <div class="variance-status ${statusClass}">${status}</div>
+            <div class="handover-amount">
+                Handing over: <strong>${Utils.formatCurrency(handoverCash)}</strong>
+            </div>
+        `;
+    },
+    
+    cancelHandover() {
+        Modal.close();
+        // Re-open end shift modal
+        setTimeout(() => this.endShift(), 300);
+    },
+    
+    async completeDraftClose() {
+        const handoverCash = parseFloat(document.getElementById('handoverCash')?.value) || 0;
+        
+        if (handoverCash <= 0) {
+            Toast.error('Please enter the cash amount you are handing over');
+            return;
+        }
+        
+        const { cashSales, gcashSales, otherSales, totalSales, transactionCount, expectedCash } = this.endShiftData;
+        const expensesData = this.getExpensesData();
+        const totalExpenses = expensesData.reduce((sum, e) => sum + e.amount, 0);
+        const adjustedExpected = expectedCash - totalExpenses;
+        const outgoingVariance = handoverCash - adjustedExpected;
+        
+        try {
+            // Update shift to draft status with handover info
+            await DB.update('shifts', this.currentShift.id, {
+                status: 'draft',
+                draftTime: new Date().toISOString(),
+                // Sales data
+                cashSales,
+                gcashSales,
+                otherSales,
+                totalSales,
+                transactionCount,
+                expectedCash,
+                // Expenses
+                draftExpenses: expensesData,
+                draftExpensesTotal: totalExpenses,
+                // HANDOVER DATA - Critical for next cashier
+                handoverCash: handoverCash,
+                handoverExpected: adjustedExpected,
+                handoverVariance: outgoingVariance,
+                handoverTime: new Date().toISOString(),
+                handoverBy: this.userData.name
+            });
+            
+            // If there's a variance, log it for tracking
+            if (Math.abs(outgoingVariance) >= 1) {
+                await this.logHandoverDiscrepancy({
+                    type: 'outgoing',
+                    shiftId: this.currentShift.id,
+                    shiftNumber: this.currentShift.shiftNumber,
+                    dateKey: this.currentShift.dateKey,
+                    cashierName: this.userData.name,
+                    expected: adjustedExpected,
+                    actual: handoverCash,
+                    variance: outgoingVariance,
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
+            Modal.close();
+            
+            Toast.success('Shift saved. Cash ready for handover.');
+            
+            // Show confirmation
+            Modal.open({
+                title: '📋 Handover Ready',
+                content: `
+                    <div class="draft-saved-info">
+                        <div class="draft-icon">✅</div>
+                        <h3>Shift #${this.currentShift.shiftNumber} - Handover Complete</h3>
+                        <div class="handover-receipt">
+                            <p><strong>Cash to Hand Over:</strong></p>
+                            <div class="handover-amount-big">${Utils.formatCurrency(handoverCash)}</div>
+                            ${Math.abs(outgoingVariance) >= 1 ? `
+                                <p class="variance-warning">
+                                    ⚠️ Variance: ${outgoingVariance > 0 ? 'OVER' : 'SHORT'} ${Utils.formatCurrency(Math.abs(outgoingVariance))}
+                                </p>
+                            ` : ''}
+                        </div>
+                        <p class="note">The next cashier will verify this amount when starting their shift.</p>
+                    </div>
+                `,
+                saveText: '👋 Logout',
+                cancelText: null,
+                onSave: () => {
+                    this.logout();
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error saving draft:', error);
+            Toast.error('Failed to save handover');
+        }
+    },
+    
+    async logHandoverDiscrepancy(data) {
+        try {
+            // Save to handoverDiscrepancies collection
+            await DB.add('handoverDiscrepancies', data);
+            
+            // Send email notification
+            await this.sendHandoverAlert(data);
+            
+            // TODO: Trigger notification to breadhub-operationmanager app
+            // This will be implemented when the operations manager app is ready
+            
+        } catch (error) {
+            console.error('Error logging discrepancy:', error);
+        }
+    },
+    
+    async sendHandoverAlert(data) {
+        const varianceType = data.variance > 0 ? 'OVER' : 'SHORT';
+        const subject = `⚠️ Cash Handover Discrepancy - ${data.cashierName} - ${data.dateKey}`;
+        const body = `
+CASH HANDOVER DISCREPANCY ALERT
+
+Date: ${data.dateKey}
+Time: ${new Date(data.timestamp).toLocaleTimeString('en-PH')}
+Shift #: ${data.shiftNumber}
+Cashier: ${data.cashierName}
+Type: ${data.type === 'outgoing' ? 'Outgoing (Draft Close)' : 'Incoming (Shift Start)'}
+
+AMOUNTS:
+Expected: ₱${data.expected.toLocaleString()}
+Actual: ₱${data.actual.toLocaleString()}
+Variance: ${varianceType} ₱${Math.abs(data.variance).toLocaleString()}
+
+---
+BreadHub POS System
+Automated Alert
+        `.trim();
+        
+        // Open email client (or could use EmailJS/Firebase Functions for auto-send)
+        const mailtoLink = `mailto:michael.marga@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.open(mailtoLink, '_blank');
     },
     
     addExpenseRow() {
@@ -969,6 +1645,12 @@ BreadHub POS System
                 `;
             } else if (this.currentShift.isAdmin) {
                 indicator.innerHTML = `<span class="admin-badge">👑 Admin Mode</span>`;
+            } else if (this.currentShift.status === 'draft') {
+                // Resumed draft shift
+                indicator.innerHTML = `
+                    <span class="draft-badge">📋 Shift #${this.currentShift.shiftNumber} (Draft)</span>
+                    <button class="btn btn-sm btn-warning" onclick="Auth.endShift()">Finalize</button>
+                `;
             } else {
                 indicator.innerHTML = `
                     <span class="shift-badge">Shift #${this.currentShift.shiftNumber}</span>
@@ -1000,5 +1682,95 @@ BreadHub POS System
     // Get current shift ID for linking sales
     getShiftId() {
         return this.currentShift?.id || null;
+    },
+    
+    // ========== CHANGE FUND MANAGEMENT (Owner/Manager Only) ==========
+    
+    async showChangeFundSettings() {
+        if (!this.hasRole('manager')) {
+            Toast.error('Only Owner/Manager can adjust change fund');
+            return;
+        }
+        
+        Modal.open({
+            title: '💰 Change Fund Settings',
+            content: `
+                <div class="change-fund-settings">
+                    <div class="current-fund">
+                        <p>Current Change Fund:</p>
+                        <div class="fund-amount">${Utils.formatCurrency(this.changeFund)}</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>New Change Fund Amount</label>
+                        <input type="number" id="newChangeFund" class="form-input form-input-lg" 
+                               value="${this.changeFund}" step="100" min="${this.changeFund}">
+                        <small class="form-hint">Can only be increased, never decreased.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Source of Additional Funds</label>
+                        <select id="fundSource" class="form-input">
+                            <option value="bank">Bank Withdrawal</option>
+                            <option value="owner">Owner Capital</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes (Optional)</label>
+                        <input type="text" id="fundNotes" class="form-input" placeholder="Reason for increase">
+                    </div>
+                </div>
+            `,
+            saveText: '💾 Update Change Fund',
+            onSave: async () => {
+                await this.updateChangeFund();
+            }
+        });
+    },
+    
+    async updateChangeFund() {
+        const newAmount = parseFloat(document.getElementById('newChangeFund')?.value) || 0;
+        const source = document.getElementById('fundSource')?.value || 'other';
+        const notes = document.getElementById('fundNotes')?.value || '';
+        
+        if (newAmount < this.changeFund) {
+            Toast.error('Change fund can only be increased, not decreased');
+            return false;
+        }
+        
+        if (newAmount === this.changeFund) {
+            Toast.info('No change made');
+            return;
+        }
+        
+        try {
+            // Update settings
+            await DB.update('settings', 'pos', {
+                changeFund: newAmount,
+                changeFundUpdatedAt: new Date().toISOString(),
+                changeFundUpdatedBy: this.userData.name
+            });
+            
+            // Log the change
+            await DB.add('changeFundHistory', {
+                previousAmount: this.changeFund,
+                newAmount: newAmount,
+                increase: newAmount - this.changeFund,
+                source: source,
+                notes: notes,
+                updatedBy: this.userData.name,
+                timestamp: new Date().toISOString()
+            });
+            
+            this.changeFund = newAmount;
+            Toast.success(`Change fund updated to ${Utils.formatCurrency(newAmount)}`);
+            
+        } catch (error) {
+            console.error('Error updating change fund:', error);
+            Toast.error('Failed to update change fund');
+            return false;
+        }
     }
 };

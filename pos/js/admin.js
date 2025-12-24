@@ -1,6 +1,8 @@
 /**
- * BreadHub POS - Admin Panel v2 - Added delete sales
- * Manager-only features: shifts, stock alerts, product availability
+ * BreadHub POS - Admin Panel v4
+ * - Added delete shifts, delete purchases
+ * - Added staff setup modal
+ * - Added permission-based visibility
  */
 
 const Admin = {
@@ -10,6 +12,16 @@ const Admin = {
         this.loadActiveShifts();
         this.loadProductAvailability();
         this.loadDiscountPresets();
+        this.loadStaffList();
+        this.updateChangeFundDisplay();
+    },
+    
+    // Update change fund display
+    updateChangeFundDisplay() {
+        const el = document.getElementById('currentChangeFund');
+        if (el && Auth.changeFund) {
+            el.textContent = Utils.formatCurrency(Auth.changeFund);
+        }
     },
     
     // ========== TODAY'S STATS ==========
@@ -412,7 +424,7 @@ const Admin = {
     // ========== MANAGE POS SALES ==========
     
     async showDeleteSales() {
-        const container = document.getElementById('salesManageList');
+        const container = document.getElementById('deleteManageList');
         if (!container) return;
         
         container.innerHTML = '<p class="loading">Loading sales...</p>';
@@ -422,19 +434,19 @@ const Admin = {
             sales.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             
             if (sales.length === 0) {
-                container.innerHTML = '<p class="empty-state">No POS sales to manage</p>';
+                container.innerHTML = '<p class="empty-state">No POS sales to delete</p>';
                 return;
             }
             
             container.innerHTML = `
-                <div class="sales-manage-header">
-                    <span>${sales.length} total transactions</span>
-                    <button class="btn btn-danger btn-sm" onclick="Admin.deleteAllSales()">🗑️ Delete ALL</button>
+                <h4>🧾 Sales Transactions (${sales.length})</h4>
+                <div class="delete-manage-header">
+                    <button class="btn btn-danger btn-sm" onclick="Admin.deleteAllSales()">🗑️ Delete ALL Sales</button>
                 </div>
-                <div class="sales-manage-list">
-                    ${sales.slice(0, 20).map(s => `
-                        <div class="sale-item">
-                            <div class="sale-info">
+                <div class="delete-manage-list">
+                    ${sales.slice(0, 15).map(s => `
+                        <div class="delete-item">
+                            <div class="item-info">
                                 <strong>${Utils.formatCurrency(s.total || 0)}</strong>
                                 <span>${s.items?.length || 0} items</span>
                                 <small>${new Date(s.timestamp).toLocaleString()}</small>
@@ -443,7 +455,7 @@ const Admin = {
                         </div>
                     `).join('')}
                 </div>
-                ${sales.length > 20 ? `<p class="text-muted">Showing first 20 of ${sales.length}</p>` : ''}
+                ${sales.length > 15 ? `<p class="text-muted">Showing first 15 of ${sales.length}</p>` : ''}
             `;
         } catch (error) {
             console.error('Error loading sales:', error);
@@ -479,6 +491,454 @@ const Admin = {
             this.loadTodayStats();
         } catch (error) {
             console.error('Error deleting sales:', error);
+            Toast.error('Failed to delete');
+        }
+    },
+    
+    // ========== DELETE SHIFTS ==========
+    
+    async showDeleteShifts() {
+        const container = document.getElementById('deleteManageList');
+        if (!container) return;
+        
+        container.innerHTML = '<p class="loading">Loading shifts...</p>';
+        
+        try {
+            const shifts = await DB.getAll('shifts');
+            shifts.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+            
+            if (shifts.length === 0) {
+                container.innerHTML = '<p class="empty-state">No shifts to delete</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <h4>🕐 Shifts (${shifts.length})</h4>
+                <div class="delete-manage-header">
+                    <button class="btn btn-danger btn-sm" onclick="Admin.deleteAllShifts()">🗑️ Delete ALL Shifts</button>
+                </div>
+                <div class="delete-manage-list">
+                    ${shifts.slice(0, 15).map(s => `
+                        <div class="delete-item">
+                            <div class="item-info">
+                                <strong>Shift #${s.shiftNumber || '?'}</strong>
+                                <span>${s.staffName || 'Unknown'}</span>
+                                <small>${s.dateKey} - ${s.status}</small>
+                            </div>
+                            <button class="btn btn-danger btn-xs" onclick="Admin.deleteShift('${s.id}')">🗑️</button>
+                        </div>
+                    `).join('')}
+                </div>
+                ${shifts.length > 15 ? `<p class="text-muted">Showing first 15 of ${shifts.length}</p>` : ''}
+            `;
+        } catch (error) {
+            console.error('Error loading shifts:', error);
+            container.innerHTML = '<p class="error">Failed to load shifts</p>';
+        }
+    },
+    
+    async deleteShift(shiftId) {
+        if (!confirm('Delete this shift?')) return;
+        
+        try {
+            await DB.delete('shifts', shiftId);
+            Toast.success('Shift deleted');
+            this.showDeleteShifts();
+            this.loadActiveShifts();
+        } catch (error) {
+            console.error('Error deleting shift:', error);
+            Toast.error('Failed to delete');
+        }
+    },
+    
+    async deleteAllShifts() {
+        if (!confirm('⚠️ DELETE ALL SHIFTS?\n\nThis cannot be undone!')) return;
+        if (!confirm('Are you REALLY sure? This will delete ALL shift history.')) return;
+        
+        try {
+            const shifts = await DB.getAll('shifts');
+            for (const shift of shifts) {
+                await DB.delete('shifts', shift.id);
+            }
+            Toast.success(`Deleted ${shifts.length} shifts`);
+            this.showDeleteShifts();
+            this.loadActiveShifts();
+        } catch (error) {
+            console.error('Error deleting shifts:', error);
+            Toast.error('Failed to delete');
+        }
+    },
+    
+    // ========== DELETE PURCHASES ==========
+    
+    async showDeletePurchases() {
+        const container = document.getElementById('deleteManageList');
+        if (!container) return;
+        
+        container.innerHTML = '<p class="loading">Loading purchases...</p>';
+        
+        try {
+            const purchases = await DB.getAll('pendingPurchases');
+            purchases.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            
+            if (purchases.length === 0) {
+                container.innerHTML = '<p class="empty-state">No purchases to delete</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <h4>🛒 Pending Purchases (${purchases.length})</h4>
+                <div class="delete-manage-header">
+                    <button class="btn btn-danger btn-sm" onclick="Admin.deleteAllPurchases()">🗑️ Delete ALL Purchases</button>
+                </div>
+                <div class="delete-manage-list">
+                    ${purchases.slice(0, 15).map(p => `
+                        <div class="delete-item">
+                            <div class="item-info">
+                                <strong>${p.itemName || 'Unknown'}</strong>
+                                <span>${p.qty} ${p.unit} - ${Utils.formatCurrency(p.amount)}</span>
+                                <small>${p.dateKey} by ${p.cashierName}</small>
+                            </div>
+                            <button class="btn btn-danger btn-xs" onclick="Admin.deletePurchase('${p.id}')">🗑️</button>
+                        </div>
+                    `).join('')}
+                </div>
+                ${purchases.length > 15 ? `<p class="text-muted">Showing first 15 of ${purchases.length}</p>` : ''}
+            `;
+        } catch (error) {
+            console.error('Error loading purchases:', error);
+            container.innerHTML = '<p class="error">Failed to load purchases</p>';
+        }
+    },
+    
+    async deletePurchase(purchaseId) {
+        if (!confirm('Delete this purchase?')) return;
+        
+        try {
+            await DB.delete('pendingPurchases', purchaseId);
+            Toast.success('Purchase deleted');
+            this.showDeletePurchases();
+        } catch (error) {
+            console.error('Error deleting purchase:', error);
+            Toast.error('Failed to delete');
+        }
+    },
+    
+    async deleteAllPurchases() {
+        if (!confirm('⚠️ DELETE ALL PENDING PURCHASES?\n\nThis cannot be undone!')) return;
+        
+        try {
+            const purchases = await DB.getAll('pendingPurchases');
+            for (const p of purchases) {
+                await DB.delete('pendingPurchases', p.id);
+            }
+            Toast.success(`Deleted ${purchases.length} purchases`);
+            this.showDeletePurchases();
+        } catch (error) {
+            console.error('Error deleting purchases:', error);
+            Toast.error('Failed to delete');
+        }
+    },
+    
+    // ========== STAFF MANAGEMENT ==========
+    
+    async loadStaffList() {
+        const container = document.getElementById('staffList');
+        if (!container) return;
+        
+        try {
+            const staff = await DB.getAll('staff');
+            const activeStaff = staff.filter(s => s.status === 'active');
+            
+            if (activeStaff.length === 0) {
+                container.innerHTML = '<p class="empty-state">No staff members</p>';
+                return;
+            }
+            
+            container.innerHTML = activeStaff.map(s => `
+                <div class="staff-item">
+                    <span class="staff-name">${s.name}</span>
+                    <span class="staff-role">${s.role}</span>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading staff:', error);
+        }
+    },
+    
+    async showStaffSetup() {
+        try {
+            const staff = await DB.getAll('staff');
+            
+            Modal.open({
+                title: '👥 Staff Management',
+                width: '700px',
+                content: `
+                    <div class="staff-setup-modal">
+                        <div class="staff-list-header">
+                            <span>Name</span>
+                            <span>PIN</span>
+                            <span>Role</span>
+                            <span>Actions</span>
+                        </div>
+                        <div id="staffSetupList">
+                            ${staff.map(s => `
+                                <div class="staff-row" data-id="${s.id}">
+                                    <span>${s.name}</span>
+                                    <span>****</span>
+                                    <span class="role-tag ${s.role}">${s.role}</span>
+                                    <div class="staff-actions">
+                                        <button class="btn btn-sm" onclick="Admin.editStaff('${s.id}')">✏️</button>
+                                        <button class="btn btn-sm btn-danger" onclick="Admin.deleteStaff('${s.id}')">🗑️</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button class="btn btn-primary" onclick="Admin.addStaff()" style="margin-top: 15px;">
+                            ➕ Add Staff Member
+                        </button>
+                    </div>
+                `,
+                hideFooter: true
+            });
+        } catch (error) {
+            console.error('Error showing staff setup:', error);
+            Toast.error('Failed to load staff');
+        }
+    },
+    
+    async addStaff() {
+        Modal.open({
+            title: '➕ Add Staff Member',
+            content: `
+                <form id="staffForm">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" name="name" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>PIN (4-6 digits)</label>
+                        <input type="password" name="pin" class="form-input" maxlength="6" pattern="[0-9]{4,6}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select name="role" class="form-input">
+                            <option value="cashier">Cashier</option>
+                            <option value="baker">Baker</option>
+                            <option value="manager">Manager</option>
+                            <option value="owner">Owner</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Day Off</label>
+                        <select name="dayOff" class="form-input">
+                            <option value="">None</option>
+                            <option value="Sunday">Sunday</option>
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Monthly Salary</label>
+                            <input type="number" name="monthlySalary" class="form-input" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Transport Allowance/day</label>
+                            <input type="number" name="transportAllowance" class="form-input" value="0">
+                        </div>
+                    </div>
+                    <div class="permissions-section">
+                        <h4>Permissions</h4>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="canUsePOS" checked> Can Use POS
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="canGiveDiscount"> Can Give Discounts
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="canVoidSales"> Can Void Sales
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="canViewReports"> Can View Reports
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="isAdmin"> Admin Access (Reports, Import, Admin Panel)
+                        </label>
+                    </div>
+                </form>
+            `,
+            saveText: 'Save Staff',
+            onSave: async () => {
+                const form = document.getElementById('staffForm');
+                const data = new FormData(form);
+                
+                const staffData = {
+                    name: data.get('name'),
+                    pin: data.get('pin'),
+                    role: data.get('role'),
+                    dayOff: data.get('dayOff') || null,
+                    monthlySalary: parseFloat(data.get('monthlySalary')) || 0,
+                    transportAllowance: parseFloat(data.get('transportAllowance')) || 0,
+                    canUsePOS: form.querySelector('[name="canUsePOS"]').checked,
+                    canGiveDiscount: form.querySelector('[name="canGiveDiscount"]').checked,
+                    canVoidSales: form.querySelector('[name="canVoidSales"]').checked,
+                    canViewReports: form.querySelector('[name="canViewReports"]').checked,
+                    isAdmin: form.querySelector('[name="isAdmin"]').checked,
+                    status: 'active'
+                };
+                
+                // Calculate daily rate
+                staffData.dailyRate = staffData.monthlySalary > 0 ? staffData.monthlySalary / 26 : 0;
+                
+                try {
+                    await DB.add('staff', staffData);
+                    Toast.success('Staff member added');
+                    this.showStaffSetup();
+                    this.loadStaffList();
+                } catch (error) {
+                    console.error('Error adding staff:', error);
+                    Toast.error('Failed to add staff');
+                    return false;
+                }
+            }
+        });
+    },
+    
+    async editStaff(staffId) {
+        const staff = await DB.get('staff', staffId);
+        if (!staff) {
+            Toast.error('Staff not found');
+            return;
+        }
+        
+        Modal.open({
+            title: '✏️ Edit Staff Member',
+            content: `
+                <form id="staffForm">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" name="name" class="form-input" value="${staff.name}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>PIN (leave blank to keep current)</label>
+                        <input type="password" name="pin" class="form-input" maxlength="6" pattern="[0-9]{4,6}" placeholder="****">
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select name="role" class="form-input">
+                            <option value="cashier" ${staff.role === 'cashier' ? 'selected' : ''}>Cashier</option>
+                            <option value="baker" ${staff.role === 'baker' ? 'selected' : ''}>Baker</option>
+                            <option value="manager" ${staff.role === 'manager' ? 'selected' : ''}>Manager</option>
+                            <option value="owner" ${staff.role === 'owner' ? 'selected' : ''}>Owner</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Day Off</label>
+                        <select name="dayOff" class="form-input">
+                            <option value="">None</option>
+                            <option value="Sunday" ${staff.dayOff === 'Sunday' ? 'selected' : ''}>Sunday</option>
+                            <option value="Monday" ${staff.dayOff === 'Monday' ? 'selected' : ''}>Monday</option>
+                            <option value="Tuesday" ${staff.dayOff === 'Tuesday' ? 'selected' : ''}>Tuesday</option>
+                            <option value="Wednesday" ${staff.dayOff === 'Wednesday' ? 'selected' : ''}>Wednesday</option>
+                            <option value="Thursday" ${staff.dayOff === 'Thursday' ? 'selected' : ''}>Thursday</option>
+                            <option value="Friday" ${staff.dayOff === 'Friday' ? 'selected' : ''}>Friday</option>
+                            <option value="Saturday" ${staff.dayOff === 'Saturday' ? 'selected' : ''}>Saturday</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Monthly Salary</label>
+                            <input type="number" name="monthlySalary" class="form-input" value="${staff.monthlySalary || 0}">
+                        </div>
+                        <div class="form-group">
+                            <label>Transport Allowance/day</label>
+                            <input type="number" name="transportAllowance" class="form-input" value="${staff.transportAllowance || 0}">
+                        </div>
+                    </div>
+                    <div class="permissions-section">
+                        <h4>Permissions</h4>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="canUsePOS" ${staff.canUsePOS ? 'checked' : ''}> Can Use POS
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="canGiveDiscount" ${staff.canGiveDiscount ? 'checked' : ''}> Can Give Discounts
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="canVoidSales" ${staff.canVoidSales ? 'checked' : ''}> Can Void Sales
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="canViewReports" ${staff.canViewReports ? 'checked' : ''}> Can View Reports
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="isAdmin" ${staff.isAdmin ? 'checked' : ''}> Admin Access
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select name="status" class="form-input">
+                            <option value="active" ${staff.status === 'active' ? 'selected' : ''}>Active</option>
+                            <option value="inactive" ${staff.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                        </select>
+                    </div>
+                </form>
+            `,
+            saveText: 'Update Staff',
+            onSave: async () => {
+                const form = document.getElementById('staffForm');
+                const data = new FormData(form);
+                
+                const updateData = {
+                    name: data.get('name'),
+                    role: data.get('role'),
+                    dayOff: data.get('dayOff') || null,
+                    monthlySalary: parseFloat(data.get('monthlySalary')) || 0,
+                    transportAllowance: parseFloat(data.get('transportAllowance')) || 0,
+                    canUsePOS: form.querySelector('[name="canUsePOS"]').checked,
+                    canGiveDiscount: form.querySelector('[name="canGiveDiscount"]').checked,
+                    canVoidSales: form.querySelector('[name="canVoidSales"]').checked,
+                    canViewReports: form.querySelector('[name="canViewReports"]').checked,
+                    isAdmin: form.querySelector('[name="isAdmin"]').checked,
+                    status: data.get('status')
+                };
+                
+                // Update PIN only if provided
+                const newPin = data.get('pin');
+                if (newPin && newPin.length >= 4) {
+                    updateData.pin = newPin;
+                }
+                
+                // Calculate daily rate
+                updateData.dailyRate = updateData.monthlySalary > 0 ? updateData.monthlySalary / 26 : 0;
+                
+                try {
+                    await DB.update('staff', staffId, updateData);
+                    Toast.success('Staff member updated');
+                    this.showStaffSetup();
+                    this.loadStaffList();
+                } catch (error) {
+                    console.error('Error updating staff:', error);
+                    Toast.error('Failed to update staff');
+                    return false;
+                }
+            }
+        });
+    },
+    
+    async deleteStaff(staffId) {
+        if (!confirm('Delete this staff member?')) return;
+        
+        try {
+            await DB.delete('staff', staffId);
+            Toast.success('Staff member deleted');
+            this.showStaffSetup();
+            this.loadStaffList();
+        } catch (error) {
+            console.error('Error deleting staff:', error);
             Toast.error('Failed to delete');
         }
     }
