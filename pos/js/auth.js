@@ -138,6 +138,60 @@ const Auth = {
         });
     },
     
+    showAdminDeviceRegistrationPrompt(deviceId, staff) {
+        Modal.open({
+            title: '📱 New Device Detected',
+            content: `
+                <div class="device-register-prompt">
+                    <p>Welcome, <strong>${staff.name}</strong>!</p>
+                    <p>This device is not yet registered. As an admin, you can register it now or continue without registering.</p>
+                    <div class="device-info-box">
+                        <small>Device ID: ${deviceId}</small>
+                    </div>
+                    <div class="form-group" style="margin-top:15px;">
+                        <label>Device Name (optional)</label>
+                        <input type="text" id="newDeviceName" class="form-input" placeholder="e.g., Store Tablet 1, Office PC">
+                    </div>
+                </div>
+            `,
+            hideFooter: true,
+            customFooter: `
+                <div style="display:flex;gap:10px;justify-content:center;padding:15px;">
+                    <button class="btn btn-success" onclick="Auth.registerAndContinue()">✅ Register & Continue</button>
+                    <button class="btn btn-outline" onclick="Auth.skipRegistrationAndContinue()">Skip for Now</button>
+                </div>
+            `
+        });
+    },
+    
+    async registerAndContinue() {
+        const name = document.getElementById('newDeviceName')?.value?.trim() || 'Unnamed Device';
+        await this.registerDevice(name);
+        Modal.close();
+        this.continueAfterDeviceCheck();
+    },
+    
+    skipRegistrationAndContinue() {
+        Toast.warning('Device not registered - others may not be able to use it');
+        Modal.close();
+        this.continueAfterDeviceCheck();
+    },
+    
+    async continueAfterDeviceCheck() {
+        Toast.success(`Welcome, ${this.userData.name}!`);
+        
+        // Check for unclosed shifts
+        const unclosedShifts = await this.getUnclosedShifts(this.userData.id);
+        
+        if (unclosedShifts.length > 0) {
+            this.showUnclosedShiftModal(unclosedShifts);
+        } else if (this.userData.role === 'owner' || this.userData.role === 'manager') {
+            this.showOwnerOptions();
+        } else {
+            this.showShiftStartModal();
+        }
+    },
+    
     // ========== PIN LOGIN ==========
     
     async loginWithPIN(pin) {
@@ -147,14 +201,7 @@ const Auth = {
         }
         
         try {
-            // Check device authorization first
-            const deviceCheck = await this.checkDeviceAuthorized();
-            if (!deviceCheck.authorized) {
-                this.showDeviceBlockedModal(deviceCheck.deviceId);
-                return false;
-            }
-            
-            // Query staff by PIN
+            // First, get staff info to check if admin/owner
             const staffMembers = await DB.getAll('staff');
             const staff = staffMembers.find(s => s.pin === pin && s.status === 'active');
             
@@ -167,6 +214,24 @@ const Auth = {
             if (!staff.canUsePOS) {
                 Toast.error('You do not have POS access');
                 return false;
+            }
+            
+            // Check device authorization - BUT allow admins/owners to bypass
+            const isAdminOrOwner = staff.role === 'owner' || staff.role === 'manager' || staff.isAdmin;
+            const deviceCheck = await this.checkDeviceAuthorized();
+            
+            if (!deviceCheck.authorized && !isAdminOrOwner) {
+                // Regular staff blocked on unregistered device
+                this.showDeviceBlockedModal(deviceCheck.deviceId);
+                return false;
+            }
+            
+            // If admin on unregistered device, show option to register
+            if (!deviceCheck.authorized && isAdminOrOwner) {
+                this.userData = staff;
+                localStorage.setItem('pos_staff', JSON.stringify(staff));
+                this.showAdminDeviceRegistrationPrompt(deviceCheck.deviceId, staff);
+                return true;
             }
             
             this.userData = staff;

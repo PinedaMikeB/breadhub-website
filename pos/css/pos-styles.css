@@ -4798,3 +4798,21 @@ details summary {
     color: var(--text-secondary);
     font-size: 0.9rem;
 }
+
+
+/* Device Registration Prompt for Admins */
+.device-register-prompt {
+    text-align: center;
+    padding: 10px;
+}
+
+.device-info-box {
+    background: var(--bg-main);
+    padding: 10px;
+    border-radius: 6px;
+    margin: 10px 0;
+}
+
+.device-register-prompt .form-group {
+    text-align: left;
+}
