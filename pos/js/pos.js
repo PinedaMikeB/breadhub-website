@@ -772,7 +772,7 @@ const POS = {
                     </div>
                 </div>
                 
-                <form id="checkoutForm">
+                <form id="checkoutForm" onsubmit="return false;">
                     <div class="form-group">
                         <label>Payment Method</label>
                         <div class="payment-methods">
@@ -795,7 +795,9 @@ const POS = {
                         <label>Cash Received</label>
                         <input type="number" name="cashReceived" id="cashReceived" 
                                class="form-input" value="${Math.ceil(total / 10) * 10}" min="${total}" step="1"
-                               oninput="POS.updateChange(${total})">
+                               inputmode="numeric"
+                               oninput="POS.updateChange(${total})"
+                               onkeydown="if(event.key==='Enter'){event.preventDefault(); return false;}">
                         <div class="quick-cash">
                             ${[50, 100, 200, 500, 1000].filter(v => v >= total).slice(0, 4).map(v => 
                                 `<button type="button" class="quick-cash-btn" onclick="document.getElementById('cashReceived').value=${v}; POS.updateChange(${total})">${Utils.formatCurrency(v)}</button>`
@@ -853,6 +855,21 @@ const POS = {
             const saleId = `S-${today.replace(/-/g, '')}-${String(saleNum).padStart(3, '0')}`;
             
             const originalSubtotal = this.cart.reduce((sum, item) => sum + (item.originalPrice * item.quantity), 0);
+            
+            // Recalculate discounts by type for the record
+            const discountsByType = {};
+            this.cart.forEach(item => {
+                if (item.discountId) {
+                    if (!discountsByType[item.discountId]) {
+                        discountsByType[item.discountId] = {
+                            name: item.discountName,
+                            percent: item.discountPercent,
+                            amount: 0
+                        };
+                    }
+                    discountsByType[item.discountId].amount += item.discountAmount * item.quantity;
+                }
+            });
             
             // Build sale record with per-item discounts
             const saleRecord = {
@@ -1020,5 +1037,167 @@ const POS = {
         } else {
             Toast.error('Printer module not loaded');
         }
+    },
+    
+    // ========== TRANSACTION HISTORY ==========
+    
+    async showTransactionHistory() {
+        Toast.info('Loading transactions...');
+        
+        try {
+            // Get today's sales for current shift
+            const shiftId = Auth.getShiftId();
+            const today = Utils.getTodayKey();
+            
+            let sales = [];
+            if (shiftId && shiftId !== 'admin') {
+                // Get sales for this shift
+                sales = await DB.query('sales', 'shiftId', '==', shiftId);
+            } else {
+                // Admin - get today's sales
+                sales = await DB.query('sales', 'dateKey', '==', today);
+            }
+            
+            // Sort by timestamp descending (newest first)
+            sales.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            // Calculate totals
+            const totalSales = sales.reduce((sum, s) => sum + s.total, 0);
+            const totalTransactions = sales.length;
+            
+            Modal.open({
+                title: '📋 Transaction History',
+                width: '95vw',
+                content: `
+                    <div class="transaction-history">
+                        <div class="history-summary">
+                            <div class="summary-stat">
+                                <span class="stat-value">${totalTransactions}</span>
+                                <span class="stat-label">Transactions</span>
+                            </div>
+                            <div class="summary-stat">
+                                <span class="stat-value">${Utils.formatCurrency(totalSales)}</span>
+                                <span class="stat-label">Total Sales</span>
+                            </div>
+                        </div>
+                        
+                        <div class="transaction-list">
+                            ${sales.length === 0 ? `
+                                <div class="empty-transactions">
+                                    <p>📭 No transactions yet for this shift</p>
+                                </div>
+                            ` : sales.map(sale => `
+                                <div class="transaction-row" onclick="POS.showTransactionDetails('${sale.id}')">
+                                    <div class="tx-main">
+                                        <div class="tx-id">${sale.saleId}</div>
+                                        <div class="tx-time">${new Date(sale.timestamp).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit'})}</div>
+                                    </div>
+                                    <div class="tx-items">
+                                        ${sale.items.slice(0, 2).map(i => `${i.quantity}x ${i.productName}`).join(', ')}
+                                        ${sale.items.length > 2 ? `+${sale.items.length - 2} more` : ''}
+                                    </div>
+                                    <div class="tx-details">
+                                        <span class="tx-method ${sale.paymentMethod}">${sale.paymentMethod === 'cash' ? '💵' : sale.paymentMethod === 'gcash' ? '📱' : '💳'}</span>
+                                        <span class="tx-total">${Utils.formatCurrency(sale.total)}</span>
+                                        ${sale.totalDiscount > 0 ? `<span class="tx-discount">-${Utils.formatCurrency(sale.totalDiscount)}</span>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `,
+                customFooter: `
+                    <div style="text-align:center;padding:15px;">
+                        <button class="btn btn-primary" onclick="Modal.close()">Close</button>
+                    </div>
+                `,
+                hideFooter: true
+            });
+            
+            // Store sales for detail view
+            this.transactionHistory = sales;
+            
+        } catch (error) {
+            console.error('Error loading transactions:', error);
+            Toast.error('Failed to load transactions');
+        }
+    },
+    
+    showTransactionDetails(saleId) {
+        const sale = this.transactionHistory?.find(s => s.id === saleId);
+        if (!sale) return;
+        
+        Modal.open({
+            title: `🧾 ${sale.saleId}`,
+            content: `
+                <div class="transaction-detail">
+                    <div class="detail-header">
+                        <p><strong>Time:</strong> ${new Date(sale.timestamp).toLocaleString('en-PH')}</p>
+                        <p><strong>Cashier:</strong> ${sale.cashierName}</p>
+                        <p><strong>Payment:</strong> ${sale.paymentMethod.toUpperCase()}</p>
+                    </div>
+                    
+                    <div class="detail-items">
+                        <h4>Items</h4>
+                        ${sale.items.map(item => `
+                            <div class="detail-item">
+                                <span>${item.quantity}x ${item.productName}${item.variantName ? ` (${item.variantName})` : ''}</span>
+                                <span>${Utils.formatCurrency(item.lineTotal)}</span>
+                            </div>
+                            ${item.discountName ? `
+                                <div class="detail-item discount">
+                                    <span>↳ ${item.discountName} (-${item.discountPercent}%)</span>
+                                    <span>-${Utils.formatCurrency(item.discountAmount * item.quantity)}</span>
+                                </div>
+                            ` : ''}
+                        `).join('')}
+                    </div>
+                    
+                    <div class="detail-totals">
+                        ${sale.totalDiscount > 0 ? `
+                            <div class="detail-row">
+                                <span>Subtotal</span>
+                                <span>${Utils.formatCurrency(sale.subtotal)}</span>
+                            </div>
+                            <div class="detail-row discount">
+                                <span>Total Discounts</span>
+                                <span>-${Utils.formatCurrency(sale.totalDiscount)}</span>
+                            </div>
+                        ` : ''}
+                        <div class="detail-row total">
+                            <span>TOTAL</span>
+                            <span>${Utils.formatCurrency(sale.total)}</span>
+                        </div>
+                        ${sale.paymentMethod === 'cash' ? `
+                            <div class="detail-row">
+                                <span>Cash Received</span>
+                                <span>${Utils.formatCurrency(sale.cashReceived)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span>Change</span>
+                                <span>${Utils.formatCurrency(sale.change)}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    ${sale.discountInfo?.idPhoto ? `
+                        <div class="detail-id-photo">
+                            <h4>📸 ID Verification</h4>
+                            ${sale.discountInfo.idPhoto.photoData ? `
+                                <img src="${sale.discountInfo.idPhoto.photoData}" alt="ID Photo" style="max-width:100%;border-radius:8px;">
+                            ` : sale.discountInfo.idPhoto.skipped ? `
+                                <p class="id-skipped">⚠️ ID photo was skipped</p>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `,
+            saveText: '🖨️ Reprint Receipt',
+            onSave: () => {
+                this.lastSale = sale;
+                this.printReceipt();
+                return false; // Don't close modal
+            }
+        });
     }
 };
