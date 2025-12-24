@@ -18,7 +18,7 @@
     <!-- Chart.js for Reports -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <link rel="stylesheet" href="css/pos-styles.css?v=26">
+    <link rel="stylesheet" href="css/pos-styles.css?v=27">
 </head>
 <body>
     <!-- Login Screen -->
@@ -384,6 +384,13 @@
                         <button class="btn btn-primary btn-sm" onclick="Admin.showDeviceManagement()">🔒 Manage Devices</button>
                     </div>
                     
+                    <!-- Printer Settings -->
+                    <div class="admin-card">
+                        <h3>🖨️ Printer Settings</h3>
+                        <p>Configure receipt printing</p>
+                        <button class="btn btn-primary btn-sm" onclick="ReceiptPrinter.showSettings()">⚙️ Configure Printer</button>
+                    </div>
+                    
                     <!-- Product Availability -->
                     <div class="admin-card">
                         <h3>📦 Product Availability</h3>
@@ -492,9 +499,9 @@
     <script src="js/utils.js?v=2"></script>
     <script src="js/modal.js?v=2"></script>
     <script src="js/auth.js?v=20"></script>
-    <script src="js/receipt-printer.js"></script>
+    <script src="js/receipt-printer.js?v=2"></script></script>
     <script src="js/inventory-deduction.js"></script>
-    <script src="js/pos.js?v=10"></script>
+    <script src="js/pos.js?v=11"></script></script>
     <script src="js/orders.js"></script>
     <script src="js/admin.js?v=10"></script>
     <script src="js/sales-import.js?v=4"></script>

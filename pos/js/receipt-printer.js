@@ -1,14 +1,25 @@
 /**
- * BreadHub POS - Receipt Printing Module
+ * BreadHub POS - Receipt Printing Module v2
  * 
  * Supports:
- * - Thermal printers (58mm/80mm) via Web USB/Serial
- * - Browser print dialog fallback
- * - ESC/POS commands for thermal printers
+ * - WiFi/Network printers (via browser print)
+ * - USB printers (via Web Serial API)
+ * - Bluetooth printers (via Web Bluetooth - limited)
+ * - Auto-print on sale completion
  */
 
 const ReceiptPrinter = {
-    // Printer connection
+    // Printer settings
+    settings: {
+        enabled: true,
+        autoPrint: true,
+        printerType: 'browser', // 'browser', 'serial', 'network'
+        paperWidth: '58mm', // '58mm' or '80mm'
+        networkIP: '',
+        networkPort: 9100
+    },
+    
+    // Connection state
     port: null,
     writer: null,
     isConnected: false,
@@ -18,21 +29,126 @@ const ReceiptPrinter = {
     ESC: 0x1B,
     GS: 0x1D,
     
-    // Initialize printer connection
-    async connect() {
+    // Initialize - load settings
+    async init() {
+        await this.loadSettings();
+        console.log('Printer initialized:', this.settings);
+    },
+    
+    async loadSettings() {
         try {
-            // Try Web Serial API (Chrome/Edge)
-            if ('serial' in navigator) {
-                this.port = await navigator.serial.requestPort();
-                await this.port.open({ baudRate: 9600 });
-                this.writer = this.port.writable.getWriter();
-                this.isConnected = true;
-                Toast.success('Printer connected!');
+            const settings = await DB.get('settings', 'printer');
+            if (settings) {
+                this.settings = { ...this.settings, ...settings };
+                this.printerWidth = this.settings.paperWidth === '80mm' ? 48 : 32;
+            }
+        } catch (e) {
+            console.log('Using default printer settings');
+        }
+    },
+    
+    async saveSettings(newSettings) {
+        this.settings = { ...this.settings, ...newSettings };
+        this.printerWidth = this.settings.paperWidth === '80mm' ? 48 : 32;
+        
+        try {
+            await DB.set('settings', 'printer', this.settings);
+            Toast.success('Printer settings saved');
+        } catch (e) {
+            console.error('Failed to save printer settings:', e);
+            Toast.error('Failed to save settings');
+        }
+    },
+    
+    // Show printer settings modal
+    showSettings() {
+        Modal.open({
+            title: '🖨️ Printer Settings',
+            content: `
+                <div class="printer-settings">
+                    <div class="form-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="printerEnabled" ${this.settings.enabled ? 'checked' : ''}>
+                            <span>Enable Printing</span>
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="autoPrint" ${this.settings.autoPrint ? 'checked' : ''}>
+                            <span>Auto-print on Sale Complete</span>
+                        </label>
+                        <small class="form-hint">Automatically print receipt when checkout is completed</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Paper Width</label>
+                        <select id="paperWidth" class="form-input">
+                            <option value="58mm" ${this.settings.paperWidth === '58mm' ? 'selected' : ''}>58mm (Small)</option>
+                            <option value="80mm" ${this.settings.paperWidth === '80mm' ? 'selected' : ''}>80mm (Standard)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Printer Type</label>
+                        <select id="printerType" class="form-input" onchange="ReceiptPrinter.onPrinterTypeChange(this.value)">
+                            <option value="browser" ${this.settings.printerType === 'browser' ? 'selected' : ''}>WiFi/System Printer (Recommended)</option>
+                            <option value="serial" ${this.settings.printerType === 'serial' ? 'selected' : ''}>USB Serial (Chrome only)</option>
+                        </select>
+                        <small class="form-hint">WiFi printers work through your device's system print dialog</small>
+                    </div>
+                    
+                    <div id="serialOptions" style="display: ${this.settings.printerType === 'serial' ? 'block' : 'none'}">
+                        <div class="form-group">
+                            <button type="button" class="btn btn-secondary" onclick="ReceiptPrinter.connectSerial()">
+                                🔌 Connect USB Printer
+                            </button>
+                            <span id="serialStatus" class="status-text">${this.isConnected ? '✅ Connected' : '❌ Not connected'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="printer-test">
+                        <h4>Test Print</h4>
+                        <button type="button" class="btn btn-primary" onclick="ReceiptPrinter.testPrint()">
+                            🖨️ Print Test Receipt
+                        </button>
+                    </div>
+                </div>
+            `,
+            saveText: '💾 Save Settings',
+            onSave: () => {
+                const newSettings = {
+                    enabled: document.getElementById('printerEnabled').checked,
+                    autoPrint: document.getElementById('autoPrint').checked,
+                    paperWidth: document.getElementById('paperWidth').value,
+                    printerType: document.getElementById('printerType').value
+                };
+                this.saveSettings(newSettings);
                 return true;
-            } else {
-                Toast.warning('Web Serial not supported. Using browser print.');
+            }
+        });
+    },
+    
+    onPrinterTypeChange(type) {
+        document.getElementById('serialOptions').style.display = type === 'serial' ? 'block' : 'none';
+    },
+    
+    // Connect to USB Serial printer
+    async connectSerial() {
+        try {
+            if (!('serial' in navigator)) {
+                Toast.error('Web Serial not supported in this browser');
                 return false;
             }
+            
+            this.port = await navigator.serial.requestPort();
+            await this.port.open({ baudRate: 9600 });
+            this.writer = this.port.writable.getWriter();
+            this.isConnected = true;
+            
+            document.getElementById('serialStatus').textContent = '✅ Connected';
+            Toast.success('Printer connected!');
+            return true;
         } catch (error) {
             console.error('Printer connection error:', error);
             Toast.error('Could not connect to printer');
@@ -40,7 +156,7 @@ const ReceiptPrinter = {
         }
     },
     
-    async disconnect() {
+    async disconnectSerial() {
         if (this.writer) {
             await this.writer.close();
             this.writer = null;
@@ -51,8 +167,51 @@ const ReceiptPrinter = {
         }
         this.isConnected = false;
     },
+    
+    // Test print
+    async testPrint() {
+        const testSale = {
+            saleId: 'TEST-001',
+            timestamp: new Date().toISOString(),
+            items: [
+                { productName: 'Test Item 1', quantity: 2, lineTotal: 50 },
+                { productName: 'Test Item 2', quantity: 1, lineTotal: 35 }
+            ],
+            subtotal: 85,
+            totalDiscount: 0,
+            total: 85,
+            paymentMethod: 'cash',
+            cashReceived: 100,
+            change: 15,
+            cashierName: 'Test Cashier'
+        };
+        
+        await this.printReceipt(testSale);
+        Toast.success('Test print sent!');
+    },
 
-    // Send raw bytes to printer
+    // Main print function
+    async printReceipt(sale) {
+        if (!this.settings.enabled) {
+            console.log('Printing disabled');
+            return;
+        }
+        
+        if (this.settings.printerType === 'serial' && this.isConnected) {
+            await this.printThermal(sale);
+        } else {
+            this.printBrowser(sale);
+        }
+    },
+    
+    // Auto-print (called after sale completion)
+    async autoPrint(sale) {
+        if (this.settings.enabled && this.settings.autoPrint) {
+            await this.printReceipt(sale);
+        }
+    },
+
+    // Send raw bytes to thermal printer
     async sendBytes(bytes) {
         if (!this.isConnected || !this.writer) return false;
         try {
@@ -64,18 +223,16 @@ const ReceiptPrinter = {
         }
     },
     
-    // Initialize printer
-    async init() {
-        return this.sendBytes([this.ESC, 0x40]); // ESC @
+    // Thermal ESC/POS commands
+    async initPrinter() {
+        return this.sendBytes([this.ESC, 0x40]);
     },
     
-    // Feed and cut paper
     async feedAndCut() {
-        await this.sendBytes([0x0A, 0x0A, 0x0A]); // Line feeds
-        await this.sendBytes([this.GS, 0x56, 0x00]); // Full cut
+        await this.sendBytes([0x0A, 0x0A, 0x0A, 0x0A]);
+        await this.sendBytes([this.GS, 0x56, 0x00]);
     },
     
-    // Text formatting
     async setBold(on) {
         return this.sendBytes([this.ESC, 0x45, on ? 1 : 0]);
     },
@@ -90,18 +247,15 @@ const ReceiptPrinter = {
         return this.sendBytes([this.GS, 0x21, size]);
     },
     
-    // Print text
     async printText(text) {
         const encoder = new TextEncoder();
         await this.sendBytes([...encoder.encode(text), 0x0A]);
     },
     
-    // Print line
     async printLine() {
         await this.printText('-'.repeat(this.printerWidth));
     },
     
-    // Format price line (name on left, price on right)
     formatPriceLine(name, price) {
         const priceStr = price.toString();
         const maxNameLen = this.printerWidth - priceStr.length - 1;
@@ -109,53 +263,39 @@ const ReceiptPrinter = {
         return truncName.padEnd(this.printerWidth - priceStr.length) + priceStr;
     },
 
-    // Print full receipt
-    async printReceipt(sale) {
-        if (this.isConnected) {
-            await this.printThermal(sale);
-        } else {
-            this.printBrowser(sale);
-        }
-    },
-    
-    // Thermal printer receipt
+    // Thermal printer receipt (ESC/POS)
     async printThermal(sale) {
-        await this.init();
+        await this.initPrinter();
         
-        // Header
         await this.setAlign('center');
         await this.setTextSize(2, 2);
-        await this.printText(CONFIG.pos.receiptHeader || 'BreadHub');
+        await this.printText(CONFIG.pos?.receiptHeader || 'BreadHub');
         await this.setTextSize(1, 1);
         await this.printText('Taytay, Rizal');
         await this.printText('');
         
-        // Sale info
         await this.setAlign('left');
         await this.printText(`Receipt: ${sale.saleId}`);
         await this.printText(new Date(sale.timestamp).toLocaleString('en-PH'));
+        await this.printText(`Cashier: ${sale.cashierName || 'Staff'}`);
         await this.printLine();
         
-        // Items
         for (const item of sale.items) {
             const name = item.variantName 
                 ? `${item.productName} (${item.variantName})`
                 : item.productName;
-            const qty = `${item.quantity}x`;
-            const price = `P${item.lineTotal.toFixed(2)}`;
-            
-            await this.printText(`${qty} ${name}`);
-            if (item.discountName) {
-                await this.printText(`   -${item.discountName} ${item.discountPercent}%`);
-            }
+            await this.printText(`${item.quantity}x ${name}`);
             await this.setAlign('right');
-            await this.printText(price);
+            await this.printText(`P${item.lineTotal.toFixed(2)}`);
             await this.setAlign('left');
+            
+            if (item.discountName) {
+                await this.printText(`  ${item.discountName} -${item.discountPercent}%`);
+            }
         }
         
         await this.printLine();
 
-        // Totals
         if (sale.totalDiscount > 0) {
             await this.printText(this.formatPriceLine('Subtotal:', `P${sale.subtotal.toFixed(2)}`));
             await this.printText(this.formatPriceLine('Discount:', `-P${sale.totalDiscount.toFixed(2)}`));
@@ -167,133 +307,228 @@ const ReceiptPrinter = {
         await this.setTextSize(1, 1);
         await this.setBold(false);
         
-        // Payment
-        if (sale.paymentMethod === 'cash') {
+        if (sale.paymentMethod === 'cash' && sale.cashReceived) {
             await this.printText(this.formatPriceLine('Cash:', `P${sale.cashReceived.toFixed(2)}`));
             await this.printText(this.formatPriceLine('Change:', `P${sale.change.toFixed(2)}`));
         } else {
-            await this.printText(`Payment: ${sale.paymentMethod.toUpperCase()}`);
+            await this.printText(`Payment: ${(sale.paymentMethod || 'cash').toUpperCase()}`);
         }
         
         await this.printLine();
-        
-        // Footer
         await this.setAlign('center');
-        await this.printText(CONFIG.pos.receiptFooter || 'Thank you!');
+        await this.printText(CONFIG.pos?.receiptFooter || 'Thank you for your purchase!');
         await this.printText('');
         
         await this.feedAndCut();
     },
     
-    // Browser print fallback
+    // Browser print (for WiFi printers)
     printBrowser(sale) {
         const receiptHtml = this.generateReceiptHtml(sale);
-        const printWindow = window.open('', '_blank', 'width=300,height=600');
+        const printWindow = window.open('', '_blank', 'width=350,height=600');
+        
+        if (!printWindow) {
+            Toast.error('Pop-up blocked. Please allow pop-ups for printing.');
+            return;
+        }
+        
         printWindow.document.write(receiptHtml);
         printWindow.document.close();
         printWindow.focus();
+        
+        // Give time for content to render, then print
         setTimeout(() => {
             printWindow.print();
-            printWindow.close();
-        }, 250);
+            // Close after print dialog closes
+            printWindow.onafterprint = () => printWindow.close();
+            // Fallback close after 10 seconds
+            setTimeout(() => {
+                if (!printWindow.closed) printWindow.close();
+            }, 10000);
+        }, 300);
     },
-
-    // Generate HTML receipt for browser printing
+    
     generateReceiptHtml(sale) {
-        const items = sale.items.map(item => {
+        const paperWidth = this.settings.paperWidth === '80mm' ? '80mm' : '58mm';
+        
+        const itemsHtml = sale.items.map(item => {
             const name = item.variantName 
                 ? `${item.productName} (${item.variantName})`
                 : item.productName;
-            const discount = item.discountName 
-                ? `<div class="discount">-${item.discountName} ${item.discountPercent}%</div>` 
-                : '';
-            return `
+            let html = `
                 <div class="item">
-                    <span>${item.quantity}x ${name}</span>
-                    <span>₱${item.lineTotal.toFixed(2)}</span>
+                    <span class="qty">${item.quantity}x</span>
+                    <span class="name">${name}</span>
+                    <span class="price">₱${item.lineTotal.toFixed(2)}</span>
                 </div>
-                ${discount}
             `;
+            if (item.discountName) {
+                html += `<div class="discount-line">↳ ${item.discountName} (-${item.discountPercent}%)</div>`;
+            }
+            return html;
         }).join('');
         
-        const discountSection = sale.totalDiscount > 0 ? `
-            <div class="row">
-                <span>Subtotal</span>
-                <span>₱${sale.subtotal.toFixed(2)}</span>
-            </div>
-            <div class="row discount">
-                <span>Discount</span>
-                <span>-₱${sale.totalDiscount.toFixed(2)}</span>
-            </div>
-        ` : '';
-        
-        const paymentSection = sale.paymentMethod === 'cash' ? `
-            <div class="row">
-                <span>Cash</span>
-                <span>₱${sale.cashReceived.toFixed(2)}</span>
-            </div>
-            <div class="row">
-                <span>Change</span>
-                <span>₱${sale.change.toFixed(2)}</span>
-            </div>
-        ` : `
-            <div class="row">
-                <span>Payment</span>
-                <span>${sale.paymentMethod.toUpperCase()}</span>
-            </div>
-        `;
-
         return `
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <title>Receipt</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Courier New', monospace; 
-            font-size: 12px; 
-            width: 58mm; 
-            padding: 5mm;
+        @page {
+            size: ${paperWidth} auto;
+            margin: 0;
         }
-        .header { text-align: center; margin-bottom: 10px; }
-        .header h1 { font-size: 18px; margin-bottom: 2px; }
-        .header p { font-size: 10px; }
-        .info { margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
-        .items { border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; }
-        .item { display: flex; justify-content: space-between; margin: 3px 0; }
-        .item .discount { font-size: 10px; color: #666; padding-left: 15px; }
-        .totals { margin-bottom: 10px; }
-        .row { display: flex; justify-content: space-between; margin: 2px 0; }
-        .row.total { font-weight: bold; font-size: 14px; border-top: 1px solid #000; padding-top: 3px; }
-        .row.discount { color: #c00; }
-        .footer { text-align: center; margin-top: 15px; font-size: 11px; }
-        @media print { body { width: auto; } }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            width: ${paperWidth};
+            padding: 5px;
+            background: white;
+            color: black;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .store-name {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .info {
+            margin: 8px 0;
+            font-size: 11px;
+        }
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 8px 0;
+        }
+        .items {
+            margin: 10px 0;
+        }
+        .item {
+            display: flex;
+            justify-content: space-between;
+            margin: 4px 0;
+            font-size: 11px;
+        }
+        .item .qty {
+            width: 25px;
+        }
+        .item .name {
+            flex: 1;
+            padding: 0 5px;
+        }
+        .item .price {
+            text-align: right;
+            min-width: 60px;
+        }
+        .discount-line {
+            font-size: 10px;
+            color: #666;
+            padding-left: 25px;
+        }
+        .totals {
+            margin: 10px 0;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+        }
+        .total-row.grand-total {
+            font-size: 16px;
+            font-weight: bold;
+            border-top: 2px solid #000;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+        .payment {
+            margin: 10px 0;
+            font-size: 11px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 11px;
+        }
+        @media print {
+            body {
+                width: ${paperWidth};
+            }
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🍞 ${CONFIG.pos.receiptHeader || 'BreadHub'}</h1>
-        <p>Taytay, Rizal</p>
+        <div class="store-name">${CONFIG.pos?.receiptHeader || 'BreadHub'}</div>
+        <div>Taytay, Rizal</div>
     </div>
+    
     <div class="info">
-        <div>${sale.saleId}</div>
+        <div>Receipt: ${sale.saleId}</div>
         <div>${new Date(sale.timestamp).toLocaleString('en-PH')}</div>
-        <div>Cashier: ${sale.createdByName || 'Staff'}</div>
+        <div>Cashier: ${sale.cashierName || 'Staff'}</div>
     </div>
-    <div class="items">${items}</div>
+    
+    <div class="divider"></div>
+    
+    <div class="items">
+        ${itemsHtml}
+    </div>
+    
+    <div class="divider"></div>
+    
     <div class="totals">
-        ${discountSection}
-        <div class="row total">
+        ${sale.totalDiscount > 0 ? `
+            <div class="total-row">
+                <span>Subtotal</span>
+                <span>₱${sale.subtotal.toFixed(2)}</span>
+            </div>
+            <div class="total-row">
+                <span>Discount</span>
+                <span>-₱${sale.totalDiscount.toFixed(2)}</span>
+            </div>
+        ` : ''}
+        <div class="total-row grand-total">
             <span>TOTAL</span>
             <span>₱${sale.total.toFixed(2)}</span>
         </div>
-        ${paymentSection}
     </div>
+    
+    <div class="payment">
+        ${sale.paymentMethod === 'cash' && sale.cashReceived ? `
+            <div class="total-row">
+                <span>Cash</span>
+                <span>₱${sale.cashReceived.toFixed(2)}</span>
+            </div>
+            <div class="total-row">
+                <span>Change</span>
+                <span>₱${sale.change.toFixed(2)}</span>
+            </div>
+        ` : `
+            <div>Payment: ${(sale.paymentMethod || 'Cash').toUpperCase()}</div>
+        `}
+    </div>
+    
+    <div class="divider"></div>
+    
     <div class="footer">
-        <p>${CONFIG.pos.receiptFooter || 'Thank you for your purchase!'}</p>
-        <p style="margin-top:5px;font-size:10px;">Visit us at breadhub.shop</p>
+        <p>${CONFIG.pos?.receiptFooter || 'Thank you for your purchase!'}</p>
+        <p>Please come again!</p>
     </div>
 </body>
-</html>`;
+</html>
+        `;
     }
 };
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    ReceiptPrinter.init();
+});

@@ -988,6 +988,9 @@ const POS = {
             this.renderCart();
             this.renderDiscountBar();
             
+            // Auto-print receipt if enabled
+            await ReceiptPrinter.autoPrint(saleRecord);
+            
             // Show receipt with print option
             this.showReceiptModal(saleRecord);
             
