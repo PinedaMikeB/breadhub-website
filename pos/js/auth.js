@@ -37,14 +37,105 @@ const Auth = {
             const settings = await DB.get('settings', 'pos');
             if (settings) {
                 this.changeFund = settings.changeFund || 1000; // Default ₱1,000
+                
+                // Load device restriction setting
+                this.deviceRestrictionEnabled = settings.deviceRestrictionEnabled || false;
             } else {
                 // Create default settings if not exists
                 this.changeFund = 1000;
+                this.deviceRestrictionEnabled = false;
             }
         } catch (error) {
             console.log('Using default change fund');
             this.changeFund = 1000;
+            this.deviceRestrictionEnabled = false;
         }
+    },
+    
+    // ========== DEVICE RESTRICTION ==========
+    
+    getDeviceId() {
+        // Get or generate a unique device ID
+        let deviceId = localStorage.getItem('pos_device_id');
+        if (!deviceId) {
+            // Generate a unique ID using crypto + timestamp
+            deviceId = 'DEV-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('pos_device_id', deviceId);
+        }
+        return deviceId;
+    },
+    
+    async checkDeviceAuthorized() {
+        // If device restriction is disabled, allow all
+        if (!this.deviceRestrictionEnabled) {
+            return { authorized: true, reason: 'restriction_disabled' };
+        }
+        
+        const deviceId = this.getDeviceId();
+        
+        try {
+            const devices = await DB.getAll('authorizedDevices');
+            const thisDevice = devices.find(d => d.deviceId === deviceId && d.status === 'active');
+            
+            if (thisDevice) {
+                return { authorized: true, device: thisDevice };
+            } else {
+                return { authorized: false, deviceId: deviceId, reason: 'not_registered' };
+            }
+        } catch (error) {
+            console.error('Device check error:', error);
+            // On error, allow access (fail-open for now)
+            return { authorized: true, reason: 'check_failed' };
+        }
+    },
+    
+    async registerDevice(deviceName) {
+        const deviceId = this.getDeviceId();
+        
+        // Get device info
+        const deviceInfo = {
+            deviceId: deviceId,
+            name: deviceName || 'Unnamed Device',
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            screenSize: `${screen.width}x${screen.height}`,
+            registeredAt: new Date().toISOString(),
+            registeredBy: this.userData?.name || 'Admin',
+            status: 'active'
+        };
+        
+        try {
+            await DB.add('authorizedDevices', deviceInfo);
+            Toast.success(`Device "${deviceName}" registered successfully`);
+            return true;
+        } catch (error) {
+            console.error('Device registration error:', error);
+            Toast.error('Failed to register device');
+            return false;
+        }
+    },
+    
+    showDeviceBlockedModal(deviceId) {
+        Modal.open({
+            title: '🚫 Device Not Authorized',
+            content: `
+                <div class="device-blocked-modal">
+                    <div class="blocked-icon">🔒</div>
+                    <p><strong>This device is not authorized to use BreadHub POS.</strong></p>
+                    <p>Only registered devices can access the POS system.</p>
+                    <div class="device-info">
+                        <small>Device ID: ${deviceId}</small>
+                    </div>
+                    <p class="contact-admin">Please contact your manager or admin to register this device.</p>
+                </div>
+            `,
+            hideFooter: true,
+            customFooter: `
+                <div style="text-align:center;padding:15px;">
+                    <button class="btn btn-outline" onclick="location.reload()">Try Again</button>
+                </div>
+            `
+        });
     },
     
     // ========== PIN LOGIN ==========
@@ -56,6 +147,13 @@ const Auth = {
         }
         
         try {
+            // Check device authorization first
+            const deviceCheck = await this.checkDeviceAuthorized();
+            if (!deviceCheck.authorized) {
+                this.showDeviceBlockedModal(deviceCheck.deviceId);
+                return false;
+            }
+            
             // Query staff by PIN
             const staffMembers = await DB.getAll('staff');
             const staff = staffMembers.find(s => s.pin === pin && s.status === 'active');

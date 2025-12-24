@@ -18,7 +18,7 @@
     <!-- Chart.js for Reports -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <link rel="stylesheet" href="css/pos-styles.css?v=24">
+    <link rel="stylesheet" href="css/pos-styles.css?v=25">
 </head>
 <body>
     <!-- Login Screen -->
@@ -377,9 +377,16 @@
                         <button class="btn btn-primary btn-sm" onclick="Auth.showChangeFundSettings()">⚙️ Adjust Change Fund</button>
                     </div>
                     
+                    <!-- Device Management -->
+                    <div class="admin-card">
+                        <h3>📱 Device Security</h3>
+                        <p>Restrict POS access to authorized devices only</p>
+                        <button class="btn btn-primary btn-sm" onclick="Admin.showDeviceManagement()">🔒 Manage Devices</button>
+                    </div>
+                    
                     <!-- Product Availability -->
                     <div class="admin-card">
-                        <h3>📱 Product Availability</h3>
+                        <h3>📦 Product Availability</h3>
                         <p>Toggle products on/off for online orders</p>
                         <div id="productAvailabilityList" class="admin-list">
                             <!-- Populated by JavaScript -->
@@ -484,12 +491,12 @@
     <script src="js/firebase-init.js?v=2"></script></script>
     <script src="js/utils.js?v=2"></script>
     <script src="js/modal.js?v=2"></script>
-    <script src="js/auth.js?v=17"></script></script></script></script></script></script></script></script>
+    <script src="js/auth.js?v=18"></script></script></script></script></script></script></script></script></script>
     <script src="js/receipt-printer.js"></script>
     <script src="js/inventory-deduction.js"></script>
     <script src="js/pos.js?v=10"></script></script></script></script></script></script></script>
     <script src="js/orders.js"></script>
-    <script src="js/admin.js?v=8"></script></script></script></script>
+    <script src="js/admin.js?v=9"></script></script></script></script></script>
     <script src="js/sales-import.js?v=4"></script>
     <script src="js/reports.js?v=6"></script>
     <script src="js/app.js?v=3"></script>

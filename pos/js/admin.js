@@ -1159,5 +1159,126 @@ const Admin = {
             console.error('Error deleting staff:', error);
             Toast.error('Failed to delete');
         }
+    },
+    
+    // ========== DEVICE MANAGEMENT ==========
+    
+    async showDeviceManagement() {
+        const devices = await DB.getAll('authorizedDevices');
+        const settings = await DB.get('settings', 'pos') || {};
+        const isEnabled = settings.deviceRestrictionEnabled || false;
+        const thisDeviceId = Auth.getDeviceId();
+        
+        Modal.open({
+            title: '📱 Device Management',
+            width: '95vw',
+            content: `
+                <div class="device-management">
+                    <div class="device-setting">
+                        <label class="toggle-setting">
+                            <input type="checkbox" id="deviceRestrictionToggle" ${isEnabled ? 'checked' : ''} 
+                                   onchange="Admin.toggleDeviceRestriction(this.checked)">
+                            <span>🔒 Enable Device Restriction</span>
+                        </label>
+                        <p class="setting-desc">When enabled, only registered devices can access the POS.</p>
+                    </div>
+                    
+                    <div class="current-device-box">
+                        <h4>This Device</h4>
+                        <p class="device-id">ID: ${thisDeviceId}</p>
+                        ${devices.find(d => d.deviceId === thisDeviceId) ? 
+                            '<span class="device-status registered">✅ Registered</span>' : 
+                            `<button class="btn btn-primary btn-sm" onclick="Admin.registerThisDevice()">
+                                ➕ Register This Device
+                            </button>`
+                        }
+                    </div>
+                    
+                    <h4>Authorized Devices (${devices.length})</h4>
+                    <div class="devices-list">
+                        ${devices.length === 0 ? '<p class="empty-state">No devices registered yet</p>' :
+                            devices.map(d => `
+                                <div class="device-item ${d.deviceId === thisDeviceId ? 'current' : ''} ${d.status !== 'active' ? 'inactive' : ''}">
+                                    <div class="device-info">
+                                        <strong>${d.name}</strong>
+                                        ${d.deviceId === thisDeviceId ? '<span class="current-badge">📍 This Device</span>' : ''}
+                                        <small>${d.deviceId}</small>
+                                        <small>Registered: ${new Date(d.registeredAt).toLocaleDateString()}</small>
+                                    </div>
+                                    <div class="device-actions">
+                                        ${d.status === 'active' ? 
+                                            `<button class="btn btn-sm btn-warning" onclick="Admin.deactivateDevice('${d.id}')">Deactivate</button>` :
+                                            `<button class="btn btn-sm btn-success" onclick="Admin.activateDevice('${d.id}')">Activate</button>`
+                                        }
+                                        <button class="btn btn-sm btn-danger" onclick="Admin.deleteDevice('${d.id}')">🗑️</button>
+                                    </div>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                </div>
+            `,
+            hideFooter: true,
+            customFooter: `
+                <div style="text-align:center;padding:15px;">
+                    <button class="btn btn-primary" onclick="Modal.close()">Done</button>
+                </div>
+            `
+        });
+    },
+    
+    async toggleDeviceRestriction(enabled) {
+        try {
+            await DB.update('settings', 'pos', { deviceRestrictionEnabled: enabled });
+            Auth.deviceRestrictionEnabled = enabled;
+            Toast.success(enabled ? 'Device restriction ENABLED' : 'Device restriction DISABLED');
+        } catch (error) {
+            console.error('Error toggling device restriction:', error);
+            Toast.error('Failed to update setting');
+        }
+    },
+    
+    async registerThisDevice() {
+        const name = prompt('Enter a name for this device (e.g., "Store Tablet 1"):');
+        if (!name) return;
+        
+        const success = await Auth.registerDevice(name);
+        if (success) {
+            this.showDeviceManagement(); // Refresh
+        }
+    },
+    
+    async deactivateDevice(deviceId) {
+        if (!confirm('Deactivate this device? It will no longer be able to access the POS.')) return;
+        
+        try {
+            await DB.update('authorizedDevices', deviceId, { status: 'inactive' });
+            Toast.success('Device deactivated');
+            this.showDeviceManagement();
+        } catch (error) {
+            Toast.error('Failed to deactivate device');
+        }
+    },
+    
+    async activateDevice(deviceId) {
+        try {
+            await DB.update('authorizedDevices', deviceId, { status: 'active' });
+            Toast.success('Device activated');
+            this.showDeviceManagement();
+        } catch (error) {
+            Toast.error('Failed to activate device');
+        }
+    },
+    
+    async deleteDevice(deviceId) {
+        if (!confirm('Permanently delete this device? This cannot be undone.')) return;
+        
+        try {
+            await DB.delete('authorizedDevices', deviceId);
+            Toast.success('Device deleted');
+            this.showDeviceManagement();
+        } catch (error) {
+            Toast.error('Failed to delete device');
+        }
     }
 };
