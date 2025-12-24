@@ -122,19 +122,28 @@ const POS = {
     // ========== ID CAPTURE FOR DISCOUNTS ==========
     
     showIdCaptureModal(discount) {
+        // Initialize photos array for multiple ID capture
+        this.capturedIdPhotos = [];
+        
         Modal.open({
             title: `📸 Capture ${discount.name} ID`,
             width: '95vw',
             content: `
                 <div class="id-capture-modal">
                     <div class="id-capture-instructions">
-                        <p>📋 Please capture the customer's <strong>${discount.name} ID</strong> for verification.</p>
+                        <p>📋 <strong>ID Required:</strong> Take a photo of the customer's ${discount.name} ID to apply discount.</p>
+                        <p class="id-note">💡 You can capture multiple IDs if the customer has more than one.</p>
+                    </div>
+                    
+                    <!-- Captured Photos Preview -->
+                    <div class="captured-photos-list" id="capturedPhotosList" style="display:none;">
+                        <h4>📸 Captured IDs (<span id="photosCount">0</span>)</h4>
+                        <div class="photos-grid" id="photosGrid"></div>
                     </div>
                     
                     <div class="camera-container" id="cameraContainer">
                         <video id="cameraPreview" autoplay playsinline></video>
                         <canvas id="photoCanvas" style="display:none;"></canvas>
-                        <img id="capturedPhoto" style="display:none;">
                     </div>
                     
                     <div class="camera-controls" id="cameraControls">
@@ -143,20 +152,19 @@ const POS = {
                         </button>
                     </div>
                     
-                    <div class="photo-controls" id="photoControls" style="display:none;">
-                        <button type="button" class="btn btn-outline" onclick="POS.retakePhoto()">
-                            🔄 Retake
+                    <div class="photo-actions" id="photoActions" style="display:none;">
+                        <button type="button" class="btn btn-secondary" onclick="POS.addAnotherPhoto()">
+                            ➕ Add Another ID
                         </button>
-                        <button type="button" class="btn btn-success btn-lg" onclick="POS.confirmIdPhoto('${discount.id}')">
-                            ✅ Confirm & Apply Discount
+                        <button type="button" class="btn btn-success btn-lg" onclick="POS.confirmIdPhotos('${discount.id}')">
+                            ✅ Done - Apply Discount
                         </button>
                     </div>
                 </div>
             `,
             customFooter: `
                 <div style="text-align:center;padding:10px;">
-                    <button class="btn btn-outline" onclick="POS.skipIdCapture('${discount.id}')">Skip (No ID)</button>
-                    <button class="btn btn-outline" onclick="POS.cancelIdCapture()">Cancel</button>
+                    <button class="btn btn-outline" onclick="POS.cancelIdCapture()">Cancel (No Discount)</button>
                 </div>
             `,
             hideFooter: true,
@@ -211,7 +219,6 @@ const POS = {
     captureIdPhoto() {
         const video = document.getElementById('cameraPreview');
         const canvas = document.getElementById('photoCanvas');
-        const capturedImg = document.getElementById('capturedPhoto');
         
         if (!video || !canvas) return;
         
@@ -223,42 +230,77 @@ const POS = {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0);
         
-        // Convert to data URL
-        this.capturedIdPhotoData = canvas.toDataURL('image/jpeg', 0.8);
+        // Convert to data URL (compressed)
+        const photoData = canvas.toDataURL('image/jpeg', 0.7);
         
-        // Show captured image
-        capturedImg.src = this.capturedIdPhotoData;
-        capturedImg.style.display = 'block';
-        video.style.display = 'none';
+        // Add to photos array
+        this.capturedIdPhotos.push({
+            photoData: photoData,
+            capturedAt: new Date().toISOString()
+        });
         
-        // Show confirm controls
-        document.getElementById('cameraControls').style.display = 'none';
-        document.getElementById('photoControls').style.display = 'flex';
+        // Update UI
+        this.updatePhotosDisplay();
         
-        Toast.success('Photo captured!');
+        Toast.success(`Photo ${this.capturedIdPhotos.length} captured!`);
     },
     
-    retakePhoto() {
-        const video = document.getElementById('cameraPreview');
-        const capturedImg = document.getElementById('capturedPhoto');
+    updatePhotosDisplay() {
+        const listContainer = document.getElementById('capturedPhotosList');
+        const gridContainer = document.getElementById('photosGrid');
+        const countEl = document.getElementById('photosCount');
+        const cameraControls = document.getElementById('cameraControls');
+        const photoActions = document.getElementById('photoActions');
         
-        capturedImg.style.display = 'none';
-        video.style.display = 'block';
-        
+        if (this.capturedIdPhotos.length > 0) {
+            listContainer.style.display = 'block';
+            countEl.textContent = this.capturedIdPhotos.length;
+            
+            // Show thumbnails
+            gridContainer.innerHTML = this.capturedIdPhotos.map((photo, idx) => `
+                <div class="photo-thumbnail">
+                    <img src="${photo.photoData}" alt="ID ${idx + 1}">
+                    <button type="button" class="remove-photo-btn" onclick="POS.removePhoto(${idx})">✕</button>
+                    <span class="photo-num">${idx + 1}</span>
+                </div>
+            `).join('');
+            
+            // Show photo actions (add more / done)
+            cameraControls.style.display = 'none';
+            photoActions.style.display = 'flex';
+        } else {
+            listContainer.style.display = 'none';
+            cameraControls.style.display = 'block';
+            photoActions.style.display = 'none';
+        }
+    },
+    
+    removePhoto(index) {
+        this.capturedIdPhotos.splice(index, 1);
+        this.updatePhotosDisplay();
+        Toast.info('Photo removed');
+    },
+    
+    addAnotherPhoto() {
+        // Show camera again for another photo
         document.getElementById('cameraControls').style.display = 'block';
-        document.getElementById('photoControls').style.display = 'none';
-        
-        this.capturedIdPhotoData = null;
+        document.getElementById('photoActions').style.display = 'none';
     },
     
-    confirmIdPhoto(discountId) {
+    confirmIdPhotos(discountId) {
+        if (this.capturedIdPhotos.length === 0) {
+            Toast.error('Please capture at least one ID photo');
+            return;
+        }
+        
         const discount = this.discountPresets.find(d => d.id === discountId);
         
-        // Store the photo for this transaction
+        // Store all photos for this transaction
         this.discountIdPhoto = {
             discountId: discountId,
             discountName: discount?.name || 'Unknown',
-            photoData: this.capturedIdPhotoData,
+            photos: this.capturedIdPhotos,
+            photoCount: this.capturedIdPhotos.length,
             capturedAt: new Date().toISOString()
         };
         
@@ -268,37 +310,20 @@ const POS = {
         Modal.close();
         
         this.renderDiscountBar();
-        Toast.success(`${discount.name} discount applied with ID verification`);
-    },
-    
-    skipIdCapture(discountId) {
-        const discount = this.discountPresets.find(d => d.id === discountId);
-        
-        // Log that ID was skipped
-        this.discountIdPhoto = {
-            discountId: discountId,
-            discountName: discount?.name || 'Unknown',
-            photoData: null,
-            skipped: true,
-            skippedAt: new Date().toISOString()
-        };
-        
-        this.activeDiscount = discount;
-        
-        this.stopCamera();
-        Modal.close();
-        
-        this.renderDiscountBar();
-        Toast.warning(`${discount.name} discount applied WITHOUT ID photo`);
+        Toast.success(`${discount.name} discount applied with ${this.capturedIdPhotos.length} ID photo(s)`);
     },
     
     cancelIdCapture() {
         this.stopCamera();
+        this.capturedIdPhotos = [];
         Modal.close();
+        Toast.info('Discount cancelled - ID required');
     },
     
     clearActiveDiscount() {
         this.activeDiscount = null;
+        this.discountIdPhoto = null;
+        this.capturedIdPhotos = [];
         this.renderDiscountBar();
     },
     
@@ -1182,11 +1207,15 @@ const POS = {
                     
                     ${sale.discountInfo?.idPhoto ? `
                         <div class="detail-id-photo">
-                            <h4>📸 ID Verification</h4>
-                            ${sale.discountInfo.idPhoto.photoData ? `
-                                <img src="${sale.discountInfo.idPhoto.photoData}" alt="ID Photo" style="max-width:100%;border-radius:8px;">
-                            ` : sale.discountInfo.idPhoto.skipped ? `
-                                <p class="id-skipped">⚠️ ID photo was skipped</p>
+                            <h4>📸 ID Verification (${sale.discountInfo.idPhoto.photoCount || 1} photo${(sale.discountInfo.idPhoto.photoCount || 1) > 1 ? 's' : ''})</h4>
+                            ${sale.discountInfo.idPhoto.photos ? `
+                                <div class="id-photos-grid">
+                                    ${sale.discountInfo.idPhoto.photos.map((p, i) => `
+                                        <img src="${p.photoData}" alt="ID ${i+1}" class="id-photo-img" onclick="POS.showFullPhoto('${p.photoData.replace(/'/g, "\\'")}')">
+                                    `).join('')}
+                                </div>
+                            ` : sale.discountInfo.idPhoto.photoData ? `
+                                <img src="${sale.discountInfo.idPhoto.photoData}" alt="ID Photo" class="id-photo-img" onclick="POS.showFullPhoto('${sale.discountInfo.idPhoto.photoData.replace(/'/g, "\\'")}')">
                             ` : ''}
                         </div>
                     ` : ''}
@@ -1198,6 +1227,16 @@ const POS = {
                 this.printReceipt();
                 return false; // Don't close modal
             }
+        });
+    },
+    
+    showFullPhoto(photoData) {
+        Modal.open({
+            title: '📸 ID Photo',
+            content: `<img src="${photoData}" style="width:100%;border-radius:8px;">`,
+            showFooter: true,
+            saveText: 'Close',
+            onSave: () => true
         });
     }
 };

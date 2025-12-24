@@ -186,8 +186,35 @@ const Admin = {
             const shiftSales = allSales.filter(s => s.shiftId === shiftId);
             const totalSales = shiftSales.reduce((sum, s) => sum + (s.total || 0), 0);
             
+            // Calculate discount totals
+            let totalDiscounts = 0;
+            let discountTransactions = 0;
+            const discountBreakdown = {};
+            
+            shiftSales.forEach(sale => {
+                if (sale.totalDiscount > 0) {
+                    totalDiscounts += sale.totalDiscount;
+                    discountTransactions++;
+                    
+                    // Track by type
+                    if (sale.discountInfo?.details) {
+                        Object.entries(sale.discountInfo.details).forEach(([type, info]) => {
+                            if (!discountBreakdown[type]) {
+                                discountBreakdown[type] = { name: info.name, count: 0, amount: 0 };
+                            }
+                            discountBreakdown[type].count++;
+                            discountBreakdown[type].amount += info.amount;
+                        });
+                    }
+                }
+            });
+            
+            // Store sales for detail view
+            this.shiftSales = shiftSales;
+            
             Modal.open({
                 title: `📋 Shift #${shift.shiftNumber} Details`,
+                width: '95vw',
                 content: `
                     <div class="shift-detail-modal">
                         <div class="detail-grid">
@@ -213,7 +240,7 @@ const Admin = {
                             </div>
                             <div class="detail-item">
                                 <span class="label">Ending Cash</span>
-                                <span class="value">${shift.endingCash ? Utils.formatCurrency(shift.endingCash) : '-'}</span>
+                                <span class="value">${shift.actualCash ? Utils.formatCurrency(shift.actualCash) : '-'}</span>
                             </div>
                             <div class="detail-item highlight">
                                 <span class="label">Total Sales</span>
@@ -225,14 +252,46 @@ const Admin = {
                             </div>
                         </div>
                         
+                        ${totalDiscounts > 0 ? `
+                        <div class="discount-summary-box">
+                            <h4>🏷️ Discounts Given</h4>
+                            <div class="discount-stats">
+                                <div class="discount-stat">
+                                    <span class="stat-value">${discountTransactions}</span>
+                                    <span class="stat-label">Transactions w/ Discount</span>
+                                </div>
+                                <div class="discount-stat">
+                                    <span class="stat-value">${Utils.formatCurrency(totalDiscounts)}</span>
+                                    <span class="stat-label">Total Discounts</span>
+                                </div>
+                            </div>
+                            <div class="discount-breakdown">
+                                ${Object.entries(discountBreakdown).map(([type, info]) => `
+                                    <div class="breakdown-item">
+                                        <span>${info.name}</span>
+                                        <span>${info.count}x</span>
+                                        <span>${Utils.formatCurrency(info.amount)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                        
                         <h4>Transactions</h4>
+                        <p class="txn-hint">👆 Tap a transaction to view details and ID photos</p>
                         <div class="shift-transactions">
                             ${shiftSales.length === 0 ? '<p>No transactions in this shift</p>' : 
                                 shiftSales.map(s => `
-                                    <div class="txn-item">
-                                        <span class="txn-id">${s.saleId}</span>
-                                        <span class="txn-time">${Utils.formatTime(s.timestamp)}</span>
-                                        <span class="txn-items">${s.items?.length || 0} items</span>
+                                    <div class="txn-item ${s.totalDiscount > 0 ? 'has-discount' : ''}" onclick="Admin.viewSaleDetails('${s.id}')">
+                                        <div class="txn-main">
+                                            <span class="txn-id">${s.saleId}</span>
+                                            <span class="txn-time">${Utils.formatTime(s.timestamp)}</span>
+                                        </div>
+                                        <div class="txn-info">
+                                            <span class="txn-items">${s.items?.length || 0} items</span>
+                                            ${s.totalDiscount > 0 ? `<span class="txn-discount">-${Utils.formatCurrency(s.totalDiscount)}</span>` : ''}
+                                            ${s.discountInfo?.idPhoto ? `<span class="txn-has-id">📸</span>` : ''}
+                                        </div>
                                         <span class="txn-total">${Utils.formatCurrency(s.total)}</span>
                                     </div>
                                 `).join('')
@@ -247,6 +306,85 @@ const Admin = {
             console.error('Error viewing shift:', error);
             Toast.error('Failed to load shift details');
         }
+    },
+    
+    viewSaleDetails(saleId) {
+        const sale = this.shiftSales?.find(s => s.id === saleId);
+        if (!sale) return;
+        
+        Modal.open({
+            title: `🧾 ${sale.saleId}`,
+            content: `
+                <div class="sale-detail-modal">
+                    <div class="sale-header">
+                        <p><strong>Time:</strong> ${new Date(sale.timestamp).toLocaleString('en-PH')}</p>
+                        <p><strong>Cashier:</strong> ${sale.cashierName}</p>
+                        <p><strong>Payment:</strong> ${sale.paymentMethod?.toUpperCase() || 'Cash'}</p>
+                    </div>
+                    
+                    <div class="sale-items">
+                        <h4>Items</h4>
+                        ${sale.items.map(item => `
+                            <div class="sale-item-row">
+                                <span>${item.quantity}x ${item.productName}${item.variantName ? ` (${item.variantName})` : ''}</span>
+                                <span>${Utils.formatCurrency(item.lineTotal)}</span>
+                            </div>
+                            ${item.discountName ? `
+                                <div class="sale-item-row discount">
+                                    <span>↳ ${item.discountName} (-${item.discountPercent}%)</span>
+                                    <span>-${Utils.formatCurrency(item.discountAmount * item.quantity)}</span>
+                                </div>
+                            ` : ''}
+                        `).join('')}
+                    </div>
+                    
+                    <div class="sale-totals">
+                        ${sale.totalDiscount > 0 ? `
+                            <div class="total-row">
+                                <span>Subtotal</span>
+                                <span>${Utils.formatCurrency(sale.subtotal)}</span>
+                            </div>
+                            <div class="total-row discount">
+                                <span>Total Discounts</span>
+                                <span>-${Utils.formatCurrency(sale.totalDiscount)}</span>
+                            </div>
+                        ` : ''}
+                        <div class="total-row final">
+                            <span>TOTAL</span>
+                            <span>${Utils.formatCurrency(sale.total)}</span>
+                        </div>
+                    </div>
+                    
+                    ${sale.discountInfo?.idPhoto ? `
+                        <div class="id-verification-section">
+                            <h4>📸 ID Verification (${sale.discountInfo.idPhoto.photoCount || 1} photo${(sale.discountInfo.idPhoto.photoCount || 1) > 1 ? 's' : ''})</h4>
+                            ${sale.discountInfo.idPhoto.photos ? `
+                                <div class="id-photos-admin">
+                                    ${sale.discountInfo.idPhoto.photos.map((p, i) => `
+                                        <img src="${p.photoData}" alt="ID ${i+1}" class="id-photo-admin" onclick="Admin.showFullIdPhoto('${p.photoData.replace(/'/g, "\\'")}')">
+                                    `).join('')}
+                                </div>
+                            ` : sale.discountInfo.idPhoto.photoData ? `
+                                <img src="${sale.discountInfo.idPhoto.photoData}" alt="ID Photo" class="id-photo-admin" onclick="Admin.showFullIdPhoto('${sale.discountInfo.idPhoto.photoData.replace(/'/g, "\\'")}')">
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `,
+            showFooter: true,
+            saveText: 'Close',
+            onSave: () => true
+        });
+    },
+    
+    showFullIdPhoto(photoData) {
+        Modal.open({
+            title: '📸 ID Photo (Full Size)',
+            content: `<img src="${photoData}" style="width:100%;border-radius:8px;">`,
+            showFooter: true,
+            saveText: 'Close',
+            onSave: () => true
+        });
     },
     
     async startShift() {
