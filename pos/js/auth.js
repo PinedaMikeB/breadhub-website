@@ -724,267 +724,402 @@ const Auth = {
             return;
         }
         
-        // Show handover modal - require cash count for next cashier
+        // Show draft close options modal
         Modal.close();
         setTimeout(() => {
-            this.showHandoverModal();
+            this.showDraftCloseModal();
         }, 300);
     },
     
-    showHandoverModal() {
+    showDraftCloseModal() {
         const { cashSales, gcashSales, totalSales, transactionCount, expectedCash } = this.endShiftData;
         const expensesData = this.getExpensesData();
         const totalExpenses = expensesData.reduce((sum, e) => sum + e.amount, 0);
-        const adjustedExpected = expectedCash - totalExpenses;
-        
-        // Calculate breakdown: Change Fund + Net Cash
         const changeFund = this.changeFund;
-        const netCashFromSales = (this.currentShift.startingCash || 0) + cashSales - totalExpenses - changeFund;
+        
+        // Cash to remit = Cash Sales - Expenses (this goes with the report)
+        const cashToRemit = cashSales - totalExpenses;
         
         Modal.open({
-            title: '🤝 Cash Handover',
+            title: '📋 Draft Close Shift',
+            width: '90vw',
             content: `
-                <div class="handover-info">
-                    <div class="change-fund-reminder">
-                        <h4>💰 Change Fund: ${Utils.formatCurrency(changeFund)}</h4>
-                        <p>This amount must ALWAYS be handed over exactly.</p>
-                    </div>
-                    
-                    <div class="handover-summary">
-                        <h4>📊 Cash Calculation</h4>
-                        <div class="summary-row">
-                            <span>Change Fund (Fixed):</span>
-                            <span>${Utils.formatCurrency(changeFund)}</span>
-                        </div>
-                        <div class="summary-row">
-                            <span>Starting Cash:</span>
-                            <span>${Utils.formatCurrency(this.currentShift.startingCash || 0)}</span>
-                        </div>
-                        <div class="summary-row">
-                            <span>+ Cash Sales:</span>
-                            <span>${Utils.formatCurrency(cashSales)}</span>
-                        </div>
-                        ${totalExpenses > 0 ? `
-                        <div class="summary-row expense">
-                            <span>- Expenses:</span>
-                            <span>${Utils.formatCurrency(totalExpenses)}</span>
-                        </div>
-                        ` : ''}
-                        <div class="summary-row expected">
-                            <span><strong>Total Expected in Drawer:</strong></span>
-                            <span><strong>${Utils.formatCurrency(adjustedExpected)}</strong></span>
-                        </div>
-                    </div>
-                    
-                    <div class="handover-form">
-                        <div class="form-group">
-                            <label>💵 Total Cash You're Handing Over <span class="required">*</span></label>
-                            <input type="number" id="handoverCash" class="form-input form-input-lg" 
-                                   placeholder="Count and enter total amount" step="0.01" 
-                                   oninput="Auth.calculateHandoverVariance(${adjustedExpected}, ${changeFund})">
-                            <small class="form-hint">Must include the change fund of ${Utils.formatCurrency(changeFund)}</small>
+                <div class="draft-close-layout">
+                    <div class="draft-close-left">
+                        <div class="draft-summary-section">
+                            <h4>📊 Shift Summary</h4>
+                            <div class="summary-grid-compact">
+                                <div class="summary-item">
+                                    <span class="label">Cashier</span>
+                                    <span class="value">${this.currentShift.staffName}</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="label">Shift #</span>
+                                    <span class="value">${this.currentShift.shiftNumber}</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="label">Date</span>
+                                    <span class="value">${this.currentShift.dateKey}</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="label">Transactions</span>
+                                    <span class="value">${transactionCount}</span>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div id="handoverVarianceDisplay" class="variance-display">
-                            Enter the cash amount above
+                        <div class="cash-breakdown-section">
+                            <h4>💰 Cash Breakdown</h4>
+                            <div class="breakdown-table">
+                                <div class="breakdown-row">
+                                    <span>💵 Cash Sales:</span>
+                                    <span class="amount">${Utils.formatCurrency(cashSales)}</span>
+                                </div>
+                                <div class="breakdown-row">
+                                    <span>📱 GCash Sales:</span>
+                                    <span class="amount">${Utils.formatCurrency(gcashSales)}</span>
+                                </div>
+                                ${totalExpenses > 0 ? `
+                                <div class="breakdown-row expense">
+                                    <span>🛒 Expenses:</span>
+                                    <span class="amount">-${Utils.formatCurrency(totalExpenses)}</span>
+                                </div>
+                                ` : ''}
+                                <div class="breakdown-row total">
+                                    <span>Total Sales:</span>
+                                    <span class="amount">${Utils.formatCurrency(totalSales)}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="remittance-section">
+                            <h4>💵 Cash to Remit (with Report)</h4>
+                            <div class="remit-amount">${Utils.formatCurrency(cashToRemit)}</div>
+                            <small>Cash Sales (${Utils.formatCurrency(cashSales)}) - Expenses (${Utils.formatCurrency(totalExpenses)})</small>
+                        </div>
+                        
+                        <div class="change-fund-section">
+                            <h4>🔄 Change Fund to Leave in Drawer</h4>
+                            <div class="change-fund-amount">${Utils.formatCurrency(changeFund)}</div>
+                            <small>This stays in the drawer for the next shift</small>
                         </div>
                     </div>
                     
-                    <div class="handover-note">
-                        <p>⚠️ The next cashier will verify this exact amount.</p>
-                        <p>Any shortage will be recorded and reported to management.</p>
+                    <div class="draft-close-right">
+                        <div class="draft-close-actions">
+                            <h4>Choose Action:</h4>
+                            
+                            <button class="btn btn-primary btn-lg action-btn" onclick="Auth.emailDraftReport()">
+                                📧 Email Report to Owner
+                            </button>
+                            
+                            <button class="btn btn-success btn-lg action-btn" onclick="Auth.saveDraftAndClose()">
+                                💾 Save Draft & Logout
+                            </button>
+                            
+                            <button class="btn btn-secondary btn-lg action-btn" onclick="Auth.printBlankCashierForm()">
+                                🖨️ Print Blank Cashier Form
+                            </button>
+                            
+                            <div class="handover-confirm-section">
+                                <h5>🤝 Confirm Change Fund Handover</h5>
+                                <div class="form-group">
+                                    <label>Change Fund Left in Drawer</label>
+                                    <input type="number" id="changeFundLeft" class="form-input" 
+                                           value="${changeFund}" step="0.01">
+                                </div>
+                                <div id="changeFundStatus" class="fund-status"></div>
+                            </div>
+                            
+                            <button class="btn btn-warning btn-xl action-btn" onclick="Auth.confirmDraftClose()">
+                                ✅ Confirm Draft Close
+                            </button>
+                            
+                            <button class="btn btn-outline" onclick="Auth.cancelDraftClose()">
+                                Cancel
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `,
-            customFooter: `
-                <div class="handover-footer">
-                    <button class="btn btn-success btn-lg" onclick="Auth.completeDraftClose()">
-                        ✅ Confirm & Hand Over
-                    </button>
-                    <button class="btn btn-outline" onclick="Auth.cancelHandover()">Cancel</button>
                 </div>
             `,
             hideFooter: true
         });
         
-        // Store expected for validation
-        this.handoverExpected = adjustedExpected;
+        // Store data for later
+        this.draftCloseData = {
+            cashSales,
+            gcashSales,
+            totalSales,
+            totalExpenses,
+            cashToRemit,
+            changeFund,
+            transactionCount,
+            expensesData
+        };
+        
+        // Add change fund validation listener
+        setTimeout(() => {
+            const input = document.getElementById('changeFundLeft');
+            if (input) {
+                input.addEventListener('input', () => this.validateChangeFund());
+                this.validateChangeFund();
+            }
+        }, 100);
     },
     
-    calculateHandoverVariance(expected, changeFund) {
-        const handoverCash = parseFloat(document.getElementById('handoverCash')?.value) || 0;
-        const variance = handoverCash - expected;
+    validateChangeFund() {
+        const input = document.getElementById('changeFundLeft');
+        const status = document.getElementById('changeFundStatus');
+        const value = parseFloat(input?.value) || 0;
+        const expected = this.changeFund;
         
-        const display = document.getElementById('handoverVarianceDisplay');
-        
-        if (handoverCash === 0) {
-            display.innerHTML = 'Enter the cash amount above';
-            return;
-        }
-        
-        // Check if change fund is intact
-        const changeFundShort = handoverCash < changeFund;
-        
-        let status, statusClass, details = '';
-        if (changeFundShort) {
-            status = `🚨 CRITICAL: Below Change Fund!`;
-            statusClass = 'critical';
-            details = `<p class="critical-warning">Cash is less than the ${Utils.formatCurrency(changeFund)} change fund!</p>`;
-        } else if (Math.abs(variance) < 1) {
-            status = '✅ BALANCED';
-            statusClass = 'balanced';
-        } else if (variance > 0) {
-            status = `⬆️ OVER by ${Utils.formatCurrency(variance)}`;
-            statusClass = 'over';
+        if (Math.abs(value - expected) < 1) {
+            status.innerHTML = '<span class="status-ok">✅ Change fund correct</span>';
+            status.className = 'fund-status ok';
+        } else if (value < expected) {
+            status.innerHTML = `<span class="status-short">⚠️ SHORT by ${Utils.formatCurrency(expected - value)}</span>`;
+            status.className = 'fund-status short';
         } else {
-            status = `⬇️ SHORT by ${Utils.formatCurrency(Math.abs(variance))}`;
-            statusClass = 'short';
+            status.innerHTML = `<span class="status-over">⬆️ OVER by ${Utils.formatCurrency(value - expected)}</span>`;
+            status.className = 'fund-status over';
         }
-        
-        display.innerHTML = `
-            ${details}
-            <div class="variance-status ${statusClass}">${status}</div>
-            <div class="handover-amount">
-                Handing over: <strong>${Utils.formatCurrency(handoverCash)}</strong>
-            </div>
-        `;
     },
     
-    cancelHandover() {
+    async emailDraftReport() {
+        const data = this.draftCloseData;
+        const shift = this.currentShift;
+        
+        // Generate email content
+        const subject = encodeURIComponent(`📋 Draft Shift Report - ${shift.staffName} - Shift #${shift.shiftNumber} - ${shift.dateKey}`);
+        const body = encodeURIComponent(`
+DRAFT SHIFT REPORT
+==================
+Cashier: ${shift.staffName}
+Shift #: ${shift.shiftNumber}
+Date: ${shift.dateKey}
+Start Time: ${Utils.formatTime(shift.startTime)}
+Draft Time: ${new Date().toLocaleTimeString()}
+
+SALES SUMMARY
+-------------
+Cash Sales: ₱${data.cashSales.toLocaleString()}
+GCash Sales: ₱${data.gcashSales.toLocaleString()}
+Total Sales: ₱${data.totalSales.toLocaleString()}
+Transactions: ${data.transactionCount}
+
+EXPENSES
+--------
+Total Expenses: ₱${data.totalExpenses.toLocaleString()}
+${data.expensesData.map(e => `- ${e.itemName}: ₱${e.amount.toLocaleString()}`).join('\n')}
+
+CASH SUMMARY
+------------
+Cash to Remit: ₱${data.cashToRemit.toLocaleString()}
+Change Fund Left: ₱${data.changeFund.toLocaleString()}
+
+Status: DRAFT - Pending Finalization
+        `);
+        
+        window.open(`mailto:michael.marga@gmail.com?subject=${subject}&body=${body}`);
+        Toast.success('Email client opened');
+    },
+    
+    async printBlankCashierForm() {
+        // Generate blank cashier form PDF
+        const shift = this.currentShift;
+        const today = new Date().toLocaleDateString('en-PH');
+        
+        const blankFormHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Blank Cashier Form</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    h1 { text-align: center; margin-bottom: 5px; }
+                    h2 { text-align: center; color: #666; margin-top: 0; }
+                    .header-info { display: flex; justify-content: space-between; margin: 20px 0; }
+                    .field { margin: 15px 0; }
+                    .field label { display: block; font-weight: bold; margin-bottom: 5px; }
+                    .field .line { border-bottom: 1px solid #000; height: 25px; }
+                    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                    .section { border: 1px solid #000; padding: 15px; margin: 15px 0; }
+                    .section h3 { margin-top: 0; background: #f0f0f0; padding: 5px; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+                    .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
+                    .signature-box { width: 200px; text-align: center; }
+                    .signature-line { border-top: 1px solid #000; margin-top: 50px; padding-top: 5px; }
+                </style>
+            </head>
+            <body>
+                <h1>🍞 BreadHub</h1>
+                <h2>Cashier Shift Report Form</h2>
+                
+                <div class="header-info">
+                    <div class="field">
+                        <label>Date:</label>
+                        <div class="line" style="width: 150px;">${today}</div>
+                    </div>
+                    <div class="field">
+                        <label>Shift #:</label>
+                        <div class="line" style="width: 100px;">${shift?.shiftNumber || '___'}</div>
+                    </div>
+                    <div class="field">
+                        <label>Cashier Name:</label>
+                        <div class="line" style="width: 200px;">${shift?.staffName || ''}</div>
+                    </div>
+                </div>
+                
+                <div class="two-col">
+                    <div class="field">
+                        <label>Start Time:</label>
+                        <div class="line"></div>
+                    </div>
+                    <div class="field">
+                        <label>End Time:</label>
+                        <div class="line"></div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3>💰 Sales Summary</h3>
+                    <table>
+                        <tr><td>Cash Sales</td><td style="width:150px;">₱ ________________</td></tr>
+                        <tr><td>GCash Sales</td><td>₱ ________________</td></tr>
+                        <tr><td>Other Payment</td><td>₱ ________________</td></tr>
+                        <tr><td><strong>TOTAL SALES</strong></td><td><strong>₱ ________________</strong></td></tr>
+                    </table>
+                </div>
+                
+                <div class="section">
+                    <h3>🛒 Expenses / Emergency Purchases</h3>
+                    <table>
+                        <tr><th>Item</th><th>Supplier</th><th>Qty</th><th>Amount</th></tr>
+                        <tr><td>&nbsp;</td><td></td><td></td><td>₱</td></tr>
+                        <tr><td>&nbsp;</td><td></td><td></td><td>₱</td></tr>
+                        <tr><td>&nbsp;</td><td></td><td></td><td>₱</td></tr>
+                        <tr><td>&nbsp;</td><td></td><td></td><td>₱</td></tr>
+                        <tr><td colspan="3"><strong>TOTAL EXPENSES</strong></td><td><strong>₱ ________</strong></td></tr>
+                    </table>
+                </div>
+                
+                <div class="section">
+                    <h3>🧮 Cash Reconciliation</h3>
+                    <table>
+                        <tr><td>Starting Cash (Change Fund)</td><td style="width:150px;">₱ ________________</td></tr>
+                        <tr><td>+ Cash Sales</td><td>₱ ________________</td></tr>
+                        <tr><td>- Expenses</td><td>₱ ________________</td></tr>
+                        <tr><td><strong>Expected Cash</strong></td><td><strong>₱ ________________</strong></td></tr>
+                        <tr><td>Actual Cash Count</td><td>₱ ________________</td></tr>
+                        <tr><td><strong>Variance (Short/Over)</strong></td><td><strong>₱ ________________</strong></td></tr>
+                    </table>
+                </div>
+                
+                <div class="section">
+                    <h3>💵 Cash Remittance</h3>
+                    <table>
+                        <tr><td>Cash to Remit (with report)</td><td style="width:150px;">₱ ________________</td></tr>
+                        <tr><td>Change Fund Left in Drawer</td><td>₱ ________________</td></tr>
+                    </table>
+                </div>
+                
+                <div class="signature-section">
+                    <div class="signature-box">
+                        <div class="signature-line">Cashier Signature</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line">Verified By</div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        // Open print window
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(blankFormHTML);
+        printWindow.document.close();
+        printWindow.print();
+        
+        Toast.success('Blank form opened for printing');
+    },
+    
+    async saveDraftAndClose() {
+        await this.confirmDraftClose();
+        // Logout after saving
+        this.logout();
+    },
+    
+    cancelDraftClose() {
         Modal.close();
-        // Re-open end shift modal
         setTimeout(() => this.endShift(), 300);
     },
     
-    async completeDraftClose() {
-        const handoverCash = parseFloat(document.getElementById('handoverCash')?.value) || 0;
-        
-        if (handoverCash <= 0) {
-            Toast.error('Please enter the cash amount you are handing over');
-            return;
-        }
-        
-        const { cashSales, gcashSales, otherSales, totalSales, transactionCount, expectedCash } = this.endShiftData;
-        const expensesData = this.getExpensesData();
-        const totalExpenses = expensesData.reduce((sum, e) => sum + e.amount, 0);
-        const adjustedExpected = expectedCash - totalExpenses;
-        const outgoingVariance = handoverCash - adjustedExpected;
+    async confirmDraftClose() {
+        const changeFundLeft = parseFloat(document.getElementById('changeFundLeft')?.value) || 0;
+        const data = this.draftCloseData;
         
         try {
-            // Update shift to draft status with handover info
+            // Update shift to draft status with all data
             await DB.update('shifts', this.currentShift.id, {
                 status: 'draft',
                 draftTime: new Date().toISOString(),
+                
                 // Sales data
-                cashSales,
-                gcashSales,
-                otherSales,
-                totalSales,
-                transactionCount,
-                expectedCash,
+                cashSales: data.cashSales,
+                gcashSales: data.gcashSales,
+                totalSales: data.totalSales,
+                transactionCount: data.transactionCount,
+                
                 // Expenses
-                draftExpenses: expensesData,
-                draftExpensesTotal: totalExpenses,
-                // HANDOVER DATA - Critical for next cashier
-                handoverCash: handoverCash,
-                handoverExpected: adjustedExpected,
-                handoverVariance: outgoingVariance,
-                handoverTime: new Date().toISOString(),
-                handoverBy: this.userData.name
+                draftExpenses: data.expensesData,
+                draftExpensesTotal: data.totalExpenses,
+                
+                // Cash handling
+                cashToRemit: data.cashToRemit,
+                changeFundLeft: changeFundLeft,
+                changeFundVariance: changeFundLeft - data.changeFund,
+                
+                // Expected values
+                expectedCash: (this.currentShift.startingCash || 0) + data.cashSales - data.totalExpenses
             });
             
-            // If there's a variance, log it for tracking
-            if (Math.abs(outgoingVariance) >= 1) {
-                await this.logHandoverDiscrepancy({
-                    type: 'outgoing',
+            // Log discrepancy if change fund doesn't match
+            if (Math.abs(changeFundLeft - data.changeFund) >= 1) {
+                await DB.add('handoverDiscrepancies', {
+                    type: 'change_fund',
                     shiftId: this.currentShift.id,
                     shiftNumber: this.currentShift.shiftNumber,
                     dateKey: this.currentShift.dateKey,
-                    cashierName: this.userData.name,
-                    expected: adjustedExpected,
-                    actual: handoverCash,
-                    variance: outgoingVariance,
+                    cashier: this.currentShift.staffName,
+                    expected: data.changeFund,
+                    actual: changeFundLeft,
+                    variance: changeFundLeft - data.changeFund,
                     timestamp: new Date().toISOString()
                 });
             }
             
+            Toast.success('Draft saved! You can finalize later on Mac Mini.');
             Modal.close();
             
-            Toast.success('Shift saved. Cash ready for handover.');
-            
-            // Show confirmation
-            Modal.open({
-                title: '📋 Handover Ready',
-                content: `
-                    <div class="draft-saved-info">
-                        <div class="draft-icon">✅</div>
-                        <h3>Shift #${this.currentShift.shiftNumber} - Handover Complete</h3>
-                        <div class="handover-receipt">
-                            <p><strong>Cash to Hand Over:</strong></p>
-                            <div class="handover-amount-big">${Utils.formatCurrency(handoverCash)}</div>
-                            ${Math.abs(outgoingVariance) >= 1 ? `
-                                <p class="variance-warning">
-                                    ⚠️ Variance: ${outgoingVariance > 0 ? 'OVER' : 'SHORT'} ${Utils.formatCurrency(Math.abs(outgoingVariance))}
-                                </p>
-                            ` : ''}
-                        </div>
-                        <p class="note">The next cashier will verify this amount when starting their shift.</p>
-                    </div>
-                `,
-                saveText: '👋 Logout',
-                cancelText: null,
-                onSave: () => {
-                    this.logout();
-                }
-            });
+            // Clear current shift from local storage
+            localStorage.removeItem('pos_shift');
+            this.currentShift = null;
             
         } catch (error) {
             console.error('Error saving draft:', error);
-            Toast.error('Failed to save handover');
+            Toast.error('Failed to save draft');
         }
     },
     
+    // Keep logHandoverDiscrepancy for general discrepancy tracking
     async logHandoverDiscrepancy(data) {
         try {
-            // Save to handoverDiscrepancies collection
             await DB.add('handoverDiscrepancies', data);
-            
-            // Send email notification
-            await this.sendHandoverAlert(data);
-            
-            // TODO: Trigger notification to breadhub-operationmanager app
-            // This will be implemented when the operations manager app is ready
-            
         } catch (error) {
             console.error('Error logging discrepancy:', error);
         }
-    },
-    
-    async sendHandoverAlert(data) {
-        const varianceType = data.variance > 0 ? 'OVER' : 'SHORT';
-        const subject = `⚠️ Cash Handover Discrepancy - ${data.cashierName} - ${data.dateKey}`;
-        const body = `
-CASH HANDOVER DISCREPANCY ALERT
-
-Date: ${data.dateKey}
-Time: ${new Date(data.timestamp).toLocaleTimeString('en-PH')}
-Shift #: ${data.shiftNumber}
-Cashier: ${data.cashierName}
-Type: ${data.type === 'outgoing' ? 'Outgoing (Draft Close)' : 'Incoming (Shift Start)'}
-
-AMOUNTS:
-Expected: ₱${data.expected.toLocaleString()}
-Actual: ₱${data.actual.toLocaleString()}
-Variance: ${varianceType} ₱${Math.abs(data.variance).toLocaleString()}
-
----
-BreadHub POS System
-Automated Alert
-        `.trim();
-        
-        // Open email client (or could use EmailJS/Firebase Functions for auto-send)
-        const mailtoLink = `mailto:michael.marga@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.open(mailtoLink, '_blank');
     },
     
     addExpenseRow() {
@@ -1128,16 +1263,41 @@ Automated Alert
     
     showSupplierDropdown(expenseId) {
         const dropdown = document.getElementById(`supplier-dropdown-${expenseId}`);
+        if (!dropdown) return;
+        
+        // Ensure suppliers list is loaded
+        if (!this.suppliersList || this.suppliersList.length === 0) {
+            dropdown.innerHTML = '<div class="dropdown-empty">Loading suppliers...</div>';
+            dropdown.classList.add('show');
+            
+            // Try to load suppliers
+            DB.getAll('suppliers').then(suppliers => {
+                this.suppliersList = suppliers.map(s => ({ id: s.id, name: s.name }));
+                this.filterSuppliers(expenseId, '');
+            }).catch(err => {
+                console.error('Failed to load suppliers:', err);
+                dropdown.innerHTML = '<div class="dropdown-empty">No suppliers found. Type to add new.</div>';
+            });
+            return;
+        }
+        
         this.filterSuppliers(expenseId, '');
         dropdown.classList.add('show');
     },
     
     filterSuppliers(expenseId, query) {
         const dropdown = document.getElementById(`supplier-dropdown-${expenseId}`);
-        const q = query.toLowerCase();
+        if (!dropdown) return;
+        
+        const q = (query || '').toLowerCase();
+        
+        // Handle case where suppliers list isn't loaded yet
+        if (!this.suppliersList) {
+            this.suppliersList = [];
+        }
         
         const filtered = this.suppliersList.filter(s => 
-            s.name.toLowerCase().includes(q)
+            s.name && s.name.toLowerCase().includes(q)
         ).slice(0, 10);
         
         // Add option to add new supplier

@@ -3558,3 +3558,250 @@ details summary {
     border-top: 1px solid var(--border);
     text-align: right;
 }
+
+
+/* ==========================================
+   DRAFT CLOSE MODAL LAYOUT v18
+   ========================================== */
+
+/* Draft Close Layout - Side by Side */
+.draft-close-layout {
+    display: flex;
+    gap: 25px;
+    min-height: 400px;
+}
+
+.draft-close-left {
+    flex: 1.5;
+    overflow-y: auto;
+    max-height: 65vh;
+}
+
+.draft-close-right {
+    flex: 1;
+    min-width: 280px;
+}
+
+/* Compact summary sections */
+.draft-summary-section,
+.cash-breakdown-section,
+.remittance-section,
+.change-fund-section {
+    background: var(--bg-main);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.draft-summary-section h4,
+.cash-breakdown-section h4 {
+    margin: 0 0 12px 0;
+    font-size: 0.95rem;
+    color: var(--primary);
+}
+
+.summary-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+
+.summary-grid-compact .summary-item {
+    background: rgba(212, 137, 74, 0.1);
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.summary-grid-compact .summary-item .label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.summary-grid-compact .summary-item .value {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+/* Breakdown table */
+.breakdown-table {
+    font-size: 0.9rem;
+}
+
+.breakdown-table .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.breakdown-table .breakdown-row:last-child {
+    border-bottom: none;
+}
+
+.breakdown-table .breakdown-row.total {
+    font-weight: 600;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 2px solid var(--primary);
+}
+
+.breakdown-table .breakdown-row.expense {
+    color: #e74c3c;
+}
+
+/* Remittance and Change Fund highlight */
+.remittance-section,
+.change-fund-section {
+    text-align: center;
+}
+
+
+.remittance-section h4,
+.change-fund-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.remit-amount {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #27ae60;
+}
+
+.change-fund-amount {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.remittance-section small,
+.change-fund-section small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
+/* Draft Close Actions */
+.draft-close-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.draft-close-actions h4 {
+    margin: 0 0 10px 0;
+    text-align: center;
+}
+
+.action-btn {
+    width: 100%;
+}
+
+.action-btn.btn-xl {
+    padding: 18px;
+    font-size: 1.1rem;
+}
+
+/* Handover confirm section */
+.handover-confirm-section {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.handover-confirm-section h5 {
+    margin: 0 0 10px 0;
+    font-size: 0.9rem;
+}
+
+
+/* Fund status indicator */
+.fund-status {
+    margin-top: 8px;
+    padding: 8px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.fund-status.ok {
+    background: rgba(39, 174, 96, 0.15);
+    color: #27ae60;
+}
+
+.fund-status.short {
+    background: rgba(231, 76, 60, 0.15);
+    color: #e74c3c;
+}
+
+.fund-status.over {
+    background: rgba(241, 196, 15, 0.15);
+    color: #f1c40f;
+}
+
+/* Responsive for mobile */
+@media (max-width: 768px) {
+    .draft-close-layout {
+        flex-direction: column;
+    }
+    
+    .draft-close-left {
+        max-height: none;
+    }
+    
+    .draft-close-right {
+        min-width: auto;
+    }
+}
+
+/* Dropdown improvements */
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.search-dropdown.show {
+    display: block;
+}
+
+.dropdown-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background: rgba(212, 137, 74, 0.2);
+}
+
+.dropdown-item.new-item {
+    color: var(--primary);
+    font-style: italic;
+}
+
+.dropdown-empty {
+    padding: 10px 12px;
+    color: var(--text-secondary);
+    text-align: center;
+}
