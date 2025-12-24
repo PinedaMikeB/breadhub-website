@@ -1140,6 +1140,30 @@ const Auth = {
         
         const { shift, sales, cashSales, gcashSales, otherSales, totalSales, transactionCount, expectedCash } = this.endShiftData;
         
+        // Calculate discount totals from sales
+        let totalDiscountGiven = 0;
+        let originalSubtotal = 0;
+        const discountBreakdown = {};
+        
+        sales.forEach(sale => {
+            if (sale.totalDiscount) {
+                totalDiscountGiven += sale.totalDiscount;
+            }
+            if (sale.subtotal) {
+                originalSubtotal += sale.subtotal;
+            }
+            // Track discounts by type
+            if (sale.discountInfo && sale.discountInfo.details) {
+                Object.entries(sale.discountInfo.details).forEach(([type, info]) => {
+                    if (!discountBreakdown[type]) {
+                        discountBreakdown[type] = { name: info.name, count: 0, amount: 0 };
+                    }
+                    discountBreakdown[type].count++;
+                    discountBreakdown[type].amount += info.amount;
+                });
+            }
+        });
+        
         const adjustedExpected = expectedCash - totalExpenses;
         const variance = actualCash - adjustedExpected;
         
@@ -1169,6 +1193,10 @@ const Auth = {
             actualCash,
             variance,
             balanceStatus,
+            // Discount tracking
+            originalSubtotal,
+            totalDiscountGiven,
+            discountBreakdown,
             status: 'completed'
         };
         
@@ -1222,6 +1250,32 @@ const Auth = {
         
         // Calculate cash to remit (cash sales - expenses)
         const cashToRemit = report.cashSales - report.expenses;
+        
+        // Build discount summary HTML
+        let discountHTML = '';
+        if (report.totalDiscountGiven > 0) {
+            discountHTML = `
+                <div style="margin-bottom: 20px; background: #fff3e0; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #e65100; margin-top: 0;">🏷️ Discounts Given</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 5px;">Original Total (Before Discounts):</td>
+                            <td style="padding: 5px; text-align: right;">₱${(report.originalSubtotal || 0).toLocaleString()}</td>
+                        </tr>
+                        ${Object.entries(report.discountBreakdown || {}).map(([type, info]) => `
+                            <tr style="color: #e65100;">
+                                <td style="padding: 5px;">${info.name} (${info.count} transactions):</td>
+                                <td style="padding: 5px; text-align: right;">-₱${info.amount.toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                        <tr style="border-top: 2px solid #e65100; font-weight: bold;">
+                            <td style="padding: 8px;">TOTAL DISCOUNTS:</td>
+                            <td style="padding: 8px; text-align: right; color: #c62828;">-₱${report.totalDiscountGiven.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+        }
         
         // Build expenses details HTML
         let expensesHTML = '';
@@ -1301,6 +1355,8 @@ const Auth = {
                     </table>
                     <p style="color: #666; margin-top: 10px;">Total Transactions: ${report.transactionCount}</p>
                 </div>
+                
+                ${discountHTML}
                 
                 ${expensesHTML}
                 

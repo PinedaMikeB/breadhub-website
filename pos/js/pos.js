@@ -102,14 +102,199 @@ const POS = {
         if (this.activeDiscount?.id === discountId) {
             // Turn off
             this.activeDiscount = null;
+            this.discountIdPhoto = null;
+            this.renderDiscountBar();
+            Toast.info('Discount disabled');
         } else {
-            // Turn on
-            this.activeDiscount = this.discountPresets.find(d => d.id === discountId);
+            // For Senior/PWD, require ID photo
+            const discount = this.discountPresets.find(d => d.id === discountId);
+            if (discount && (discountId === 'senior' || discountId === 'pwd' || discount.requiresId)) {
+                this.showIdCaptureModal(discount);
+            } else {
+                this.activeDiscount = discount;
+                this.discountIdPhoto = null;
+                this.renderDiscountBar();
+                Toast.info(`${this.activeDiscount.name} discount active`);
+            }
         }
+    },
+    
+    // ========== ID CAPTURE FOR DISCOUNTS ==========
+    
+    showIdCaptureModal(discount) {
+        Modal.open({
+            title: `📸 Capture ${discount.name} ID`,
+            width: '95vw',
+            content: `
+                <div class="id-capture-modal">
+                    <div class="id-capture-instructions">
+                        <p>📋 Please capture the customer's <strong>${discount.name} ID</strong> for verification.</p>
+                    </div>
+                    
+                    <div class="camera-container" id="cameraContainer">
+                        <video id="cameraPreview" autoplay playsinline></video>
+                        <canvas id="photoCanvas" style="display:none;"></canvas>
+                        <img id="capturedPhoto" style="display:none;">
+                    </div>
+                    
+                    <div class="camera-controls" id="cameraControls">
+                        <button type="button" class="btn btn-primary btn-lg" id="captureBtn" onclick="POS.captureIdPhoto()">
+                            📸 Take Photo
+                        </button>
+                    </div>
+                    
+                    <div class="photo-controls" id="photoControls" style="display:none;">
+                        <button type="button" class="btn btn-outline" onclick="POS.retakePhoto()">
+                            🔄 Retake
+                        </button>
+                        <button type="button" class="btn btn-success btn-lg" onclick="POS.confirmIdPhoto('${discount.id}')">
+                            ✅ Confirm & Apply Discount
+                        </button>
+                    </div>
+                </div>
+            `,
+            customFooter: `
+                <div style="text-align:center;padding:10px;">
+                    <button class="btn btn-outline" onclick="POS.skipIdCapture('${discount.id}')">Skip (No ID)</button>
+                    <button class="btn btn-outline" onclick="POS.cancelIdCapture()">Cancel</button>
+                </div>
+            `,
+            hideFooter: true,
+            onClose: () => this.stopCamera()
+        });
+        
+        // Start camera
+        setTimeout(() => this.startCamera(), 100);
+    },
+    
+    async startCamera() {
+        try {
+            const video = document.getElementById('cameraPreview');
+            if (!video) return;
+            
+            // Try back camera first (for ID capture)
+            const constraints = {
+                video: {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+            
+            this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = this.cameraStream;
+            
+        } catch (err) {
+            console.error('Camera error:', err);
+            Toast.error('Could not access camera. Check permissions.');
+            
+            // Show fallback - allow skipping
+            const container = document.getElementById('cameraContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="camera-error">
+                        <p>📵 Camera not available</p>
+                        <p>Please ensure camera permissions are granted.</p>
+                    </div>
+                `;
+            }
+        }
+    },
+    
+    stopCamera() {
+        if (this.cameraStream) {
+            this.cameraStream.getTracks().forEach(track => track.stop());
+            this.cameraStream = null;
+        }
+    },
+    
+    captureIdPhoto() {
+        const video = document.getElementById('cameraPreview');
+        const canvas = document.getElementById('photoCanvas');
+        const capturedImg = document.getElementById('capturedPhoto');
+        
+        if (!video || !canvas) return;
+        
+        // Set canvas size to video size
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw video frame to canvas
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        // Convert to data URL
+        this.capturedIdPhotoData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        // Show captured image
+        capturedImg.src = this.capturedIdPhotoData;
+        capturedImg.style.display = 'block';
+        video.style.display = 'none';
+        
+        // Show confirm controls
+        document.getElementById('cameraControls').style.display = 'none';
+        document.getElementById('photoControls').style.display = 'flex';
+        
+        Toast.success('Photo captured!');
+    },
+    
+    retakePhoto() {
+        const video = document.getElementById('cameraPreview');
+        const capturedImg = document.getElementById('capturedPhoto');
+        
+        capturedImg.style.display = 'none';
+        video.style.display = 'block';
+        
+        document.getElementById('cameraControls').style.display = 'block';
+        document.getElementById('photoControls').style.display = 'none';
+        
+        this.capturedIdPhotoData = null;
+    },
+    
+    confirmIdPhoto(discountId) {
+        const discount = this.discountPresets.find(d => d.id === discountId);
+        
+        // Store the photo for this transaction
+        this.discountIdPhoto = {
+            discountId: discountId,
+            discountName: discount?.name || 'Unknown',
+            photoData: this.capturedIdPhotoData,
+            capturedAt: new Date().toISOString()
+        };
+        
+        this.activeDiscount = discount;
+        
+        this.stopCamera();
+        Modal.close();
+        
         this.renderDiscountBar();
-        Toast.info(this.activeDiscount 
-            ? `${this.activeDiscount.name} discount active - new items will get ${this.activeDiscount.percent}% off`
-            : 'Discount disabled');
+        Toast.success(`${discount.name} discount applied with ID verification`);
+    },
+    
+    skipIdCapture(discountId) {
+        const discount = this.discountPresets.find(d => d.id === discountId);
+        
+        // Log that ID was skipped
+        this.discountIdPhoto = {
+            discountId: discountId,
+            discountName: discount?.name || 'Unknown',
+            photoData: null,
+            skipped: true,
+            skippedAt: new Date().toISOString()
+        };
+        
+        this.activeDiscount = discount;
+        
+        this.stopCamera();
+        Modal.close();
+        
+        this.renderDiscountBar();
+        Toast.warning(`${discount.name} discount applied WITHOUT ID photo`);
+    },
+    
+    cancelIdCapture() {
+        this.stopCamera();
+        Modal.close();
     },
     
     clearActiveDiscount() {
@@ -701,6 +886,14 @@ const POS = {
                 subtotal: originalSubtotal,
                 totalDiscount,
                 total,
+                
+                // Discount tracking
+                discountInfo: totalDiscount > 0 ? {
+                    hasDiscount: true,
+                    discountTypes: Object.keys(discountsByType),
+                    details: discountsByType,
+                    idPhoto: this.discountIdPhoto || null
+                } : null,
                 
                 paymentMethod,
                 cashReceived: paymentMethod === 'cash' ? cashReceived : null,
