@@ -319,12 +319,23 @@ const Admin = {
         const container = document.getElementById('discountPresetsList');
         if (!container) return;
         
+        // Reload from Firebase to get latest
+        await POS.loadDiscountPresets();
+        
+        if (POS.discountPresets.length === 0) {
+            container.innerHTML = '<p class="empty-state">No discount presets</p>';
+            return;
+        }
+        
         container.innerHTML = POS.discountPresets.map(d => `
             <div class="preset-item">
                 <span class="preset-icon">${d.icon}</span>
                 <span class="preset-name">${d.name}</span>
                 <span class="preset-percent">${d.percent}%</span>
-                <button class="btn btn-icon btn-sm" onclick="Admin.editDiscountPreset('${d.id}')">✏️</button>
+                <div class="preset-actions">
+                    <button class="btn btn-icon btn-sm" onclick="Admin.editDiscountPreset('${d.id}')" title="Edit">✏️</button>
+                    <button class="btn btn-icon btn-sm btn-danger" onclick="Admin.deleteDiscountPreset('${d.id}')" title="Delete">🗑️</button>
+                </div>
             </div>
         `).join('');
     },
@@ -401,24 +412,53 @@ const Admin = {
                 const form = document.getElementById('presetForm');
                 const data = new FormData(form);
                 
-                preset.name = data.get('name');
-                preset.icon = data.get('icon') || '🏷️';
-                preset.percent = parseInt(data.get('percent')) || 10;
+                const updatedPreset = {
+                    name: data.get('name'),
+                    icon: data.get('icon') || '🏷️',
+                    percent: parseInt(data.get('percent')) || 10
+                };
                 
-                // Update in Firebase if it's a custom preset
-                if (preset.id.startsWith('custom_')) {
-                    try {
-                        await DB.update('discountPresets', preset.id, preset);
-                    } catch (error) {
-                        console.error('Error updating preset:', error);
-                    }
+                try {
+                    // Always save to Firebase (all presets should be in Firebase)
+                    await DB.update('discountPresets', presetId, updatedPreset);
+                    
+                    // Update local array
+                    Object.assign(preset, updatedPreset);
+                    
+                    POS.renderDiscountBar();
+                    this.loadDiscountPresets();
+                    Toast.success('Discount preset updated');
+                } catch (error) {
+                    console.error('Error updating preset:', error);
+                    Toast.error('Failed to update');
+                    return false;
                 }
-                
-                POS.renderDiscountBar();
-                this.loadDiscountPresets();
-                Toast.success('Discount preset updated');
             }
         });
+    },
+    
+    async deleteDiscountPreset(presetId) {
+        const preset = POS.discountPresets.find(d => d.id === presetId);
+        if (!preset) return;
+        
+        if (!confirm(`Delete discount "${preset.name}"?`)) return;
+        
+        try {
+            await DB.delete('discountPresets', presetId);
+            
+            // Remove from local array
+            const index = POS.discountPresets.findIndex(d => d.id === presetId);
+            if (index !== -1) {
+                POS.discountPresets.splice(index, 1);
+            }
+            
+            POS.renderDiscountBar();
+            this.loadDiscountPresets();
+            Toast.success('Discount preset deleted');
+        } catch (error) {
+            console.error('Error deleting preset:', error);
+            Toast.error('Failed to delete');
+        }
     },
     
     // ========== MANAGE POS SALES ==========

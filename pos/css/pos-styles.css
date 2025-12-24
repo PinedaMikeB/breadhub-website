@@ -3244,3 +3244,119 @@ details summary {
 .role-tag.manager { background: #3498db; color: white; }
 .role-tag.cashier { background: #27ae60; color: white; }
 .role-tag.baker { background: #e67e22; color: white; }
+
+
+/* ==========================================
+   PENDING SHIFT BANNER & PRESET ACTIONS v16
+   ========================================== */
+
+/* Pending Shift Banner */
+.pending-shift-banner {
+    background: linear-gradient(90deg, #e74c3c, #c0392b);
+    color: white;
+    padding: 12px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    animation: pulse-banner 2s infinite;
+}
+
+@keyframes pulse-banner {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
+}
+
+.banner-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.banner-icon {
+    font-size: 1.5rem;
+}
+
+.banner-text {
+    font-weight: 500;
+}
+
+.pending-shift-banner .btn-warning {
+    background: #f39c12;
+    color: #000;
+    border: none;
+}
+
+.pending-shift-banner .btn-outline {
+    border-color: white;
+    color: white;
+}
+
+.pending-shift-banner .btn-outline:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+/* Preset item with actions */
+.preset-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+
+.preset-item:last-child {
+    border-bottom: none;
+}
+
+.preset-item .preset-icon {
+    font-size: 1.2rem;
+}
+
+.preset-item .preset-name {
+    flex: 1;
+}
+
+.preset-item .preset-percent {
+    font-weight: 600;
+    color: var(--primary);
+    min-width: 50px;
+    text-align: right;
+}
+
+.preset-item .preset-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.preset-item .btn-icon {
+    padding: 4px 8px;
+    font-size: 0.85rem;
+}
+
+/* Draft Shift Finalize Modal */
+.draft-shift-finalize {
+    padding: 10px 0;
+}
+
+.shift-info-summary,
+.shift-sales-summary,
+.shift-expenses-summary {
+    background: var(--bg-main);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.shift-info-summary p,
+.shift-sales-summary p {
+    margin: 5px 0;
+}
+
+.shift-sales-summary h4,
+.shift-expenses-summary h4 {
+    margin: 0 0 10px 0;
+    color: var(--primary);
+}

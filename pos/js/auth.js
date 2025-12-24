@@ -1772,5 +1772,155 @@ BreadHub POS System
             Toast.error('Failed to update change fund');
             return false;
         }
+    },
+    
+    // ========== PENDING DRAFT SHIFT NOTIFICATION ==========
+    
+    async checkForPendingDraftShifts() {
+        if (!this.userData) return;
+        
+        try {
+            // Find draft shifts for this user that are NOT the current shift
+            const allShifts = await DB.getAll('shifts');
+            const pendingDrafts = allShifts.filter(s => 
+                s.staffId === this.userData.id && 
+                s.status === 'draft' &&
+                s.id !== this.currentShift?.id
+            );
+            
+            if (pendingDrafts.length > 0) {
+                this.pendingDraftShift = pendingDrafts[0]; // Most recent
+                this.showPendingShiftBanner();
+            } else {
+                this.pendingDraftShift = null;
+                this.hidePendingShiftBanner();
+            }
+        } catch (error) {
+            console.error('Error checking draft shifts:', error);
+        }
+    },
+    
+    showPendingShiftBanner() {
+        const banner = document.getElementById('pendingShiftBanner');
+        if (banner && this.pendingDraftShift) {
+            const shift = this.pendingDraftShift;
+            const bannerText = banner.querySelector('.banner-text');
+            if (bannerText) {
+                bannerText.textContent = `⚠️ You have Shift #${shift.shiftNumber} (${shift.dateKey}) still in draft. Please finalize it!`;
+            }
+            banner.style.display = 'block';
+        }
+    },
+    
+    hidePendingShiftBanner() {
+        const banner = document.getElementById('pendingShiftBanner');
+        if (banner) {
+            banner.style.display = 'none';
+        }
+    },
+    
+    async showPendingDraftShift() {
+        if (!this.pendingDraftShift) {
+            Toast.error('No pending draft shift found');
+            return;
+        }
+        
+        const shift = this.pendingDraftShift;
+        
+        // Get sales for this shift
+        const sales = await DB.query('sales', 'shiftId', '==', shift.id);
+        const cashSales = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + (s.total || 0), 0);
+        const gcashSales = sales.filter(s => s.paymentMethod === 'gcash').reduce((sum, s) => sum + (s.total || 0), 0);
+        const totalSales = cashSales + gcashSales;
+        
+        Modal.open({
+            title: `📋 Finalize Draft Shift #${shift.shiftNumber}`,
+            content: `
+                <div class="draft-shift-finalize">
+                    <div class="shift-info-summary">
+                        <p><strong>Date:</strong> ${shift.dateKey}</p>
+                        <p><strong>Started:</strong> ${Utils.formatTime(shift.startTime)}</p>
+                        <p><strong>Draft saved:</strong> ${shift.draftTime ? Utils.formatTime(shift.draftTime) : 'Unknown'}</p>
+                    </div>
+                    
+                    <div class="shift-sales-summary">
+                        <h4>💰 Shift Sales</h4>
+                        <p>Cash Sales: ${Utils.formatCurrency(shift.cashSales || cashSales)}</p>
+                        <p>GCash Sales: ${Utils.formatCurrency(shift.gcashSales || gcashSales)}</p>
+                        <p><strong>Total: ${Utils.formatCurrency(shift.totalSales || totalSales)}</strong></p>
+                    </div>
+                    
+                    ${shift.draftExpenses?.length > 0 ? `
+                        <div class="shift-expenses-summary">
+                            <h4>🛒 Expenses Recorded</h4>
+                            <p>${shift.draftExpenses.length} items - ${Utils.formatCurrency(shift.draftExpensesTotal || 0)}</p>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="form-group">
+                        <label>💵 Actual Cash You Handed Over</label>
+                        <input type="number" id="draftActualCash" class="form-input form-input-lg" 
+                               value="${shift.handoverCash || ''}" placeholder="Enter amount" step="0.01">
+                    </div>
+                </div>
+            `,
+            saveText: '✅ Finalize & Close Shift',
+            onSave: async () => {
+                await this.finalizePendingDraftShift();
+            }
+        });
+    },
+    
+    async finalizePendingDraftShift() {
+        const actualCash = parseFloat(document.getElementById('draftActualCash')?.value) || 0;
+        
+        if (actualCash <= 0) {
+            Toast.error('Please enter the cash amount');
+            return false;
+        }
+        
+        const shift = this.pendingDraftShift;
+        const expectedCash = shift.expectedCash || 0;
+        const expenses = shift.draftExpensesTotal || 0;
+        const adjustedExpected = expectedCash - expenses;
+        const variance = actualCash - adjustedExpected;
+        
+        let balanceStatus;
+        if (Math.abs(variance) < 1) {
+            balanceStatus = 'balanced';
+        } else if (variance > 0) {
+            balanceStatus = 'over';
+        } else {
+            balanceStatus = 'short';
+        }
+        
+        try {
+            // Update shift to completed
+            await DB.update('shifts', shift.id, {
+                status: 'completed',
+                endTime: new Date().toISOString(),
+                actualCash: actualCash,
+                adjustedExpected: adjustedExpected,
+                variance: variance,
+                balanceStatus: balanceStatus,
+                expenses: expenses,
+                expensesDetails: shift.draftExpenses || [],
+                finalizedAt: new Date().toISOString(),
+                finalizedBy: this.userData.name
+            });
+            
+            this.pendingDraftShift = null;
+            this.hidePendingShiftBanner();
+            
+            Toast.success(`Shift #${shift.shiftNumber} finalized! Status: ${balanceStatus.toUpperCase()}`);
+            
+            // Check if there are more pending drafts
+            await this.checkForPendingDraftShifts();
+            
+        } catch (error) {
+            console.error('Error finalizing shift:', error);
+            Toast.error('Failed to finalize shift');
+            return false;
+        }
     }
 };

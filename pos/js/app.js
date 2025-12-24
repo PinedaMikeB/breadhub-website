@@ -45,11 +45,32 @@ const App = {
             // Load cashier quick panel data
             this.loadCashierQuickPanel();
             
+            // Check for pending draft shifts (cashier reminder)
+            await Auth.checkForPendingDraftShifts();
+            
+            // Set up periodic reminder for draft shifts (every 10 minutes)
+            this.startDraftShiftReminder();
+            
             Toast.success('POS Ready');
         } catch (error) {
             console.error('Error loading data:', error);
             Toast.error('Failed to load data');
         }
+    },
+    
+    startDraftShiftReminder() {
+        // Remind every 10 minutes about pending draft shifts
+        setInterval(async () => {
+            await Auth.checkForPendingDraftShifts();
+        }, 10 * 60 * 1000); // 10 minutes
+    },
+    
+    dismissBanner() {
+        const banner = document.getElementById('pendingShiftBanner');
+        if (banner) {
+            banner.style.display = 'none';
+        }
+        // Will show again after 10 minutes or on next action
     },
     
     updateRoleBasedUI() {
