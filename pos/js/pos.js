@@ -1074,18 +1074,20 @@ const POS = {
         Toast.info('Loading transactions...');
         
         try {
-            // Get today's sales for current shift
+            // Get today's sales for current shift - FRESH from server
             const shiftId = Auth.getShiftId();
             const today = Utils.getTodayKey();
             
             let sales = [];
             if (shiftId && shiftId !== 'admin') {
-                // Get sales for this shift
-                sales = await DB.query('sales', 'shiftId', '==', shiftId);
+                // Get sales for this shift - fresh
+                sales = await DB.queryFresh('sales', 'shiftId', '==', shiftId);
             } else {
-                // Admin - get today's sales
-                sales = await DB.query('sales', 'dateKey', '==', today);
+                // Admin - get today's sales - fresh
+                sales = await DB.queryFresh('sales', 'dateKey', '==', today);
             }
+            
+            console.log(`Transaction history: Found ${sales.length} sales for shift ${shiftId}`);
             
             // Sort by timestamp descending (newest first)
             sales.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));

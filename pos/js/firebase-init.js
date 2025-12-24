@@ -78,6 +78,20 @@ const DB = {
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     },
     
+    // Force fetch from server (bypass cache)
+    async queryFresh(collectionName, field, operator, value) {
+        const snapshot = await db.collection(collectionName)
+            .where(field, operator, value)
+            .get({ source: 'server' });
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    },
+    
+    // Get all fresh from server
+    async getAllFresh(collectionName) {
+        const snapshot = await db.collection(collectionName).get({ source: 'server' });
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    },
+    
     // Get next sale number for today
     async getNextSaleNumber() {
         const today = new Date().toISOString().split('T')[0];

@@ -145,15 +145,19 @@ const Admin = {
         
         try {
             const today = Utils.getTodayKey();
-            const shifts = await DB.query('shifts', 'dateKey', '==', today);
+            
+            // Use fresh queries to bypass Firestore cache
+            const shifts = await DB.queryFresh('shifts', 'dateKey', '==', today);
             
             if (shifts.length === 0) {
                 container.innerHTML = '<p class="empty-state">No shifts today</p>';
                 return;
             }
             
-            // Get sales for each shift
-            const sales = await DB.query('sales', 'dateKey', '==', today);
+            // Get sales for each shift - also fresh
+            const sales = await DB.queryFresh('sales', 'dateKey', '==', today);
+            
+            console.log(`Loaded ${shifts.length} shifts, ${sales.length} sales for ${today}`);
             
             // Sort shifts by number
             shifts.sort((a, b) => (a.shiftNumber || 0) - (b.shiftNumber || 0));
@@ -207,18 +211,20 @@ const Admin = {
     
     async viewShiftDetails(shiftId) {
         try {
-            // Get shift
-            const shifts = await DB.getAll('shifts');
+            // Get shift - fresh from server
+            const shifts = await DB.getAllFresh('shifts');
             const shift = shifts.find(s => s.id === shiftId);
             if (!shift) {
                 Toast.error('Shift not found');
                 return;
             }
             
-            // Get sales for this shift
-            const allSales = await DB.getAll('sales');
-            const shiftSales = allSales.filter(s => s.shiftId === shiftId);
+            // Get sales for this shift - fresh from server
+            const allSales = await DB.queryFresh('sales', 'shiftId', '==', shiftId);
+            const shiftSales = allSales;
             const totalSales = shiftSales.reduce((sum, s) => sum + (s.total || 0), 0);
+            
+            console.log(`Shift ${shiftId}: Found ${shiftSales.length} sales, total: ${totalSales}`);
             
             // Calculate discount totals
             let totalDiscounts = 0;
