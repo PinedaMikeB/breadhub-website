@@ -373,14 +373,24 @@ const POS = {
             { value: 'non-coffee', label: 'Non-Coffee', emoji: '🧃' }
         ];
         
+        // Add-on sub-categories
+        const addonCats = [
+            { value: 'box', label: 'Boxes', emoji: '📦' },
+            { value: 'creamer', label: 'Creamers', emoji: '🥛' },
+            { value: 'sugar', label: 'Sugar', emoji: '🍬' },
+            { value: 'extras', label: 'Extras', emoji: '➕' }
+        ];
+        
         // Select which categories to show based on main category filter
         let catsToShow = [];
         if (this.currentMainCategory === 'breads') {
             catsToShow = breadCats;
         } else if (this.currentMainCategory === 'drinks') {
             catsToShow = drinkCats;
+        } else if (this.currentMainCategory === 'addons') {
+            catsToShow = addonCats;
         } else {
-            catsToShow = [...breadCats, ...drinkCats]; // All
+            catsToShow = [...breadCats, ...drinkCats]; // All (excluding addons from default view)
         }
         
         let html = '<button class="category-tab active" data-category="all" onclick="POS.filterByCategory(\'all\')">All</button>';
@@ -432,7 +442,7 @@ const POS = {
         const search = document.getElementById('productSearch')?.value.toLowerCase() || '';
         
         let filtered = this.products.filter(p => {
-            // Main category filter (breads vs drinks)
+            // Main category filter (breads vs drinks vs addons)
             if (this.currentMainCategory !== 'all') {
                 const category = (p.category || '').toLowerCase();
                 const mainCat = (p.mainCategory || '').toLowerCase();
@@ -441,8 +451,17 @@ const POS = {
                 const drinkCategories = ['coffee', 'non-coffee', 'drinks', 'beverages'];
                 const isDrink = mainCat === 'drinks' || drinkCategories.some(c => category.includes(c));
                 
+                // Add-on categories
+                const addonCategories = ['box', 'creamer', 'sugar', 'extras', 'addon', 'add-on', 'addons', 'add-ons'];
+                const isAddon = mainCat === 'addons' || mainCat === 'add-ons' || addonCategories.some(c => category.includes(c));
+                
                 if (this.currentMainCategory === 'drinks' && !isDrink) return false;
-                if (this.currentMainCategory === 'breads' && isDrink) return false;
+                if (this.currentMainCategory === 'breads' && (isDrink || isAddon)) return false;
+                if (this.currentMainCategory === 'addons' && !isAddon) return false;
+                
+                // Exclude addons from 'all' view by default (only show breads & drinks)
+                // Uncomment next line if you want addons hidden from 'All' view
+                // if (this.currentMainCategory === 'all' && isAddon) return false;
             }
             
             // Sub-category filter
