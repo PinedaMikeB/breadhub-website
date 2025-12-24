@@ -1,11 +1,14 @@
 /**
- * BreadHub POS - Admin Panel v4
+ * BreadHub POS - Admin Panel v5
  * - Added delete shifts, delete purchases
  * - Added staff setup modal
  * - Added permission-based visibility
+ * - Added auto-refresh for shifts
  */
 
 const Admin = {
+    refreshInterval: null,
+    
     async init() {
         this.loadTodayStats();
         this.loadLowStockAlerts();
@@ -14,6 +17,37 @@ const Admin = {
         this.loadDiscountPresets();
         this.loadStaffList();
         this.updateChangeFundDisplay();
+        
+        // Auto-refresh shifts every 30 seconds
+        this.startAutoRefresh();
+    },
+    
+    startAutoRefresh() {
+        // Clear any existing interval
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+        
+        // Refresh shifts and stats every 30 seconds
+        this.refreshInterval = setInterval(() => {
+            console.log('Auto-refreshing admin data...');
+            this.loadActiveShifts();
+            this.loadTodayStats();
+        }, 30000);
+    },
+    
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+        }
+    },
+    
+    // Manual refresh button
+    refreshShifts() {
+        Toast.info('Refreshing...');
+        this.loadActiveShifts();
+        this.loadTodayStats();
     },
     
     // Update change fund display

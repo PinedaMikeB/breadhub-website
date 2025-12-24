@@ -4651,3 +4651,19 @@ details summary {
 .id-photo-img:hover {
     border-color: var(--primary);
 }
+
+
+/* ==========================================
+   ADMIN CARD HEADER WITH REFRESH v24
+   ========================================== */
+
+.card-header-with-action {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.card-header-with-action h3 {
+    margin: 0;
+}

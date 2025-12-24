@@ -961,9 +961,13 @@ const POS = {
             
             Toast.success(`Sale ${saleId} completed!`);
             
-            // Clear cart
+            // Clear cart AND discount (important: prevent accidental reuse)
             this.cart = [];
+            this.activeDiscount = null;
+            this.discountIdPhoto = null;
+            this.capturedIdPhotos = [];
             this.renderCart();
+            this.renderDiscountBar();
             
             // Show receipt with print option
             this.showReceiptModal(saleRecord);
