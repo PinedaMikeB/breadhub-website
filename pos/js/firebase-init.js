@@ -67,6 +67,14 @@ const DB = {
         });
     },
     
+    // Set document (creates if doesn't exist, merges if exists)
+    async set(collectionName, docId, data, merge = true) {
+        await db.collection(collectionName).doc(docId).set({
+            ...data,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: merge });
+    },
+    
     async delete(collectionName, docId) {
         await db.collection(collectionName).doc(docId).delete();
     },

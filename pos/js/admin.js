@@ -1229,7 +1229,8 @@ const Admin = {
     
     async toggleDeviceRestriction(enabled) {
         try {
-            await DB.update('settings', 'pos', { deviceRestrictionEnabled: enabled });
+            // Use set() to create document if it doesn't exist
+            await DB.set('settings', 'pos', { deviceRestrictionEnabled: enabled });
             Auth.deviceRestrictionEnabled = enabled;
             Toast.success(enabled ? 'Device restriction ENABLED' : 'Device restriction DISABLED');
         } catch (error) {

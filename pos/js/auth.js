@@ -1869,8 +1869,8 @@ BreadHub POS System
         }
         
         try {
-            // Update settings
-            await DB.update('settings', 'pos', {
+            // Update settings (use set to create if doesn't exist)
+            await DB.set('settings', 'pos', {
                 changeFund: newAmount,
                 changeFundUpdatedAt: new Date().toISOString(),
                 changeFundUpdatedBy: this.userData.name
