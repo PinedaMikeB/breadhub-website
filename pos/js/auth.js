@@ -691,16 +691,19 @@ const Auth = {
                     <!-- RIGHT SIDE: Fixed Actions -->
                     <div class="shift-end-right">
                         <div class="end-shift-actions">
-                            <button class="btn btn-success btn-xl" onclick="Auth.finalizeEndShift()">
+                            <div class="change-fund-confirm">
+                                <h4>🔄 Confirm Change Fund</h4>
+                                <p>Change Fund Left in Drawer:</p>
+                                <div class="change-fund-display">${Utils.formatCurrency(this.changeFund)}</div>
+                                <label class="checkbox-confirm">
+                                    <input type="checkbox" id="changeFundConfirmed" onchange="Auth.toggleEndShiftBtn()">
+                                    I confirm the change fund is in the drawer
+                                </label>
+                            </div>
+                            
+                            <button class="btn btn-success btn-xl" onclick="Auth.finalizeEndShift()" id="endShiftBtn" disabled>
                                 ✅ End Shift & Generate Report
                             </button>
-                            
-                            <div class="draft-close-box">
-                                <p>Need to let another cashier start?</p>
-                                <button class="btn btn-warning btn-lg" onclick="Auth.draftCloseShift()">
-                                    📋 Draft Close (Finalize Later)
-                                </button>
-                            </div>
                             
                             <button class="btn btn-outline btn-lg" onclick="Modal.close()">
                                 Cancel
@@ -716,409 +719,11 @@ const Auth = {
         this.shiftExpenses = [];
     },
     
-    // ========== DRAFT CLOSE ==========
-    
-    async draftCloseShift() {
-        if (!this.currentShift || !this.endShiftData) {
-            Toast.error('No shift data available');
-            return;
-        }
-        
-        // Show draft close options modal
-        Modal.close();
-        setTimeout(() => {
-            this.showDraftCloseModal();
-        }, 300);
-    },
-    
-    showDraftCloseModal() {
-        const { cashSales, gcashSales, totalSales, transactionCount, expectedCash } = this.endShiftData;
-        const expensesData = this.getExpensesData();
-        const totalExpenses = expensesData.reduce((sum, e) => sum + e.amount, 0);
-        const changeFund = this.changeFund;
-        
-        // Cash to remit = Cash Sales - Expenses (this goes with the report)
-        const cashToRemit = cashSales - totalExpenses;
-        
-        Modal.open({
-            title: '📋 Draft Close Shift',
-            width: '90vw',
-            content: `
-                <div class="draft-close-layout">
-                    <div class="draft-close-left">
-                        <div class="draft-summary-section">
-                            <h4>📊 Shift Summary</h4>
-                            <div class="summary-grid-compact">
-                                <div class="summary-item">
-                                    <span class="label">Cashier</span>
-                                    <span class="value">${this.currentShift.staffName}</span>
-                                </div>
-                                <div class="summary-item">
-                                    <span class="label">Shift #</span>
-                                    <span class="value">${this.currentShift.shiftNumber}</span>
-                                </div>
-                                <div class="summary-item">
-                                    <span class="label">Date</span>
-                                    <span class="value">${this.currentShift.dateKey}</span>
-                                </div>
-                                <div class="summary-item">
-                                    <span class="label">Transactions</span>
-                                    <span class="value">${transactionCount}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="cash-breakdown-section">
-                            <h4>💰 Cash Breakdown</h4>
-                            <div class="breakdown-table">
-                                <div class="breakdown-row">
-                                    <span>💵 Cash Sales:</span>
-                                    <span class="amount">${Utils.formatCurrency(cashSales)}</span>
-                                </div>
-                                <div class="breakdown-row">
-                                    <span>📱 GCash Sales:</span>
-                                    <span class="amount">${Utils.formatCurrency(gcashSales)}</span>
-                                </div>
-                                ${totalExpenses > 0 ? `
-                                <div class="breakdown-row expense">
-                                    <span>🛒 Expenses:</span>
-                                    <span class="amount">-${Utils.formatCurrency(totalExpenses)}</span>
-                                </div>
-                                ` : ''}
-                                <div class="breakdown-row total">
-                                    <span>Total Sales:</span>
-                                    <span class="amount">${Utils.formatCurrency(totalSales)}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="remittance-section">
-                            <h4>💵 Cash to Remit (with Report)</h4>
-                            <div class="remit-amount">${Utils.formatCurrency(cashToRemit)}</div>
-                            <small>Cash Sales (${Utils.formatCurrency(cashSales)}) - Expenses (${Utils.formatCurrency(totalExpenses)})</small>
-                        </div>
-                        
-                        <div class="change-fund-section">
-                            <h4>🔄 Change Fund to Leave in Drawer</h4>
-                            <div class="change-fund-amount">${Utils.formatCurrency(changeFund)}</div>
-                            <small>This stays in the drawer for the next shift</small>
-                        </div>
-                    </div>
-                    
-                    <div class="draft-close-right">
-                        <div class="draft-close-actions">
-                            <h4>Choose Action:</h4>
-                            
-                            <button class="btn btn-primary btn-lg action-btn" onclick="Auth.emailDraftReport()">
-                                📧 Email Report to Owner
-                            </button>
-                            
-                            <button class="btn btn-success btn-lg action-btn" onclick="Auth.saveDraftAndClose()">
-                                💾 Save Draft & Logout
-                            </button>
-                            
-                            <button class="btn btn-secondary btn-lg action-btn" onclick="Auth.printBlankCashierForm()">
-                                🖨️ Print Blank Cashier Form
-                            </button>
-                            
-                            <div class="handover-confirm-section">
-                                <h5>🤝 Confirm Change Fund Handover</h5>
-                                <div class="form-group">
-                                    <label>Change Fund Left in Drawer</label>
-                                    <input type="number" id="changeFundLeft" class="form-input" 
-                                           value="${changeFund}" step="0.01">
-                                </div>
-                                <div id="changeFundStatus" class="fund-status"></div>
-                            </div>
-                            
-                            <button class="btn btn-warning btn-xl action-btn" onclick="Auth.confirmDraftClose()">
-                                ✅ Confirm Draft Close
-                            </button>
-                            
-                            <button class="btn btn-outline" onclick="Auth.cancelDraftClose()">
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `,
-            hideFooter: true
-        });
-        
-        // Store data for later
-        this.draftCloseData = {
-            cashSales,
-            gcashSales,
-            totalSales,
-            totalExpenses,
-            cashToRemit,
-            changeFund,
-            transactionCount,
-            expensesData
-        };
-        
-        // Add change fund validation listener
-        setTimeout(() => {
-            const input = document.getElementById('changeFundLeft');
-            if (input) {
-                input.addEventListener('input', () => this.validateChangeFund());
-                this.validateChangeFund();
-            }
-        }, 100);
-    },
-    
-    validateChangeFund() {
-        const input = document.getElementById('changeFundLeft');
-        const status = document.getElementById('changeFundStatus');
-        const value = parseFloat(input?.value) || 0;
-        const expected = this.changeFund;
-        
-        if (Math.abs(value - expected) < 1) {
-            status.innerHTML = '<span class="status-ok">✅ Change fund correct</span>';
-            status.className = 'fund-status ok';
-        } else if (value < expected) {
-            status.innerHTML = `<span class="status-short">⚠️ SHORT by ${Utils.formatCurrency(expected - value)}</span>`;
-            status.className = 'fund-status short';
-        } else {
-            status.innerHTML = `<span class="status-over">⬆️ OVER by ${Utils.formatCurrency(value - expected)}</span>`;
-            status.className = 'fund-status over';
-        }
-    },
-    
-    async emailDraftReport() {
-        const data = this.draftCloseData;
-        const shift = this.currentShift;
-        
-        // Generate email content
-        const subject = encodeURIComponent(`📋 Draft Shift Report - ${shift.staffName} - Shift #${shift.shiftNumber} - ${shift.dateKey}`);
-        const body = encodeURIComponent(`
-DRAFT SHIFT REPORT
-==================
-Cashier: ${shift.staffName}
-Shift #: ${shift.shiftNumber}
-Date: ${shift.dateKey}
-Start Time: ${Utils.formatTime(shift.startTime)}
-Draft Time: ${new Date().toLocaleTimeString()}
-
-SALES SUMMARY
--------------
-Cash Sales: ₱${data.cashSales.toLocaleString()}
-GCash Sales: ₱${data.gcashSales.toLocaleString()}
-Total Sales: ₱${data.totalSales.toLocaleString()}
-Transactions: ${data.transactionCount}
-
-EXPENSES
---------
-Total Expenses: ₱${data.totalExpenses.toLocaleString()}
-${data.expensesData.map(e => `- ${e.itemName}: ₱${e.amount.toLocaleString()}`).join('\n')}
-
-CASH SUMMARY
-------------
-Cash to Remit: ₱${data.cashToRemit.toLocaleString()}
-Change Fund Left: ₱${data.changeFund.toLocaleString()}
-
-Status: DRAFT - Pending Finalization
-        `);
-        
-        window.open(`mailto:michael.marga@gmail.com?subject=${subject}&body=${body}`);
-        Toast.success('Email client opened');
-    },
-    
-    async printBlankCashierForm() {
-        // Generate blank cashier form PDF
-        const shift = this.currentShift;
-        const today = new Date().toLocaleDateString('en-PH');
-        
-        const blankFormHTML = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Blank Cashier Form</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 20px; }
-                    h1 { text-align: center; margin-bottom: 5px; }
-                    h2 { text-align: center; color: #666; margin-top: 0; }
-                    .header-info { display: flex; justify-content: space-between; margin: 20px 0; }
-                    .field { margin: 15px 0; }
-                    .field label { display: block; font-weight: bold; margin-bottom: 5px; }
-                    .field .line { border-bottom: 1px solid #000; height: 25px; }
-                    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-                    .section { border: 1px solid #000; padding: 15px; margin: 15px 0; }
-                    .section h3 { margin-top: 0; background: #f0f0f0; padding: 5px; }
-                    table { width: 100%; border-collapse: collapse; }
-                    th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-                    .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
-                    .signature-box { width: 200px; text-align: center; }
-                    .signature-line { border-top: 1px solid #000; margin-top: 50px; padding-top: 5px; }
-                </style>
-            </head>
-            <body>
-                <h1>🍞 BreadHub</h1>
-                <h2>Cashier Shift Report Form</h2>
-                
-                <div class="header-info">
-                    <div class="field">
-                        <label>Date:</label>
-                        <div class="line" style="width: 150px;">${today}</div>
-                    </div>
-                    <div class="field">
-                        <label>Shift #:</label>
-                        <div class="line" style="width: 100px;">${shift?.shiftNumber || '___'}</div>
-                    </div>
-                    <div class="field">
-                        <label>Cashier Name:</label>
-                        <div class="line" style="width: 200px;">${shift?.staffName || ''}</div>
-                    </div>
-                </div>
-                
-                <div class="two-col">
-                    <div class="field">
-                        <label>Start Time:</label>
-                        <div class="line"></div>
-                    </div>
-                    <div class="field">
-                        <label>End Time:</label>
-                        <div class="line"></div>
-                    </div>
-                </div>
-                
-                <div class="section">
-                    <h3>💰 Sales Summary</h3>
-                    <table>
-                        <tr><td>Cash Sales</td><td style="width:150px;">₱ ________________</td></tr>
-                        <tr><td>GCash Sales</td><td>₱ ________________</td></tr>
-                        <tr><td>Other Payment</td><td>₱ ________________</td></tr>
-                        <tr><td><strong>TOTAL SALES</strong></td><td><strong>₱ ________________</strong></td></tr>
-                    </table>
-                </div>
-                
-                <div class="section">
-                    <h3>🛒 Expenses / Emergency Purchases</h3>
-                    <table>
-                        <tr><th>Item</th><th>Supplier</th><th>Qty</th><th>Amount</th></tr>
-                        <tr><td>&nbsp;</td><td></td><td></td><td>₱</td></tr>
-                        <tr><td>&nbsp;</td><td></td><td></td><td>₱</td></tr>
-                        <tr><td>&nbsp;</td><td></td><td></td><td>₱</td></tr>
-                        <tr><td>&nbsp;</td><td></td><td></td><td>₱</td></tr>
-                        <tr><td colspan="3"><strong>TOTAL EXPENSES</strong></td><td><strong>₱ ________</strong></td></tr>
-                    </table>
-                </div>
-                
-                <div class="section">
-                    <h3>🧮 Cash Reconciliation</h3>
-                    <table>
-                        <tr><td>Starting Cash (Change Fund)</td><td style="width:150px;">₱ ________________</td></tr>
-                        <tr><td>+ Cash Sales</td><td>₱ ________________</td></tr>
-                        <tr><td>- Expenses</td><td>₱ ________________</td></tr>
-                        <tr><td><strong>Expected Cash</strong></td><td><strong>₱ ________________</strong></td></tr>
-                        <tr><td>Actual Cash Count</td><td>₱ ________________</td></tr>
-                        <tr><td><strong>Variance (Short/Over)</strong></td><td><strong>₱ ________________</strong></td></tr>
-                    </table>
-                </div>
-                
-                <div class="section">
-                    <h3>💵 Cash Remittance</h3>
-                    <table>
-                        <tr><td>Cash to Remit (with report)</td><td style="width:150px;">₱ ________________</td></tr>
-                        <tr><td>Change Fund Left in Drawer</td><td>₱ ________________</td></tr>
-                    </table>
-                </div>
-                
-                <div class="signature-section">
-                    <div class="signature-box">
-                        <div class="signature-line">Cashier Signature</div>
-                    </div>
-                    <div class="signature-box">
-                        <div class="signature-line">Verified By</div>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `;
-        
-        // Open print window
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(blankFormHTML);
-        printWindow.document.close();
-        printWindow.print();
-        
-        Toast.success('Blank form opened for printing');
-    },
-    
-    async saveDraftAndClose() {
-        await this.confirmDraftClose();
-        // Logout after saving
-        this.logout();
-    },
-    
-    cancelDraftClose() {
-        Modal.close();
-        setTimeout(() => this.endShift(), 300);
-    },
-    
-    async confirmDraftClose() {
-        const changeFundLeft = parseFloat(document.getElementById('changeFundLeft')?.value) || 0;
-        const data = this.draftCloseData;
-        
-        try {
-            // Update shift to draft status with all data
-            await DB.update('shifts', this.currentShift.id, {
-                status: 'draft',
-                draftTime: new Date().toISOString(),
-                
-                // Sales data
-                cashSales: data.cashSales,
-                gcashSales: data.gcashSales,
-                totalSales: data.totalSales,
-                transactionCount: data.transactionCount,
-                
-                // Expenses
-                draftExpenses: data.expensesData,
-                draftExpensesTotal: data.totalExpenses,
-                
-                // Cash handling
-                cashToRemit: data.cashToRemit,
-                changeFundLeft: changeFundLeft,
-                changeFundVariance: changeFundLeft - data.changeFund,
-                
-                // Expected values
-                expectedCash: (this.currentShift.startingCash || 0) + data.cashSales - data.totalExpenses
-            });
-            
-            // Log discrepancy if change fund doesn't match
-            if (Math.abs(changeFundLeft - data.changeFund) >= 1) {
-                await DB.add('handoverDiscrepancies', {
-                    type: 'change_fund',
-                    shiftId: this.currentShift.id,
-                    shiftNumber: this.currentShift.shiftNumber,
-                    dateKey: this.currentShift.dateKey,
-                    cashier: this.currentShift.staffName,
-                    expected: data.changeFund,
-                    actual: changeFundLeft,
-                    variance: changeFundLeft - data.changeFund,
-                    timestamp: new Date().toISOString()
-                });
-            }
-            
-            Toast.success('Draft saved! You can finalize later on Mac Mini.');
-            Modal.close();
-            
-            // Clear current shift from local storage
-            localStorage.removeItem('pos_shift');
-            this.currentShift = null;
-            
-        } catch (error) {
-            console.error('Error saving draft:', error);
-            Toast.error('Failed to save draft');
-        }
-    },
-    
-    // Keep logHandoverDiscrepancy for general discrepancy tracking
-    async logHandoverDiscrepancy(data) {
-        try {
-            await DB.add('handoverDiscrepancies', data);
-        } catch (error) {
-            console.error('Error logging discrepancy:', error);
+    toggleEndShiftBtn() {
+        const checkbox = document.getElementById('changeFundConfirmed');
+        const btn = document.getElementById('endShiftBtn');
+        if (btn) {
+            btn.disabled = !checkbox?.checked;
         }
     },
     
@@ -1535,89 +1140,119 @@ Status: DRAFT - Pending Finalization
         const timeStr = new Date().toLocaleTimeString('en-PH');
         const expensesData = this.expensesData || [];
         
+        // Calculate cash to remit (cash sales - expenses)
+        const cashToRemit = report.cashSales - report.expenses;
+        
         // Build expenses details HTML
         let expensesHTML = '';
         if (expensesData.length > 0) {
             expensesHTML = `
                 <div style="margin-bottom: 20px;">
-                    <h3>💸 Emergency Stock Purchases</h3>
+                    <h3 style="color: #333;">🛒 Emergency Purchases</h3>
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr style="background: #e8e8e8;">
-                            <td style="padding: 8px;"><strong>Item</strong></td>
-                            <td style="padding: 8px;"><strong>Supplier</strong></td>
-                            <td style="padding: 8px; text-align: right;"><strong>Amount</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Item</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Supplier</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>Amount</strong></td>
                         </tr>
                         ${expensesData.map(e => `
-                            <tr style="background: #fff3cd;">
-                                <td style="padding: 8px;">
-                                    <strong>${e.itemName}</strong><br>
-                                    <small>${e.qty} ${e.unit}</small>
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #ddd;">
+                                    ${e.itemName} (${e.qty} ${e.unit})
                                 </td>
-                                <td style="padding: 8px;">${e.supplierName}</td>
-                                <td style="padding: 8px; text-align: right;">${Utils.formatCurrency(e.amount)}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${e.supplierName || '-'}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₱${e.amount.toLocaleString()}</td>
                             </tr>
                         `).join('')}
-                        <tr style="border-top: 2px solid #333;">
-                            <td colspan="2" style="padding: 8px;"><strong>TOTAL</strong></td>
-                            <td style="padding: 8px; text-align: right;"><strong>${Utils.formatCurrency(report.expenses)}</strong></td>
+                        <tr style="background: #f5f5f5;">
+                            <td colspan="2" style="padding: 8px; border: 1px solid #ddd;"><strong>TOTAL EXPENSES</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>₱${report.expenses.toLocaleString()}</strong></td>
                         </tr>
                     </table>
-                    <p style="color: #856404; font-size: 0.9em;">⚠️ Pending approval in ProofMaster</p>
                 </div>
             `;
         }
         
-        // Create report content
+        // Create report content - NO change fund, only cash to remit
         const reportHTML = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
                 <div style="text-align: center; margin-bottom: 30px;">
                     <h1 style="color: #D4894A; margin: 0;">🍞 BreadHub</h1>
-                    <h2 style="margin: 10px 0;">Shift End Report</h2>
+                    <h2 style="margin: 10px 0; color: #333;">Shift End Report</h2>
                     <p style="color: #666;">${dateStr}</p>
                 </div>
                 
                 <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <h3 style="margin-top: 0;">Shift Details</h3>
-                    <table style="width: 100%;">
-                        <tr><td><strong>Shift #:</strong></td><td>${shift.shiftNumber}</td></tr>
-                        <tr><td><strong>Cashier:</strong></td><td>${shift.staffName}</td></tr>
-                        <tr><td><strong>Date:</strong></td><td>${shift.dateKey}</td></tr>
-                        <tr><td><strong>Start Time:</strong></td><td>${Utils.formatTime(shift.startTime)}</td></tr>
-                        <tr><td><strong>End Time:</strong></td><td>${timeStr}</td></tr>
+                    <h3 style="margin-top: 0; color: #333;">Shift Details</h3>
+                    <table style="width: 100%; color: #333;">
+                        <tr><td style="padding: 5px;"><strong>Shift #:</strong></td><td style="padding: 5px;">${shift.shiftNumber}</td></tr>
+                        <tr><td style="padding: 5px;"><strong>Cashier:</strong></td><td style="padding: 5px;">${shift.staffName}</td></tr>
+                        <tr><td style="padding: 5px;"><strong>Date:</strong></td><td style="padding: 5px;">${shift.dateKey}</td></tr>
+                        <tr><td style="padding: 5px;"><strong>Start Time:</strong></td><td style="padding: 5px;">${Utils.formatTime(shift.startTime)}</td></tr>
+                        <tr><td style="padding: 5px;"><strong>End Time:</strong></td><td style="padding: 5px;">${timeStr}</td></tr>
                     </table>
                 </div>
                 
                 <div style="margin-bottom: 20px;">
-                    <h3>💰 Sales Summary</h3>
+                    <h3 style="color: #333;">💰 Sales Summary</h3>
                     <table style="width: 100%; border-collapse: collapse;">
-                        <tr style="background: #e8e8e8;"><td style="padding: 8px;"><strong>Payment Method</strong></td><td style="padding: 8px; text-align: right;"><strong>Amount</strong></td></tr>
-                        <tr><td style="padding: 8px;">💵 Cash Sales</td><td style="padding: 8px; text-align: right;">${Utils.formatCurrency(report.cashSales)}</td></tr>
-                        <tr><td style="padding: 8px;">📱 GCash Sales</td><td style="padding: 8px; text-align: right;">${Utils.formatCurrency(report.gcashSales)}</td></tr>
-                        ${report.otherSales > 0 ? `<tr><td style="padding: 8px;">💳 Other</td><td style="padding: 8px; text-align: right;">${Utils.formatCurrency(report.otherSales)}</td></tr>` : ''}
-                        <tr style="background: #D4894A; color: white;"><td style="padding: 8px;"><strong>TOTAL SALES</strong></td><td style="padding: 8px; text-align: right;"><strong>${Utils.formatCurrency(report.totalSales)}</strong></td></tr>
+                        <tr style="background: #e8e8e8;">
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Payment Method</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>Amount</strong></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;">💵 Cash Sales</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₱${report.cashSales.toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;">📱 GCash Sales</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₱${report.gcashSales.toLocaleString()}</td>
+                        </tr>
+                        ${report.otherSales > 0 ? `
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;">💳 Other</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₱${report.otherSales.toLocaleString()}</td>
+                        </tr>
+                        ` : ''}
+                        <tr style="background: #D4894A; color: white;">
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>TOTAL SALES</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;"><strong>₱${report.totalSales.toLocaleString()}</strong></td>
+                        </tr>
                     </table>
-                    <p style="color: #666;">Total Transactions: ${report.transactionCount}</p>
+                    <p style="color: #666; margin-top: 10px;">Total Transactions: ${report.transactionCount}</p>
                 </div>
                 
                 ${expensesHTML}
                 
-                <div style="margin-bottom: 20px;">
-                    <h3>🧮 Cash Reconciliation</h3>
+                <div style="margin-bottom: 20px; background: #e8f5e9; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #2e7d32; margin-top: 0;">💵 Cash to Remit (Attached to Report)</h3>
                     <table style="width: 100%; border-collapse: collapse;">
-                        <tr><td style="padding: 8px;">Starting Cash</td><td style="padding: 8px; text-align: right;">${Utils.formatCurrency(report.startingCash)}</td></tr>
-                        <tr><td style="padding: 8px;">+ Cash Sales</td><td style="padding: 8px; text-align: right;">${Utils.formatCurrency(report.cashSales)}</td></tr>
-                        <tr style="border-top: 1px solid #ccc;"><td style="padding: 8px;"><strong>Expected Cash</strong></td><td style="padding: 8px; text-align: right;"><strong>${Utils.formatCurrency(report.expectedCash)}</strong></td></tr>
+                        <tr>
+                            <td style="padding: 8px;">Cash Sales</td>
+                            <td style="padding: 8px; text-align: right;">₱${report.cashSales.toLocaleString()}</td>
+                        </tr>
                         ${report.expenses > 0 ? `
-                        <tr><td style="padding: 8px; color: #e74c3c;">- Total Expenses</td><td style="padding: 8px; text-align: right; color: #e74c3c;">${Utils.formatCurrency(report.expenses)}</td></tr>
-                        <tr><td style="padding: 8px;"><strong>Adjusted Expected</strong></td><td style="padding: 8px; text-align: right;"><strong>${Utils.formatCurrency(report.adjustedExpected)}</strong></td></tr>
+                        <tr>
+                            <td style="padding: 8px; color: #c62828;">Less: Expenses</td>
+                            <td style="padding: 8px; text-align: right; color: #c62828;">- ₱${report.expenses.toLocaleString()}</td>
+                        </tr>
                         ` : ''}
-                        <tr style="border-top: 2px solid #333;"><td style="padding: 8px;"><strong>Actual Cash</strong></td><td style="padding: 8px; text-align: right;"><strong>${Utils.formatCurrency(report.actualCash)}</strong></td></tr>
+                        <tr style="border-top: 2px solid #2e7d32;">
+                            <td style="padding: 8px;"><strong>CASH TO REMIT</strong></td>
+                            <td style="padding: 8px; text-align: right; font-size: 1.3em;"><strong>₱${cashToRemit.toLocaleString()}</strong></td>
+                        </tr>
                     </table>
+                </div>
+                
+                <div style="margin-bottom: 20px; background: #fff3e0; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #e65100; margin-top: 0;">🔄 Change Fund Confirmation</h3>
+                    <p style="margin: 0;">Change Fund Left in Drawer: <strong>₱${this.changeFund.toLocaleString()}</strong></p>
+                    <p style="margin: 5px 0 0; font-size: 0.9em; color: #666;">Confirmed by cashier - ready for next shift</p>
                 </div>
                 
                 <div style="text-align: center; padding: 20px; border-radius: 8px; ${report.balanceStatus === 'balanced' ? 'background: #d4edda; color: #155724;' : report.balanceStatus === 'over' ? 'background: #fff3cd; color: #856404;' : 'background: #f8d7da; color: #721c24;'}">
                     <h2 style="margin: 0;">
-                        ${report.balanceStatus === 'balanced' ? '✅ BALANCED' : report.balanceStatus === 'over' ? `⬆️ OVER: ${Utils.formatCurrency(report.variance)}` : `⬇️ SHORT: ${Utils.formatCurrency(Math.abs(report.variance))}`}
+                        ${report.balanceStatus === 'balanced' ? '✅ BALANCED' : report.balanceStatus === 'over' ? `⬆️ OVER: ₱${report.variance.toLocaleString()}` : `⬇️ SHORT: ₱${Math.abs(report.variance).toLocaleString()}`}
                     </h2>
                 </div>
                 
@@ -1628,25 +1263,26 @@ Status: DRAFT - Pending Finalization
             </div>
         `;
         
-        // Show report modal with print/email options
+        // Store for later use
+        this.reportHTML = reportHTML;
+        this.reportData = { ...report, cashToRemit };
+        
+        // Show report modal - NO email button, auto-email on Done
         Modal.open({
             title: '📄 Shift Report Generated',
             content: `
-                <div class="report-preview">
+                <div class="report-preview" style="background: white; border-radius: 8px; max-height: 50vh; overflow-y: auto;">
                     ${reportHTML}
                 </div>
-                <div class="report-actions">
-                    <button class="btn btn-primary" onclick="Auth.printReport()">🖨️ Print Report</button>
-                    <button class="btn btn-secondary" onclick="Auth.emailReport()">📧 Email Report</button>
-                    <button class="btn btn-success" onclick="Auth.finishAndLogout()">✅ Done & Logout</button>
+            `,
+            customFooter: `
+                <div class="report-modal-footer">
+                    <button class="btn btn-primary btn-lg" onclick="Auth.printReport()">🖨️ Print Report</button>
+                    <button class="btn btn-success btn-lg" onclick="Auth.finishAndLogout()">✅ Done & Logout</button>
                 </div>
             `,
             hideFooter: true
         });
-        
-        // Store HTML for printing/emailing
-        this.reportHTML = reportHTML;
-        this.reportData = report;
     },
     
     printReport() {
@@ -1654,7 +1290,13 @@ Status: DRAFT - Pending Finalization
         printWindow.document.write(`
             <!DOCTYPE html>
             <html>
-            <head><title>Shift Report - BreadHub</title></head>
+            <head>
+                <title>Shift Report - BreadHub</title>
+                <style>
+                    body { margin: 0; padding: 0; }
+                    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
             <body>${this.reportHTML}</body>
             </html>
         `);
@@ -1662,14 +1304,29 @@ Status: DRAFT - Pending Finalization
         printWindow.print();
     },
     
-    async emailReport() {
+    async finishAndLogout() {
+        // Auto-send email to owner
+        await this.autoEmailReport();
+        
+        // Clear shift and logout
+        Toast.success('Shift completed! Report sent to owner.');
+        
+        localStorage.removeItem('pos_shift');
+        this.currentShift = null;
+        
+        Modal.close();
+        this.showLogin();
+    },
+    
+    async autoEmailReport() {
         const shift = this.currentShift;
         const report = this.reportData;
         
         // Create email content
-        const subject = `BreadHub Shift Report - Shift #${shift.shiftNumber} - ${shift.staffName} - ${shift.dateKey}`;
-        const body = `
-Shift End Report - BreadHub POS
+        const subject = encodeURIComponent(`BreadHub Shift Report - ${shift.staffName} - Shift #${shift.shiftNumber} - ${shift.dateKey}`);
+        const body = encodeURIComponent(`
+SHIFT END REPORT - BreadHub POS
+================================
 
 Shift #: ${shift.shiftNumber}
 Cashier: ${shift.staffName}
@@ -1678,38 +1335,31 @@ Start: ${Utils.formatTime(shift.startTime)}
 End: ${Utils.formatTime(report.endTime)}
 
 SALES SUMMARY
-─────────────────
-Cash Sales: ${Utils.formatCurrency(report.cashSales)}
-GCash Sales: ${Utils.formatCurrency(report.gcashSales)}
-${report.otherSales > 0 ? `Other: ${Utils.formatCurrency(report.otherSales)}` : ''}
-TOTAL: ${Utils.formatCurrency(report.totalSales)}
+─────────────
+Cash Sales: ₱${report.cashSales.toLocaleString()}
+GCash Sales: ₱${report.gcashSales.toLocaleString()}
+TOTAL: ₱${report.totalSales.toLocaleString()}
 Transactions: ${report.transactionCount}
 
-CASH RECONCILIATION
-─────────────────
-Starting Cash: ${Utils.formatCurrency(report.startingCash)}
-+ Cash Sales: ${Utils.formatCurrency(report.cashSales)}
-Expected: ${Utils.formatCurrency(report.expectedCash)}
-${report.expenses > 0 ? `- Expenses: ${Utils.formatCurrency(report.expenses)} (${report.expenseNotes})` : ''}
-Actual Cash: ${Utils.formatCurrency(report.actualCash)}
+${report.expenses > 0 ? `EXPENSES: ₱${report.expenses.toLocaleString()}` : ''}
 
-STATUS: ${report.balanceStatus.toUpperCase()}${report.balanceStatus !== 'balanced' ? ` (${Utils.formatCurrency(Math.abs(report.variance))})` : ''}
+CASH TO REMIT
+─────────────
+₱${report.cashToRemit.toLocaleString()}
+
+CHANGE FUND LEFT IN DRAWER
+─────────────────────────
+₱${this.changeFund.toLocaleString()}
+
+STATUS: ${report.balanceStatus.toUpperCase()}
+${report.balanceStatus !== 'balanced' ? `Variance: ₱${Math.abs(report.variance).toLocaleString()} ${report.balanceStatus}` : ''}
 
 ---
 BreadHub POS System
-        `.trim();
+        `.trim());
         
         // Open email client
-        const mailtoLink = `mailto:michael.marga@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.open(mailtoLink);
-        
-        Toast.success('Email client opened');
-    },
-    
-    finishAndLogout() {
-        Modal.close();
-        Toast.success('Shift ended successfully!');
-        this.logout();
+        window.open(`mailto:michael.marga@gmail.com?subject=${subject}&body=${body}`, '_blank');
     },
     
     // ========== ADMIN LOGIN (Firebase) ==========
