@@ -1546,6 +1546,10 @@ BreadHub POS System
         localStorage.removeItem('pos_staff');
         localStorage.removeItem('pos_shift');
         
+        // Reset view to POS before showing login
+        App.currentView = 'pos';
+        App.showView('pos');
+        
         if (auth.currentUser) {
             auth.signOut();
         }
@@ -1563,6 +1567,10 @@ BreadHub POS System
     showPOS() {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('posContainer').style.display = 'block';
+        
+        // IMPORTANT: Always reset to POS view when logging in
+        // This prevents non-admin users from seeing admin panels
+        App.showView('pos');
         
         // Update header with staff info
         const nameEl = document.getElementById('currentUserName');
