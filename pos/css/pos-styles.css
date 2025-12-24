@@ -3871,3 +3871,234 @@ details summary {
     padding: 15px 30px;
     font-size: 1rem;
 }
+
+
+/* ==========================================
+   EXPENSE PICKER MODAL v20
+   ========================================== */
+
+/* Expense Picker Modal Layout */
+.expense-picker-modal {
+    padding: 10px;
+}
+
+/* Search Bar */
+.expense-search-bar {
+    display: flex;
+    align-items: center;
+    background: var(--bg-main);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 15px;
+}
+
+.expense-search-bar .search-icon {
+    font-size: 1.2rem;
+    margin-right: 10px;
+}
+
+.expense-search-bar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 1rem;
+    outline: none;
+}
+
+.clear-search-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 5px;
+}
+
+/* Items Grid - Clickable Buttons */
+.expense-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+
+/* Expense Pick Button */
+.expense-pick-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 10px;
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 80px;
+}
+
+.expense-pick-btn:hover,
+.expense-pick-btn:active {
+    border-color: var(--primary);
+    background: rgba(212, 137, 74, 0.15);
+    transform: scale(1.02);
+}
+
+.expense-pick-btn .pick-icon {
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+}
+
+.expense-pick-btn .pick-name {
+    font-size: 0.85rem;
+    text-align: center;
+    line-height: 1.2;
+    color: var(--text);
+}
+
+.expense-pick-btn.add-new-btn {
+    border-style: dashed;
+    border-color: var(--primary);
+}
+
+.expense-pick-btn.add-new-btn .pick-name {
+    color: var(--primary);
+}
+
+/* Selected Item Banner */
+.selected-item-banner {
+    background: rgba(212, 137, 74, 0.2);
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.selected-item-banner strong {
+    color: var(--primary);
+}
+
+
+/* Amount Entry Form */
+.expense-amount-form {
+    padding: 10px;
+}
+
+.amount-input-section {
+    margin-top: 15px;
+}
+
+.qty-stepper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.qty-step-btn {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.qty-stepper input {
+    width: 80px;
+    text-align: center;
+    font-size: 1.2rem;
+}
+
+.qty-stepper .qty-unit {
+    color: var(--text-secondary);
+}
+
+/* Quick Amount Buttons */
+.quick-amount-btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.quick-amount-btns button {
+    flex: 1;
+    min-width: 70px;
+    padding: 12px;
+    background: var(--bg-main);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.quick-amount-btns button:hover {
+    border-color: var(--primary);
+    background: rgba(212, 137, 74, 0.1);
+}
+
+/* Expense Amount Footer */
+.expense-amount-footer {
+    display: flex;
+    gap: 15px;
+    justify-content: space-between;
+    padding: 15px;
+}
+
+
+/* Expense Row Display (in End Shift) */
+.expense-row-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(241, 196, 15, 0.1);
+    border: 1px solid rgba(241, 196, 15, 0.3);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.expense-row-display .expense-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.expense-row-display .expense-icon {
+    font-size: 1.3rem;
+}
+
+.expense-row-display .expense-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.expense-row-display .expense-details small {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.expense-row-display .expense-amount {
+    font-weight: 600;
+    color: #e74c3c;
+    font-size: 1.1rem;
+}
+
+.empty-expenses {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 20px;
+    font-style: italic;
+}

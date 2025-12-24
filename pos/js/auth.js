@@ -727,286 +727,366 @@ const Auth = {
         }
     },
     
+    // ========== NEW EXPENSE MODAL SYSTEM ==========
+    
     addExpenseRow() {
-        const expenseId = Date.now();
-        const container = document.getElementById('expensesList');
-        
-        const row = document.createElement('div');
-        row.className = 'expense-row';
-        row.id = `expense-${expenseId}`;
-        row.innerHTML = `
-            <div class="expense-fields" id="expense-fields-${expenseId}">
-                <!-- Fields will be loaded -->
-            </div>
-            <button type="button" class="btn btn-icon btn-danger btn-sm expense-delete" onclick="Auth.removeExpenseRow(${expenseId})">🗑️</button>
-        `;
-        
-        container.appendChild(row);
-        
-        // Auto-load the stock purchase fields
-        this.loadStockFields(expenseId);
+        // Open the expense picker modal
+        this.openExpenseModal();
     },
     
-    async loadStockFields(expenseId) {
-        const fieldsContainer = document.getElementById(`expense-fields-${expenseId}`);
-        
-        // Load ingredients, packaging, and suppliers
-        if (!this.ingredientsList) {
-            const [ingredients, packaging, suppliers] = await Promise.all([
-                DB.getAll('ingredients'),
-                DB.getAll('packagingMaterials'),
-                DB.getAll('suppliers')
-            ]);
-            
-            this.ingredientsList = ingredients.map(i => ({ 
-                id: i.id, 
-                name: i.name, 
-                unit: i.unit,
-                type: 'ingredient',
-                category: i.category || 'Ingredient'
-            }));
-            this.packagingList = packaging.map(p => ({ 
-                id: p.id, 
-                name: p.name, 
-                unit: p.unit,
-                type: 'packaging',
-                category: 'Packaging'
-            }));
-            this.suppliersList = suppliers.map(s => ({ 
-                id: s.id, 
-                name: s.name 
-            }));
-            
-            // Combine items for searchable list
-            this.allItems = [...this.ingredientsList, ...this.packagingList];
+    async openExpenseModal() {
+        // Load items and suppliers if not loaded
+        if (!this.allItems || this.allItems.length === 0) {
+            try {
+                const [ingredients, packaging, suppliers] = await Promise.all([
+                    DB.getAll('ingredients'),
+                    DB.getAll('packagingMaterials'),
+                    DB.getAll('suppliers')
+                ]);
+                
+                this.ingredientsList = ingredients.map(i => ({ 
+                    id: i.id, name: i.name, unit: i.unit || 'unit',
+                    type: 'ingredient', category: i.category || 'Ingredient'
+                }));
+                this.packagingList = packaging.map(p => ({ 
+                    id: p.id, name: p.name, unit: p.unit || 'unit',
+                    type: 'packaging', category: 'Packaging'
+                }));
+                this.suppliersList = suppliers.map(s => ({ id: s.id, name: s.name }));
+                this.allItems = [...this.ingredientsList, ...this.packagingList];
+            } catch (err) {
+                console.error('Failed to load items:', err);
+                Toast.error('Failed to load items');
+                return;
+            }
         }
         
-        fieldsContainer.innerHTML = `
-            <div class="expense-field-grid stock-grid">
-                <div class="form-group searchable-field">
-                    <label>Item (Ingredient/Packaging)</label>
-                    <div class="search-input-wrapper">
-                        <input type="text" class="form-input search-input" id="item-search-${expenseId}" 
-                               placeholder="Type to search..." 
-                               autocomplete="off"
-                               oninput="Auth.filterItems(${expenseId}, this.value)"
-                               onfocus="Auth.showItemDropdown(${expenseId})">
-                        <input type="hidden" id="item-id-${expenseId}">
-                        <input type="hidden" id="item-type-${expenseId}">
-                        <div class="search-dropdown" id="item-dropdown-${expenseId}"></div>
-                    </div>
-                </div>
-                <div class="form-group searchable-field">
-                    <label>Supplier</label>
-                    <div class="search-input-wrapper">
-                        <input type="text" class="form-input search-input" id="supplier-search-${expenseId}" 
-                               placeholder="Type to search..." 
-                               autocomplete="off"
-                               oninput="Auth.filterSuppliers(${expenseId}, this.value)"
-                               onfocus="Auth.showSupplierDropdown(${expenseId})">
-                        <input type="hidden" id="supplier-id-${expenseId}">
-                        <div class="search-dropdown" id="supplier-dropdown-${expenseId}"></div>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Quantity</label>
-                    <div class="qty-with-unit">
-                        <input type="number" class="form-input" id="qty-${expenseId}" placeholder="0" step="0.01">
-                        <span class="unit-label" id="unit-${expenseId}">unit</span>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Amount (₱)</label>
-                    <input type="number" class="form-input" id="amount-${expenseId}" placeholder="0.00" step="0.01" oninput="Auth.updateTotalExpenses()">
-                </div>
-            </div>
-        `;
+        // Sort alphabetically
+        const sortedItems = [...this.allItems].sort((a, b) => a.name.localeCompare(b.name));
         
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.searchable-field')) {
-                document.querySelectorAll('.search-dropdown').forEach(d => d.classList.remove('show'));
+        // Store for modal state
+        this.expenseModalState = { step: 1, item: null, supplier: null, qty: 1, amount: 0 };
+        
+        // Build item buttons HTML
+        const itemButtonsHTML = sortedItems.map(item => `
+            <button type="button" class="expense-pick-btn" 
+                    onclick="Auth.pickExpenseItem('${item.id}', '${item.name.replace(/'/g, "\\'")}', '${item.type}', '${item.unit}')">
+                <span class="pick-icon">${item.type === 'ingredient' ? '🥚' : '📦'}</span>
+                <span class="pick-name">${item.name}</span>
+            </button>
+        `).join('');
+        
+        Modal.open({
+            title: '🛒 Add Emergency Purchase',
+            width: '95vw',
+            content: `
+                <div class="expense-picker-modal">
+                    <!-- Search Box -->
+                    <div class="expense-search-bar">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="expenseSearchInput" 
+                               placeholder="Search items..." 
+                               oninput="Auth.filterExpenseButtons(this.value)"
+                               autocomplete="off">
+                        <button type="button" class="clear-search-btn" onclick="Auth.clearExpenseSearch()">✕</button>
+                    </div>
+                    
+                    <!-- Items Grid -->
+                    <div class="expense-picker-grid" id="expensePickerGrid">
+                        ${itemButtonsHTML}
+                    </div>
+                </div>
+            `,
+            customFooter: `<div style="text-align:center;padding:10px;">
+                <button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
+            </div>`,
+            hideFooter: true
+        });
+    },
+    
+    filterExpenseButtons(query) {
+        const q = query.toLowerCase();
+        const buttons = document.querySelectorAll('.expense-pick-btn');
+        buttons.forEach(btn => {
+            const name = btn.querySelector('.pick-name').textContent.toLowerCase();
+            btn.style.display = name.includes(q) ? '' : 'none';
+        });
+    },
+    
+    clearExpenseSearch() {
+        const input = document.getElementById('expenseSearchInput');
+        if (input) {
+            input.value = '';
+            this.filterExpenseButtons('');
+        }
+    },
+    
+    pickExpenseItem(itemId, itemName, itemType, itemUnit) {
+        this.expenseModalState.item = { id: itemId, name: itemName, type: itemType, unit: itemUnit };
+        
+        // Move to supplier selection
+        this.showSupplierPicker();
+    },
+    
+    showSupplierPicker() {
+        const sortedSuppliers = [...(this.suppliersList || [])].sort((a, b) => a.name.localeCompare(b.name));
+        
+        const supplierButtonsHTML = sortedSuppliers.map(s => `
+            <button type="button" class="expense-pick-btn supplier-btn" 
+                    onclick="Auth.pickExpenseSupplier('${s.id}', '${s.name.replace(/'/g, "\\'")}')">
+                <span class="pick-icon">🏪</span>
+                <span class="pick-name">${s.name}</span>
+            </button>
+        `).join('');
+        
+        const item = this.expenseModalState.item;
+        
+        Modal.open({
+            title: '🏪 Select Supplier',
+            width: '95vw',
+            content: `
+                <div class="expense-picker-modal">
+                    <div class="selected-item-banner">
+                        <span>${item.type === 'ingredient' ? '🥚' : '📦'}</span>
+                        <strong>${item.name}</strong>
+                    </div>
+                    
+                    <div class="expense-search-bar">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="supplierSearchInput" 
+                               placeholder="Search suppliers..." 
+                               oninput="Auth.filterSupplierButtons(this.value)"
+                               autocomplete="off">
+                    </div>
+                    
+                    <div class="expense-picker-grid" id="supplierPickerGrid">
+                        ${supplierButtonsHTML}
+                        <button type="button" class="expense-pick-btn add-new-btn" 
+                                onclick="Auth.showAddSupplierForm()">
+                            <span class="pick-icon">➕</span>
+                            <span class="pick-name">Add New Supplier</span>
+                        </button>
+                    </div>
+                </div>
+            `,
+            customFooter: `<div style="text-align:center;padding:10px;">
+                <button class="btn btn-outline" onclick="Auth.backToItemPicker()">← Back</button>
+                <button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
+            </div>`,
+            hideFooter: true
+        });
+    },
+    
+    filterSupplierButtons(query) {
+        const q = query.toLowerCase();
+        const buttons = document.querySelectorAll('.expense-pick-btn.supplier-btn');
+        buttons.forEach(btn => {
+            const name = btn.querySelector('.pick-name').textContent.toLowerCase();
+            btn.style.display = name.includes(q) ? '' : 'none';
+        });
+    },
+    
+    backToItemPicker() {
+        this.openExpenseModal();
+    },
+    
+    showAddSupplierForm() {
+        Modal.open({
+            title: '➕ Add New Supplier',
+            content: `
+                <div class="add-supplier-form">
+                    <div class="form-group">
+                        <label>Supplier Name *</label>
+                        <input type="text" id="newSupplierName" class="form-input form-input-lg" placeholder="e.g., 7-Eleven">
+                    </div>
+                    <div class="form-group">
+                        <label>Contact (Optional)</label>
+                        <input type="text" id="newSupplierContact" class="form-input" placeholder="Phone number">
+                    </div>
+                </div>
+            `,
+            saveText: '✅ Add Supplier',
+            onSave: async () => {
+                const name = document.getElementById('newSupplierName')?.value?.trim();
+                if (!name) {
+                    Toast.error('Enter supplier name');
+                    return false;
+                }
+                
+                try {
+                    const newSupplier = {
+                        name: name,
+                        contact: document.getElementById('newSupplierContact')?.value || '',
+                        createdAt: new Date().toISOString(),
+                        source: 'pos-emergency'
+                    };
+                    const id = await DB.add('suppliers', newSupplier);
+                    this.suppliersList.push({ id, name });
+                    
+                    // Auto-select this supplier
+                    this.pickExpenseSupplier(id, name);
+                    Toast.success('Supplier added');
+                } catch (err) {
+                    Toast.error('Failed to add supplier');
+                    return false;
+                }
             }
         });
     },
     
-    showItemDropdown(expenseId) {
-        const dropdown = document.getElementById(`item-dropdown-${expenseId}`);
-        this.filterItems(expenseId, '');
-        dropdown.classList.add('show');
+    pickExpenseSupplier(supplierId, supplierName) {
+        this.expenseModalState.supplier = { id: supplierId, name: supplierName };
+        
+        // Move to quantity/amount entry
+        this.showExpenseAmountForm();
     },
     
-    filterItems(expenseId, query) {
-        const dropdown = document.getElementById(`item-dropdown-${expenseId}`);
-        const q = query.toLowerCase();
+    showExpenseAmountForm() {
+        const item = this.expenseModalState.item;
+        const supplier = this.expenseModalState.supplier;
         
-        const filtered = this.allItems.filter(item => 
-            item.name.toLowerCase().includes(q)
-        ).slice(0, 10); // Limit to 10 results
-        
-        if (filtered.length === 0) {
-            dropdown.innerHTML = '<div class="dropdown-empty">No items found</div>';
-        } else {
-            dropdown.innerHTML = filtered.map(item => `
-                <div class="dropdown-item" onclick="Auth.selectItem(${expenseId}, '${item.id}', '${item.name.replace(/'/g, "\\'")}', '${item.type}', '${item.unit || 'unit'}')">
-                    <span class="item-name">${item.name}</span>
-                    <span class="item-category ${item.type}">${item.category}</span>
+        Modal.open({
+            title: '💰 Enter Amount',
+            content: `
+                <div class="expense-amount-form">
+                    <div class="selected-item-banner">
+                        <div><span>${item.type === 'ingredient' ? '🥚' : '📦'}</span> <strong>${item.name}</strong></div>
+                        <div><span>🏪</span> ${supplier.name}</div>
+                    </div>
+                    
+                    <div class="amount-input-section">
+                        <div class="form-group">
+                            <label>Quantity</label>
+                            <div class="qty-stepper">
+                                <button type="button" class="qty-step-btn" onclick="Auth.stepExpenseQty(-1)">−</button>
+                                <input type="number" id="expenseQtyInput" class="form-input" value="1" min="0.1" step="0.5">
+                                <button type="button" class="qty-step-btn" onclick="Auth.stepExpenseQty(1)">+</button>
+                                <span class="qty-unit">${item.unit}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Amount Paid (₱) *</label>
+                            <input type="number" id="expenseAmountInput" class="form-input form-input-lg" 
+                                   placeholder="0.00" step="1" min="0" inputmode="decimal">
+                        </div>
+                        
+                        <!-- Quick amount buttons -->
+                        <div class="quick-amount-btns">
+                            <button type="button" onclick="Auth.setExpenseAmount(50)">₱50</button>
+                            <button type="button" onclick="Auth.setExpenseAmount(100)">₱100</button>
+                            <button type="button" onclick="Auth.setExpenseAmount(200)">₱200</button>
+                            <button type="button" onclick="Auth.setExpenseAmount(500)">₱500</button>
+                        </div>
+                    </div>
                 </div>
-            `).join('');
+            `,
+            customFooter: `
+                <div class="expense-amount-footer">
+                    <button class="btn btn-outline" onclick="Auth.showSupplierPicker()">← Back</button>
+                    <button class="btn btn-success btn-lg" onclick="Auth.confirmExpense()">✅ Add Expense</button>
+                </div>
+            `,
+            hideFooter: true
+        });
+    },
+    
+    stepExpenseQty(delta) {
+        const input = document.getElementById('expenseQtyInput');
+        if (input) {
+            let val = parseFloat(input.value) || 1;
+            val = Math.max(0.1, val + delta);
+            input.value = val;
         }
-        
-        dropdown.classList.add('show');
     },
     
-    selectItem(expenseId, itemId, itemName, itemType, unit) {
-        document.getElementById(`item-search-${expenseId}`).value = itemName;
-        document.getElementById(`item-id-${expenseId}`).value = itemId;
-        document.getElementById(`item-type-${expenseId}`).value = itemType;
-        document.getElementById(`unit-${expenseId}`).textContent = unit;
-        document.getElementById(`item-dropdown-${expenseId}`).classList.remove('show');
+    setExpenseAmount(amount) {
+        const input = document.getElementById('expenseAmountInput');
+        if (input) input.value = amount;
     },
     
-    showSupplierDropdown(expenseId) {
-        const dropdown = document.getElementById(`supplier-dropdown-${expenseId}`);
-        if (!dropdown) return;
+    confirmExpense() {
+        const qty = parseFloat(document.getElementById('expenseQtyInput')?.value) || 1;
+        const amount = parseFloat(document.getElementById('expenseAmountInput')?.value) || 0;
         
-        // Ensure suppliers list is loaded
-        if (!this.suppliersList || this.suppliersList.length === 0) {
-            dropdown.innerHTML = '<div class="dropdown-empty">Loading suppliers...</div>';
-            dropdown.classList.add('show');
-            
-            // Try to load suppliers
-            DB.getAll('suppliers').then(suppliers => {
-                this.suppliersList = suppliers.map(s => ({ id: s.id, name: s.name }));
-                this.filterSuppliers(expenseId, '');
-            }).catch(err => {
-                console.error('Failed to load suppliers:', err);
-                dropdown.innerHTML = '<div class="dropdown-empty">No suppliers found. Type to add new.</div>';
-            });
+        if (amount <= 0) {
+            Toast.error('Enter the amount paid');
             return;
         }
         
-        this.filterSuppliers(expenseId, '');
-        dropdown.classList.add('show');
+        const { item, supplier } = this.expenseModalState;
+        
+        // Add to expenses list
+        if (!this.shiftExpenses) this.shiftExpenses = [];
+        
+        const expense = {
+            id: Date.now(),
+            itemId: item.id,
+            itemName: item.name,
+            itemType: item.type,
+            supplierId: supplier.id,
+            supplierName: supplier.name,
+            qty: qty,
+            unit: item.unit,
+            amount: amount
+        };
+        
+        this.shiftExpenses.push(expense);
+        
+        // Update the expenses display
+        this.renderExpensesList();
+        this.updateTotalExpenses();
+        
+        Modal.close();
+        Toast.success(`Added: ${item.name} - ₱${amount}`);
     },
     
-    filterSuppliers(expenseId, query) {
-        const dropdown = document.getElementById(`supplier-dropdown-${expenseId}`);
-        if (!dropdown) return;
+    renderExpensesList() {
+        const container = document.getElementById('expensesList');
+        if (!container) return;
         
-        const q = (query || '').toLowerCase();
-        
-        // Handle case where suppliers list isn't loaded yet
-        if (!this.suppliersList) {
-            this.suppliersList = [];
+        if (!this.shiftExpenses || this.shiftExpenses.length === 0) {
+            container.innerHTML = '<p class="empty-expenses">No expenses added</p>';
+            return;
         }
         
-        const filtered = this.suppliersList.filter(s => 
-            s.name && s.name.toLowerCase().includes(q)
-        ).slice(0, 10);
-        
-        // Add option to add new supplier
-        let html = '';
-        if (filtered.length === 0) {
-            html = `<div class="dropdown-item new-item" onclick="Auth.selectSupplier(${expenseId}, 'new', '${query.replace(/'/g, "\\'")}')">
-                <span>➕ Add "${query}" as supplier</span>
-            </div>`;
-        } else {
-            html = filtered.map(s => `
-                <div class="dropdown-item" onclick="Auth.selectSupplier(${expenseId}, '${s.id}', '${s.name.replace(/'/g, "\\'")}')">
-                    <span>${s.name}</span>
+        container.innerHTML = this.shiftExpenses.map(e => `
+            <div class="expense-row-display" id="expense-${e.id}">
+                <div class="expense-info">
+                    <span class="expense-icon">${e.itemType === 'ingredient' ? '🥚' : '📦'}</span>
+                    <div class="expense-details">
+                        <strong>${e.itemName}</strong>
+                        <small>${e.qty} ${e.unit} from ${e.supplierName}</small>
+                    </div>
                 </div>
-            `).join('');
-            
-            // Add "new" option if query doesn't exactly match
-            if (query && !filtered.some(s => s.name.toLowerCase() === q)) {
-                html += `<div class="dropdown-item new-item" onclick="Auth.selectSupplier(${expenseId}, 'new', '${query.replace(/'/g, "\\'")}')">
-                    <span>➕ Add "${query}" as new supplier</span>
-                </div>`;
-            }
-        }
-        
-        dropdown.innerHTML = html;
-        dropdown.classList.add('show');
+                <div class="expense-amount">₱${e.amount.toLocaleString()}</div>
+                <button type="button" class="btn btn-icon btn-sm btn-danger" onclick="Auth.removeExpense(${e.id})">🗑️</button>
+            </div>
+        `).join('');
     },
     
-    selectSupplier(expenseId, supplierId, supplierName) {
-        document.getElementById(`supplier-search-${expenseId}`).value = supplierName;
-        document.getElementById(`supplier-id-${expenseId}`).value = supplierId;
-        document.getElementById(`supplier-dropdown-${expenseId}`).classList.remove('show');
-    },
-    
-    removeExpenseRow(expenseId) {
-        const row = document.getElementById(`expense-${expenseId}`);
-        if (row) row.remove();
+    removeExpense(expenseId) {
+        if (!this.shiftExpenses) return;
+        this.shiftExpenses = this.shiftExpenses.filter(e => e.id !== expenseId);
+        this.renderExpensesList();
         this.updateTotalExpenses();
     },
     
     updateTotalExpenses() {
-        const rows = document.querySelectorAll('.expense-row');
-        let total = 0;
-        
-        rows.forEach(row => {
-            const expenseId = row.id.replace('expense-', '');
-            const amountInput = document.getElementById(`amount-${expenseId}`);
-            if (amountInput) {
-                total += parseFloat(amountInput.value) || 0;
-            }
-        });
-        
-        document.getElementById('totalExpensesDisplay').textContent = Utils.formatCurrency(total);
+        const total = (this.shiftExpenses || []).reduce((sum, e) => sum + e.amount, 0);
+        const display = document.getElementById('totalExpensesDisplay');
+        if (display) display.textContent = Utils.formatCurrency(total);
         this.calculateVariance();
     },
     
-    getExpensesData() {
-        const rows = document.querySelectorAll('.expense-row');
-        const expenses = [];
-        
-        rows.forEach(row => {
-            const expenseId = row.id.replace('expense-', '');
-            
-            const amount = parseFloat(document.getElementById(`amount-${expenseId}`)?.value) || 0;
-            if (amount <= 0) return;
-            
-            const itemName = document.getElementById(`item-search-${expenseId}`)?.value || '';
-            const itemId = document.getElementById(`item-id-${expenseId}`)?.value || '';
-            const itemType = document.getElementById(`item-type-${expenseId}`)?.value || '';
-            const supplierName = document.getElementById(`supplier-search-${expenseId}`)?.value || '';
-            const supplierId = document.getElementById(`supplier-id-${expenseId}`)?.value || '';
-            const qty = parseFloat(document.getElementById(`qty-${expenseId}`)?.value) || 0;
-            const unit = document.getElementById(`unit-${expenseId}`)?.textContent || 'unit';
-            
-            expenses.push({
-                type: 'stock',
-                itemId: itemId,
-                itemName: itemName,
-                itemType: itemType, // 'ingredient' or 'packaging'
-                supplierId: supplierId,
-                supplierName: supplierName,
-                qty: qty,
-                unit: unit,
-                amount: amount
-            });
-        });
-        
-        return expenses;
-    },
     
     calculateVariance() {
         const actualCash = parseFloat(document.getElementById('actualCash')?.value) || 0;
         
-        // Get total expenses from all rows
-        const rows = document.querySelectorAll('.expense-row');
-        let expenses = 0;
-        rows.forEach(row => {
-            const expenseId = row.id.replace('expense-', '');
-            const amountInput = document.getElementById(`amount-${expenseId}`);
-            if (amountInput) {
-                expenses += parseFloat(amountInput.value) || 0;
-            }
-        });
+        // Get total expenses
+        const expenses = (this.shiftExpenses || []).reduce((sum, e) => sum + e.amount, 0);
         
-        const expectedCash = this.endShiftData.expectedCash;
+        const expectedCash = this.endShiftData?.expectedCash || 0;
         
         // Adjusted expected = expected - expenses
         const adjustedExpected = expectedCash - expenses;
