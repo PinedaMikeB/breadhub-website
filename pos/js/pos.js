@@ -522,6 +522,12 @@ const POS = {
     showCheckoutModal() {
         if (this.cart.length === 0) return;
         
+        // Block checkout in view-only mode
+        if (Auth.currentShift?.isViewOnly) {
+            Toast.warning('View-only mode. Start a shift to process sales.');
+            return;
+        }
+        
         const originalSubtotal = this.cart.reduce((sum, item) => sum + (item.originalPrice * item.quantity), 0);
         const totalDiscount = this.cart.reduce((sum, item) => sum + (item.discountAmount * item.quantity), 0);
         const total = this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -668,6 +674,12 @@ const POS = {
                 saleId,
                 dateKey: today,
                 timestamp: new Date().toISOString(),
+                
+                // Link to shift
+                shiftId: Auth.getShiftId(),
+                shiftNumber: Auth.currentShift?.shiftNumber || null,
+                cashierId: Auth.userData?.id || 'unknown',
+                cashierName: Auth.userData?.name || 'Unknown',
                 
                 items: this.cart.map(item => ({
                     productId: item.productId,

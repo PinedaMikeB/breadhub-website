@@ -364,11 +364,15 @@ const Reports = {
                         </select>
                     </div>
                     <div class="filter-row">
-                        <label>Chart Shows:</label>
-                        <select id="chartMetric" onchange="Reports.updateProductsChart()">
-                            <option value="sales">💰 Sales Amount (₱)</option>
-                            <option value="qty">📦 Quantity Sold</option>
-                        </select>
+                        <div class="toggle-container">
+                            <span class="toggle-label">Show:</span>
+                            <div class="toggle-switch" id="metricToggle" onclick="Reports.toggleMetric()">
+                                <div class="toggle-option active" data-value="sales">💰 Sales (₱)</div>
+                                <div class="toggle-option" data-value="qty">📦 Quantity</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="filter-row">
                         <label>Display:</label>
                         <select id="chartView" onchange="Reports.updateProductsChart()">
                             <option value="top">🏆 Top 10 Best Sellers</option>
@@ -380,8 +384,10 @@ const Reports = {
                     </div>
                 </div>
                 
-                <div class="chart-container" style="max-height:500px;">
-                    <canvas id="productsChart"></canvas>
+                <div class="products-chart-wrapper">
+                    <div class="products-chart-scroll" id="productsChartScroll">
+                        <canvas id="productsChart"></canvas>
+                    </div>
                 </div>
                 
                 <div class="report-summary">
@@ -425,8 +431,21 @@ const Reports = {
         }
     },
     
+    toggleMetric() {
+        const toggle = document.getElementById('metricToggle');
+        const options = toggle.querySelectorAll('.toggle-option');
+        const currentActive = toggle.querySelector('.toggle-option.active');
+        const newActive = currentActive.dataset.value === 'sales' ? options[1] : options[0];
+        
+        options.forEach(opt => opt.classList.remove('active'));
+        newActive.classList.add('active');
+        
+        this.chartMetric = newActive.dataset.value;
+        this.updateProductsChart();
+    },
+    
     updateProductsChart() {
-        const metric = document.getElementById('chartMetric').value;
+        const metric = this.chartMetric || 'sales';
         const view = document.getElementById('chartView').value;
         const mainCat = document.getElementById('filterMainCat').value;
         
@@ -462,9 +481,21 @@ const Reports = {
         // Update table filter too
         this.filterProductsTable();
         
-        // Create chart
+        // Calculate dynamic width - 100px per bar for clear visibility
+        const barWidth = 100;
+        const chartWidth = Math.max(chartData.length * barWidth, 800);
+        
+        // Set canvas dimensions for scrolling
+        const scrollContainer = document.getElementById('productsChartScroll');
+        const canvas = document.getElementById('productsChart');
+        
+        // Set actual canvas dimensions (not CSS)
+        canvas.width = chartWidth;
+        canvas.height = 400;
+        
+        // Create chart - VERTICAL bars
         this.destroyChart();
-        const ctx = document.getElementById('productsChart').getContext('2d');
+        const ctx = canvas.getContext('2d');
         
         const isQty = metric === 'qty';
         const label = isQty ? 'Quantity Sold' : 'Sales (₱)';
@@ -474,23 +505,51 @@ const Reports = {
         this.chart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: chartData.map(p => p.name.length > 20 ? p.name.substring(0, 18) + '...' : p.name),
+                labels: chartData.map(p => p.name.length > 15 ? p.name.substring(0, 13) + '...' : p.name),
                 datasets: [{
                     label: label,
                     data: data,
-                    backgroundColor: bgColor
+                    backgroundColor: bgColor,
+                    borderRadius: 4,
+                    barThickness: 40
                 }]
             },
             options: { 
-                indexAxis: 'y', 
-                responsive: true,
+                responsive: false,
                 maintainAspectRatio: false,
                 plugins: {
                     title: {
                         display: true,
-                        text: chartTitle + (mainCat !== 'all' ? ` - ${mainCat}` : ''),
+                        text: chartTitle + (mainCat !== 'all' ? ` - ${mainCat}` : '') + ` (${isQty ? 'by Qty' : 'by Sales'})`,
                         color: '#fff',
                         font: { size: 16 }
+                    },
+                    legend: {
+                        labels: { color: '#ccc' }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => chartData[items[0].dataIndex]?.name || '',
+                            label: (item) => isQty ? `Qty: ${Utils.formatNumber(item.raw)}` : Utils.formatCurrency(item.raw)
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { 
+                            color: '#ccc',
+                            maxRotation: 45,
+                            minRotation: 45
+                        },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { 
+                            color: '#ccc',
+                            callback: (val) => isQty ? val : '₱' + val.toLocaleString()
+                        },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
                     }
                 }
             }

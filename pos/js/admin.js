@@ -106,82 +106,148 @@ const Admin = {
                 return;
             }
             
-            container.innerHTML = shifts.map(shift => `
-                <div class="shift-item ${shift.endTime ? 'ended' : 'active'}">
-                    <div class="shift-user">
-                        <strong>${shift.userName}</strong>
-                        <span class="shift-status">${shift.endTime ? '✅ Ended' : '🟢 Active'}</span>
+            // Get sales for each shift
+            const sales = await DB.query('sales', 'dateKey', '==', today);
+            
+            // Sort shifts by number
+            shifts.sort((a, b) => (a.shiftNumber || 0) - (b.shiftNumber || 0));
+            
+            container.innerHTML = shifts.map(shift => {
+                const shiftSales = sales.filter(s => s.shiftId === shift.id);
+                const shiftTotal = shiftSales.reduce((sum, s) => sum + (s.total || 0), 0);
+                const txnCount = shiftSales.length;
+                
+                return `
+                    <div class="shift-card ${shift.status === 'active' ? 'active' : 'completed'}">
+                        <div class="shift-header">
+                            <span class="shift-number">Shift #${shift.shiftNumber || '?'}</span>
+                            <span class="shift-status-badge ${shift.status}">${shift.status === 'active' ? '🟢 Active' : '✅ Completed'}</span>
+                        </div>
+                        <div class="shift-cashier">
+                            <strong>${shift.staffName || shift.userName || 'Unknown'}</strong>
+                            <span class="role-tag">${shift.staffRole || 'cashier'}</span>
+                        </div>
+                        <div class="shift-times">
+                            <span>⏰ ${Utils.formatTime(shift.startTime)}</span>
+                            ${shift.endTime ? `<span>→ ${Utils.formatTime(shift.endTime)}</span>` : '<span class="ongoing">Ongoing...</span>'}
+                        </div>
+                        <div class="shift-stats">
+                            <div class="stat-item">
+                                <span class="stat-value">${Utils.formatCurrency(shiftTotal)}</span>
+                                <span class="stat-label">Sales</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">${txnCount}</span>
+                                <span class="stat-label">Transactions</span>
+                            </div>
+                        </div>
+                        ${shift.status === 'completed' && shift.variance !== undefined ? `
+                            <div class="shift-variance ${shift.variance >= 0 ? 'positive' : 'negative'}">
+                                Variance: ${Utils.formatCurrency(shift.variance)}
+                            </div>
+                        ` : ''}
+                        <button class="btn btn-sm btn-block" onclick="Admin.viewShiftDetails('${shift.id}')">
+                            📋 View Details
+                        </button>
                     </div>
-                    <div class="shift-times">
-                        <span>In: ${Utils.formatTime(shift.startTime)}</span>
-                        ${shift.endTime ? `<span>Out: ${Utils.formatTime(shift.endTime)}</span>` : ''}
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             
         } catch (error) {
             console.error('Error loading shifts:', error);
+            container.innerHTML = '<p class="error">Failed to load shifts</p>';
+        }
+    },
+    
+    async viewShiftDetails(shiftId) {
+        try {
+            // Get shift
+            const shifts = await DB.getAll('shifts');
+            const shift = shifts.find(s => s.id === shiftId);
+            if (!shift) {
+                Toast.error('Shift not found');
+                return;
+            }
+            
+            // Get sales for this shift
+            const allSales = await DB.getAll('sales');
+            const shiftSales = allSales.filter(s => s.shiftId === shiftId);
+            const totalSales = shiftSales.reduce((sum, s) => sum + (s.total || 0), 0);
+            
+            Modal.open({
+                title: `📋 Shift #${shift.shiftNumber} Details`,
+                content: `
+                    <div class="shift-detail-modal">
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <span class="label">Cashier</span>
+                                <span class="value">${shift.staffName || 'Unknown'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Date</span>
+                                <span class="value">${shift.dateKey}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Start Time</span>
+                                <span class="value">${Utils.formatTime(shift.startTime)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">End Time</span>
+                                <span class="value">${shift.endTime ? Utils.formatTime(shift.endTime) : 'Ongoing'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Starting Cash</span>
+                                <span class="value">${Utils.formatCurrency(shift.startingCash || 0)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Ending Cash</span>
+                                <span class="value">${shift.endingCash ? Utils.formatCurrency(shift.endingCash) : '-'}</span>
+                            </div>
+                            <div class="detail-item highlight">
+                                <span class="label">Total Sales</span>
+                                <span class="value">${Utils.formatCurrency(totalSales)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Transactions</span>
+                                <span class="value">${shiftSales.length}</span>
+                            </div>
+                        </div>
+                        
+                        <h4>Transactions</h4>
+                        <div class="shift-transactions">
+                            ${shiftSales.length === 0 ? '<p>No transactions in this shift</p>' : 
+                                shiftSales.map(s => `
+                                    <div class="txn-item">
+                                        <span class="txn-id">${s.saleId}</span>
+                                        <span class="txn-time">${Utils.formatTime(s.timestamp)}</span>
+                                        <span class="txn-items">${s.items?.length || 0} items</span>
+                                        <span class="txn-total">${Utils.formatCurrency(s.total)}</span>
+                                    </div>
+                                `).join('')
+                            }
+                        </div>
+                    </div>
+                `,
+                hideFooter: true
+            });
+            
+        } catch (error) {
+            console.error('Error viewing shift:', error);
+            Toast.error('Failed to load shift details');
         }
     },
     
     async startShift() {
-        if (!Auth.userData) {
-            Toast.error('Please login first');
-            return;
-        }
-        
-        try {
-            const today = Utils.getTodayKey();
-            
-            // Check if already has active shift
-            const existing = await DB.query('shifts', 'userId', '==', Auth.userData.id);
-            const activeShift = existing.find(s => s.dateKey === today && !s.endTime);
-            
-            if (activeShift) {
-                Toast.warning('You already have an active shift');
-                return;
-            }
-            
-            await DB.add('shifts', {
-                userId: Auth.userData.id,
-                userName: Auth.userData.name,
-                dateKey: today,
-                startTime: new Date().toISOString(),
-                endTime: null
-            });
-            
-            Toast.success('Shift started!');
-            this.loadActiveShifts();
-            
-        } catch (error) {
-            console.error('Error starting shift:', error);
-            Toast.error('Failed to start shift');
-        }
+        // Now handled by Auth.showShiftStartModal()
+        Toast.info('Use the PIN login to start a new shift');
     },
     
     async endShift() {
-        if (!Auth.userData) return;
-        
-        try {
-            const today = Utils.getTodayKey();
-            const existing = await DB.query('shifts', 'userId', '==', Auth.userData.id);
-            const activeShift = existing.find(s => s.dateKey === today && !s.endTime);
-            
-            if (!activeShift) {
-                Toast.warning('No active shift to end');
-                return;
-            }
-            
-            await DB.update('shifts', activeShift.id, {
-                endTime: new Date().toISOString()
-            });
-            
-            Toast.success('Shift ended!');
-            this.loadActiveShifts();
-            
-        } catch (error) {
-            console.error('Error ending shift:', error);
-            Toast.error('Failed to end shift');
+        // Now handled by Auth.endShift()
+        if (Auth.currentShift && !Auth.currentShift.isAdmin) {
+            Auth.endShift();
+        } else {
+            Toast.warning('No active shift to end');
         }
     },
 

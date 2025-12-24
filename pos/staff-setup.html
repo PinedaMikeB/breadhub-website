@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BreadHub POS - Staff Setup</title>
+    <link rel="stylesheet" href="css/pos-styles.css">
+    <style>
+        body {
+            background: var(--bg-main);
+            color: var(--text-primary);
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .setup-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 { color: var(--primary); margin-bottom: 10px; }
+        .subtitle { color: var(--text-secondary); margin-bottom: 30px; }
+        
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .card h2 { margin-top: 0; color: var(--primary); }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-row.three-col {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .form-group small {
+            display: block;
+            margin-top: 4px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 15px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        select.form-input {
+            cursor: pointer;
+        }
+        
+        .section-title {
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin: 20px 0 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: var(--bg-input);
+            border-radius: 8px;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary);
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-secondary {
+            background: var(--bg-input);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        .btn-sm { padding: 8px 16px; font-size: 0.9rem; }
+        
+        .staff-list {
+            margin-top: 20px;
+        }
+        .staff-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px;
+            background: var(--bg-input);
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+        .staff-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .staff-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+        .staff-details h4 { margin: 0 0 5px 0; font-size: 1.1rem; }
+        .staff-details .staff-meta-line { 
+            color: var(--text-secondary); 
+            font-size: 0.85rem;
+            margin-bottom: 3px;
+        }
+        .staff-badges {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .role-badge {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .role-badge.owner { background: #f39c12; color: white; }
+        .role-badge.manager { background: #9b59b6; color: white; }
+        .role-badge.cashier { background: #3498db; color: white; }
+        .role-badge.baker { background: #27ae60; color: white; }
+        
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+        .status-badge.active { background: #27ae60; color: white; }
+        .status-badge.inactive { background: #7f8c8d; color: white; }
+        
+        .pin-display {
+            font-family: monospace;
+            font-size: 1rem;
+            color: var(--primary);
+            background: var(--bg-main);
+            padding: 3px 10px;
+            border-radius: 5px;
+            letter-spacing: 2px;
+        }
+        
+        .salary-info {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .salary-info strong {
+            color: var(--primary);
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast.success { background: #27ae60; }
+        .toast.error { background: #e74c3c; }
+        
+        .actions { 
+            display: flex; 
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .back-link:hover { text-decoration: underline; }
+        
+        .input-group {
+            display: flex;
+            align-items: center;
+        }
+        .input-prefix {
+            padding: 12px 15px;
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+            color: var(--text-secondary);
+        }
+        .input-group .form-input {
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .computed-value {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: var(--bg-main);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .computed-value strong {
+            color: var(--primary);
+        }
+        
+        @media (max-width: 768px) {
+            .form-row { grid-template-columns: 1fr; }
+            .form-row.three-col { grid-template-columns: 1fr; }
+            .staff-item { flex-direction: column; gap: 15px; align-items: flex-start; }
+            .checkbox-group { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Access Control Check -->
+    <div id="accessDenied" style="display: none; text-align: center; padding: 100px 20px;">
+        <h1 style="color: #e74c3c;">🔒 Access Denied</h1>
+        <p style="color: var(--text-secondary); margin: 20px 0;">Only owners and managers can access this page.</p>
+        <a href="index.html" class="btn btn-primary" style="display: inline-block; padding: 12px 24px; background: var(--primary); color: white; text-decoration: none; border-radius: 8px;">← Back to POS</a>
+    </div>
+    
+    <div id="mainContent" class="setup-container" style="display: none;">
+        <a href="index.html" class="back-link">← Back to POS</a>
+        <h1>👥 Staff Setup</h1>
+        <p class="subtitle">Add and manage staff members who can use the POS system</p>
+        
+        <!-- Add Staff Form -->
+        <div class="card">
+            <h2>➕ Add New Staff</h2>
+            <form id="staffForm">
+                <div class="section-title">👤 Basic Information</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="staffName" class="form-input" placeholder="e.g., Maria Santos" required>
+                    </div>
+                    <div class="form-group">
+                        <label>PIN Code (4-6 digits) *</label>
+                        <input type="text" id="staffPin" class="form-input" placeholder="e.g., 1234" pattern="[0-9]{4,6}" maxlength="6" required>
+                        <small>Staff will use this to login to POS</small>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Role *</label>
+                        <select id="staffRole" class="form-input" required>
+                            <option value="cashier">Cashier</option>
+                            <option value="baker">Baker</option>
+                            <option value="manager">Manager</option>
+                            <option value="owner">Owner</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Day Off *</label>
+                        <select id="staffDayOff" class="form-input" required>
+                            <option value="Sunday">Sunday</option>
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="section-title">💰 Compensation</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Monthly Salary *</label>
+                        <div class="input-group">
+                            <span class="input-prefix">₱</span>
+                            <input type="number" id="staffSalary" class="form-input" placeholder="12000" step="100" required>
+                        </div>
+                        <div class="computed-value" id="dailyRateDisplay">
+                            Daily Rate: <strong>₱0.00</strong> (26 working days)
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Transport Allowance (per day)</label>
+                        <div class="input-group">
+                            <span class="input-prefix">₱</span>
+                            <input type="number" id="staffTransport" class="form-input" placeholder="100" step="10" value="0">
+                        </div>
+                        <small>Daily transpo allowance (₱0 if none)</small>
+                    </div>
+                </div>
+                
+                <div class="section-title">🔐 Permissions</div>
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="canUsePOS" checked>
+                        <span>📱 Can Use POS</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="canGiveDiscount">
+                        <span>🏷️ Can Give Discounts</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="canVoidSales">
+                        <span>❌ Can Void Sales</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="canViewReports">
+                        <span>📊 Can View Reports</span>
+                    </label>
+                </div>
+                
+                <div style="margin-top: 25px;">
+                    <button type="submit" class="btn btn-primary">➕ Add Staff Member</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Staff List -->
+        <div class="card">
+            <h2>📋 Current Staff (<span id="staffCount">0</span>)</h2>
+            <div id="staffList" class="staff-list">
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/firebase-init.js"></script>
+    
+    <script>
+        // Initialize Firebase
+        initFirebase();
+        
+        // Calculate daily rate as user types
+        document.getElementById('staffSalary').addEventListener('input', updateDailyRate);
+        
+        function updateDailyRate() {
+            const monthly = parseFloat(document.getElementById('staffSalary').value) || 0;
+            const daily = monthly / 26; // 26 working days per month
+            document.getElementById('dailyRateDisplay').innerHTML = 
+                `Daily Rate: <strong>₱${daily.toFixed(2)}</strong> (26 working days)`;
+        }
+        
+        // Load staff list
+        async function loadStaff() {
+            const container = document.getElementById('staffList');
+            const countEl = document.getElementById('staffCount');
+            
+            try {
+                const snapshot = await db.collection('staff').orderBy('name').get();
+                const staff = [];
+                snapshot.forEach(doc => staff.push({ id: doc.id, ...doc.data() }));
+                
+                countEl.textContent = staff.length;
+                
+                if (staff.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 30px;">No staff members yet. Add your first one above!</p>';
+                    return;
+                }
+                
+                container.innerHTML = staff.map(s => {
+                    const dailyRate = (s.monthlySalary || 0) / 26;
+                    const permissions = [];
+                    if (s.canUsePOS) permissions.push('POS');
+                    if (s.canGiveDiscount) permissions.push('Discounts');
+                    if (s.canVoidSales) permissions.push('Void');
+                    if (s.canViewReports) permissions.push('Reports');
+                    
+                    return `
+                        <div class="staff-item">
+                            <div class="staff-info">
+                                <div class="staff-avatar">${s.name.charAt(0).toUpperCase()}</div>
+                                <div class="staff-details">
+                                    <h4>${s.name}</h4>
+                                    <div class="staff-meta-line">
+                                        PIN: <span class="pin-display">${s.pin}</span> 
+                                        &nbsp;•&nbsp; Day Off: ${s.dayOff || 'Sunday'}
+                                    </div>
+                                    <div class="salary-info">
+                                        <strong>₱${(s.monthlySalary || 0).toLocaleString()}/mo</strong> 
+                                        (₱${dailyRate.toFixed(0)}/day)
+                                        ${s.transportAllowance ? ` + ₱${s.transportAllowance}/day transpo` : ''}
+                                    </div>
+                                    <div class="staff-badges">
+                                        <span class="role-badge ${s.role}">${s.role}</span>
+                                        <span class="status-badge ${s.status}">${s.status}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="actions">
+                                <button class="btn btn-secondary btn-sm" onclick="editStaff('${s.id}')">✏️ Edit</button>
+                                <button class="btn btn-sm" style="background: ${s.status === 'active' ? '#7f8c8d' : '#27ae60'}; color: white;" onclick="toggleStatus('${s.id}', '${s.status}')">
+                                    ${s.status === 'active' ? '⏸️ Deactivate' : '▶️ Activate'}
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteStaff('${s.id}', '${s.name}')">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error loading staff:', error);
+                container.innerHTML = '<p style="color: #e74c3c;">Failed to load staff list</p>';
+            }
+        }
+        
+        // Add staff
+        document.getElementById('staffForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('staffName').value.trim();
+            const pin = document.getElementById('staffPin').value.trim();
+            const role = document.getElementById('staffRole').value;
+            const dayOff = document.getElementById('staffDayOff').value;
+            const monthlySalary = parseFloat(document.getElementById('staffSalary').value) || 0;
+            const transportAllowance = parseFloat(document.getElementById('staffTransport').value) || 0;
+            
+            // Validate PIN
+            if (pin.length < 4) {
+                showToast('PIN must be at least 4 digits', 'error');
+                return;
+            }
+            
+            // Check if PIN is unique
+            const existing = await db.collection('staff').where('pin', '==', pin).get();
+            if (!existing.empty) {
+                showToast('This PIN is already in use! Choose a different one.', 'error');
+                return;
+            }
+            
+            const staffData = {
+                name: name,
+                pin: pin,
+                role: role,
+                dayOff: dayOff,
+                monthlySalary: monthlySalary,
+                dailyRate: monthlySalary / 26,
+                transportAllowance: transportAllowance,
+                canUsePOS: document.getElementById('canUsePOS').checked,
+                canGiveDiscount: document.getElementById('canGiveDiscount').checked,
+                canVoidSales: document.getElementById('canVoidSales').checked,
+                canViewReports: document.getElementById('canViewReports').checked,
+                status: 'active',
+                createdAt: new Date().toISOString()
+            };
+            
+            try {
+                await db.collection('staff').add(staffData);
+                showToast(`${name} added successfully!`, 'success');
+                document.getElementById('staffForm').reset();
+                document.getElementById('canUsePOS').checked = true;
+                updateDailyRate();
+                loadStaff();
+            } catch (error) {
+                console.error('Error adding staff:', error);
+                showToast('Failed to add staff member', 'error');
+            }
+        });
+        
+        // Edit staff
+        async function editStaff(id) {
+            try {
+                const doc = await db.collection('staff').doc(id).get();
+                if (!doc.exists) {
+                    showToast('Staff not found', 'error');
+                    return;
+                }
+                
+                const s = doc.data();
+                
+                // Populate form
+                document.getElementById('staffName').value = s.name;
+                document.getElementById('staffPin').value = s.pin;
+                document.getElementById('staffRole').value = s.role;
+                document.getElementById('staffDayOff').value = s.dayOff || 'Sunday';
+                document.getElementById('staffSalary').value = s.monthlySalary || '';
+                document.getElementById('staffTransport').value = s.transportAllowance || 0;
+                document.getElementById('canUsePOS').checked = s.canUsePOS;
+                document.getElementById('canGiveDiscount').checked = s.canGiveDiscount;
+                document.getElementById('canVoidSales').checked = s.canVoidSales;
+                document.getElementById('canViewReports').checked = s.canViewReports;
+                
+                updateDailyRate();
+                
+                // Change form to update mode
+                const form = document.getElementById('staffForm');
+                form.dataset.editId = id;
+                form.querySelector('button[type="submit"]').textContent = '💾 Update Staff Member';
+                
+                // Scroll to form
+                form.scrollIntoView({ behavior: 'smooth' });
+                
+                showToast('Editing ' + s.name + ' - make changes and click Update', 'success');
+                
+            } catch (error) {
+                console.error('Error loading staff for edit:', error);
+                showToast('Failed to load staff data', 'error');
+            }
+        }
+        
+        // Override form submit for edit mode
+        const originalSubmit = document.getElementById('staffForm').onsubmit;
+        document.getElementById('staffForm').addEventListener('submit', async (e) => {
+            const form = e.target;
+            const editId = form.dataset.editId;
+            
+            if (editId) {
+                e.preventDefault();
+                
+                const name = document.getElementById('staffName').value.trim();
+                const pin = document.getElementById('staffPin').value.trim();
+                const role = document.getElementById('staffRole').value;
+                const dayOff = document.getElementById('staffDayOff').value;
+                const monthlySalary = parseFloat(document.getElementById('staffSalary').value) || 0;
+                const transportAllowance = parseFloat(document.getElementById('staffTransport').value) || 0;
+                
+                // Check if PIN is unique (excluding current staff)
+                const existing = await db.collection('staff').where('pin', '==', pin).get();
+                let pinConflict = false;
+                existing.forEach(doc => {
+                    if (doc.id !== editId) pinConflict = true;
+                });
+                
+                if (pinConflict) {
+                    showToast('This PIN is already in use by another staff member!', 'error');
+                    return;
+                }
+                
+                const updateData = {
+                    name: name,
+                    pin: pin,
+                    role: role,
+                    dayOff: dayOff,
+                    monthlySalary: monthlySalary,
+                    dailyRate: monthlySalary / 26,
+                    transportAllowance: transportAllowance,
+                    canUsePOS: document.getElementById('canUsePOS').checked,
+                    canGiveDiscount: document.getElementById('canGiveDiscount').checked,
+                    canVoidSales: document.getElementById('canVoidSales').checked,
+                    canViewReports: document.getElementById('canViewReports').checked,
+                    updatedAt: new Date().toISOString()
+                };
+                
+                try {
+                    await db.collection('staff').doc(editId).update(updateData);
+                    showToast(`${name} updated successfully!`, 'success');
+                    
+                    // Reset form
+                    form.reset();
+                    delete form.dataset.editId;
+                    form.querySelector('button[type="submit"]').textContent = '➕ Add Staff Member';
+                    document.getElementById('canUsePOS').checked = true;
+                    updateDailyRate();
+                    loadStaff();
+                    
+                } catch (error) {
+                    console.error('Error updating staff:', error);
+                    showToast('Failed to update staff member', 'error');
+                }
+            }
+        });
+        
+        // Toggle status
+        async function toggleStatus(id, currentStatus) {
+            const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+            try {
+                await db.collection('staff').doc(id).update({ status: newStatus });
+                showToast(`Staff member ${newStatus}`, 'success');
+                loadStaff();
+            } catch (error) {
+                showToast('Failed to update status', 'error');
+            }
+        }
+        
+        // Delete staff
+        async function deleteStaff(id, name) {
+            if (!confirm(`Delete ${name}?\n\nThis cannot be undone.`)) return;
+            
+            try {
+                await db.collection('staff').doc(id).delete();
+                showToast(`${name} deleted`, 'success');
+                loadStaff();
+            } catch (error) {
+                showToast('Failed to delete', 'error');
+            }
+        }
+        
+        // Toast notification
+        function showToast(message, type = 'success') {
+            // Remove existing toasts
+            document.querySelectorAll('.toast').forEach(t => t.remove());
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // Access Control - Check if user is owner/manager
+        function checkAccess() {
+            const savedStaff = localStorage.getItem('pos_staff');
+            
+            if (!savedStaff) {
+                // Not logged in - redirect to POS
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const staff = JSON.parse(savedStaff);
+            
+            if (staff.role === 'owner' || staff.role === 'manager' || staff.isAdmin) {
+                // Access granted
+                document.getElementById('mainContent').style.display = 'block';
+                document.getElementById('accessDenied').style.display = 'none';
+                loadStaff();
+            } else {
+                // Access denied
+                document.getElementById('mainContent').style.display = 'none';
+                document.getElementById('accessDenied').style.display = 'block';
+            }
+        }
+        
+        // Check access on page load
+        checkAccess();
+    </script>
+</body>
+</html>

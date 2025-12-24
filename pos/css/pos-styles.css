@@ -1673,14 +1673,19 @@ details summary {
 
 .filter-row {
     display: flex;
-    gap: 15px;
+    gap: 20px;
     align-items: center;
     flex-wrap: wrap;
 }
 
-.report-filters label {
+.filter-row > label {
     color: var(--text-secondary);
     font-size: 0.9rem;
+    margin-left: 10px;
+}
+
+.filter-row > label:first-child {
+    margin-left: 0;
 }
 
 .report-filters select {
@@ -1696,4 +1701,884 @@ details summary {
 .report-summary h3 {
     margin: 20px 0 15px 0;
     color: var(--primary);
+}
+
+
+/* Toggle Switch for Reports */
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.toggle-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.toggle-switch {
+    display: inline-flex;
+    background: var(--bg-input);
+    border-radius: 30px;
+    padding: 5px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    gap: 5px;
+}
+
+.toggle-option {
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.toggle-option.active {
+    background: var(--primary);
+    color: white;
+}
+
+.toggle-option:hover:not(.active) {
+    background: rgba(212, 137, 74, 0.2);
+}
+
+/* Products Chart Scrollable Container */
+.products-chart-wrapper {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.products-chart-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 15px;
+}
+
+.products-chart-scroll::-webkit-scrollbar {
+    height: 10px;
+}
+
+.products-chart-scroll::-webkit-scrollbar-track {
+    background: var(--bg-input);
+    border-radius: 5px;
+}
+
+.products-chart-scroll::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 5px;
+}
+
+.products-chart-scroll canvas {
+    display: block;
+}
+
+
+/* ========== PIN LOGIN STYLES ========== */
+
+.pin-input-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 25px;
+}
+
+.pin-input {
+    width: 200px;
+    padding: 20px;
+    font-size: 2rem;
+    text-align: center;
+    letter-spacing: 15px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-primary);
+}
+
+.pin-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.pin-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    max-width: 280px;
+    margin: 0 auto 25px;
+}
+
+.keypad-btn {
+    padding: 20px;
+    font-size: 1.5rem;
+    font-weight: 600;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.keypad-btn:hover {
+    background: var(--bg-card);
+    border-color: var(--primary);
+}
+
+.keypad-btn:active {
+    transform: scale(0.95);
+    background: var(--primary);
+    color: white;
+}
+
+.keypad-enter {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.keypad-enter:hover {
+    background: var(--primary-dark);
+}
+
+.login-links {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.login-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.login-links a:hover {
+    color: var(--primary);
+}
+
+/* ========== SHIFT INDICATOR ========== */
+
+.shift-indicator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-right: 15px;
+    padding-right: 15px;
+    border-right: 1px solid var(--border);
+}
+
+.shift-badge {
+    background: var(--primary);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.admin-badge {
+    background: #f39c12;
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--primary);
+    color: var(--primary);
+}
+
+.btn-outline:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/* ========== SHIFT MODALS ========== */
+
+.shift-start-info,
+.shift-end-info {
+    text-align: center;
+}
+
+.staff-welcome {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.staff-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+.staff-welcome h3 {
+    margin: 0 0 5px 0;
+    text-align: left;
+}
+
+.role-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    background: var(--primary);
+    color: white;
+}
+
+.shift-details {
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.shift-details p {
+    margin: 8px 0;
+    color: var(--text-secondary);
+}
+
+.shift-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+    text-align: left;
+}
+
+.summary-item {
+    background: var(--bg-input);
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.summary-item .label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.summary-item .value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.summary-item.highlight {
+    background: var(--primary);
+}
+
+.summary-item.highlight .label,
+.summary-item.highlight .value {
+    color: white;
+}
+
+
+/* ========== SHIFT CARDS ========== */
+
+.shift-card {
+    background: var(--bg-input);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-left: 4px solid var(--border);
+}
+
+.shift-card.active {
+    border-left-color: #27ae60;
+}
+
+.shift-card.completed {
+    border-left-color: var(--primary);
+}
+
+.shift-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.shift-number {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.shift-status-badge {
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+}
+
+.shift-status-badge.active {
+    background: rgba(39, 174, 96, 0.2);
+    color: #27ae60;
+}
+
+.shift-status-badge.completed {
+    background: rgba(212, 137, 74, 0.2);
+    color: var(--primary);
+}
+
+.shift-cashier {
+    margin-bottom: 10px;
+}
+
+.shift-cashier strong {
+    font-size: 1rem;
+}
+
+.role-tag {
+    margin-left: 10px;
+    padding: 2px 8px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.shift-times {
+    display: flex;
+    gap: 15px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+.shift-times .ongoing {
+    color: #27ae60;
+    font-style: italic;
+}
+
+.shift-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.shift-stats .stat-item {
+    background: var(--bg-card);
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.shift-stats .stat-value {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.shift-stats .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.shift-variance {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.shift-variance.positive {
+    background: rgba(39, 174, 96, 0.2);
+    color: #27ae60;
+}
+
+.shift-variance.negative {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+
+/* Shift Detail Modal */
+.shift-detail-modal .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.shift-detail-modal .detail-item {
+    background: var(--bg-input);
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.shift-detail-modal .detail-item .label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.shift-detail-modal .detail-item .value {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.shift-detail-modal .detail-item.highlight {
+    background: var(--primary);
+}
+
+.shift-detail-modal .detail-item.highlight .label,
+.shift-detail-modal .detail-item.highlight .value {
+    color: white;
+}
+
+.shift-transactions {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.txn-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: var(--bg-input);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.txn-id {
+    font-weight: 500;
+    color: var(--primary);
+}
+
+.txn-time {
+    color: var(--text-secondary);
+}
+
+.txn-total {
+    font-weight: 600;
+}
+
+
+/* ========== OWNER OPTIONS MODAL ========== */
+
+.owner-options {
+    padding: 10px 0;
+}
+
+.owner-option-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.owner-option-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 25px 20px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.owner-option-btn:hover {
+    border-color: var(--primary);
+    background: rgba(212, 137, 74, 0.1);
+}
+
+.owner-option-btn .option-icon {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.owner-option-btn .option-label {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+}
+
+.owner-option-btn .option-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* View Only Badge */
+.view-only-badge {
+    background: #3498db;
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+
+/* ========== END SHIFT ENHANCED ========== */
+
+.sales-breakdown {
+    background: var(--bg-input);
+    border-radius: 8px;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.sales-breakdown h4 {
+    margin: 0 0 12px 0;
+    color: var(--primary);
+}
+
+.breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.breakdown-row:last-child {
+    border-bottom: none;
+}
+
+.breakdown-row.total {
+    border-top: 2px solid var(--primary);
+    margin-top: 8px;
+    padding-top: 12px;
+    font-weight: 600;
+}
+
+.breakdown-row .amount {
+    font-weight: 500;
+}
+
+.cash-section {
+    margin-top: 20px;
+}
+
+.cash-section h4 {
+    color: var(--primary);
+    margin-bottom: 15px;
+}
+
+.expected-cash {
+    background: var(--bg-input);
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.expected-cash strong {
+    color: var(--primary);
+    font-size: 1.1rem;
+}
+
+.expected-cash small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 5px;
+}
+
+.variance-display {
+    background: var(--bg-input);
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.variance-calc {
+    margin-bottom: 15px;
+}
+
+.variance-calc .calc-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+}
+
+.variance-calc .calc-row.expense {
+    color: #e74c3c;
+}
+
+.variance-status {
+    text-align: center;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.variance-status.balanced {
+    background: rgba(39, 174, 96, 0.2);
+    color: #27ae60;
+}
+
+.variance-status.over {
+    background: rgba(243, 156, 18, 0.2);
+    color: #f39c12;
+}
+
+.variance-status.short {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+
+/* Report Preview */
+.report-preview {
+    max-height: 400px;
+    overflow-y: auto;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.report-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-success {
+    background: #27ae60;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #219a52;
+}
+
+
+/* ========== EXPENSES SECTION ========== */
+
+.expenses-section {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--bg-input);
+    border-radius: 8px;
+}
+
+.expenses-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.expenses-header h4 {
+    margin: 0;
+    color: var(--primary);
+}
+
+#expensesList {
+    margin-bottom: 15px;
+}
+
+.expense-row {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.expense-row > .btn-icon {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+}
+
+.expense-type-select {
+    margin-bottom: 10px;
+    padding-right: 40px;
+}
+
+.expense-type-select select {
+    width: 100%;
+}
+
+.expense-fields {
+    margin-top: 10px;
+}
+
+.expense-field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.expense-field-grid.petty {
+    grid-template-columns: 2fr 1fr;
+}
+
+.expense-field-grid .form-group {
+    margin-bottom: 0;
+}
+
+.expense-field-grid .form-group label {
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+}
+
+.expense-field-grid .form-input {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+}
+
+.expenses-total {
+    text-align: right;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 1rem;
+}
+
+.expenses-total strong {
+    color: var(--primary);
+    font-size: 1.1rem;
+}
+
+@media (max-width: 500px) {
+    .expense-field-grid {
+        grid-template-columns: 1fr;
+    }
+    .expense-field-grid.petty {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ========== SEARCHABLE DROPDOWN ========== */
+
+.searchable-field {
+    position: relative;
+}
+
+.search-input-wrapper {
+    position: relative;
+}
+
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.search-dropdown.show {
+    display: block;
+}
+
+.dropdown-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background: rgba(212, 137, 74, 0.2);
+}
+
+.dropdown-item .item-name {
+    font-weight: 500;
+}
+
+.dropdown-item .item-category {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+}
+
+.dropdown-item .item-category.ingredient {
+    background: #27ae60;
+    color: white;
+}
+
+.dropdown-item .item-category.packaging {
+    background: #3498db;
+    color: white;
+}
+
+.dropdown-item.new-item {
+    color: var(--primary);
+    font-style: italic;
+}
+
+.dropdown-empty {
+    padding: 15px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+/* Quantity with unit */
+.qty-with-unit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qty-with-unit .form-input {
+    flex: 1;
+}
+
+.unit-label {
+    background: var(--bg-main);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    min-width: 50px;
+    text-align: center;
+}
+
+/* Stock grid layout */
+.expense-field-grid.stock-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 500px) {
+    .expense-field-grid.stock-grid {
+        grid-template-columns: 1fr;
+    }
 }
