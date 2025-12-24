@@ -3360,3 +3360,201 @@ details summary {
     margin: 0 0 10px 0;
     color: var(--primary);
 }
+
+
+/* ==========================================
+   END SHIFT MODAL - TABLET LANDSCAPE LAYOUT v17
+   ========================================== */
+
+/* Side-by-side layout for End Shift */
+.shift-end-layout {
+    display: flex;
+    gap: 20px;
+    min-height: 400px;
+}
+
+.shift-end-left {
+    flex: 2;
+    overflow-y: auto;
+    max-height: 70vh;
+    padding-right: 15px;
+}
+
+.shift-end-right {
+    flex: 1;
+    min-width: 250px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+}
+
+.end-shift-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.end-shift-actions .btn-xl {
+    padding: 20px 30px;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.end-shift-actions .btn-lg {
+    padding: 15px 25px;
+    font-size: 1rem;
+}
+
+.draft-close-box {
+    background: rgba(241, 196, 15, 0.1);
+    border: 1px dashed #f1c40f;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+}
+
+.draft-close-box p {
+    margin: 0 0 10px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+
+/* Responsive - Stack on mobile portrait */
+@media (max-width: 768px) {
+    .shift-end-layout {
+        flex-direction: column;
+    }
+    
+    .shift-end-left {
+        max-height: none;
+        padding-right: 0;
+    }
+    
+    .shift-end-right {
+        position: relative;
+        min-width: auto;
+    }
+}
+
+/* Tablet landscape optimization */
+@media (min-width: 769px) and (max-width: 1200px) {
+    .shift-end-left {
+        flex: 1.5;
+    }
+    
+    .shift-end-right {
+        flex: 1;
+    }
+}
+
+/* Wide modal for End Shift */
+.modal[style*="95vw"] {
+    max-width: 95vw !important;
+}
+
+/* Compact summary grid */
+.shift-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.shift-summary-grid .summary-item {
+    background: var(--bg-main);
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.shift-summary-grid .summary-item .label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.shift-summary-grid .summary-item .value {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+
+/* Sales breakdown compact */
+.sales-breakdown {
+    background: var(--bg-main);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.sales-breakdown h4 {
+    margin: 0 0 10px;
+    font-size: 0.9rem;
+}
+
+.breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 0.9rem;
+}
+
+.breakdown-row.total {
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+    padding-top: 8px;
+    font-weight: 600;
+}
+
+/* Cash section */
+.cash-section {
+    background: var(--bg-main);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.cash-section h4 {
+    margin: 0 0 10px;
+    font-size: 0.9rem;
+}
+
+.expected-cash {
+    margin-bottom: 10px;
+}
+
+.expected-cash small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+/* Expenses section compact */
+.expenses-section {
+    background: var(--bg-main);
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.expenses-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.expenses-header h4 {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.expenses-total {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    text-align: right;
+}

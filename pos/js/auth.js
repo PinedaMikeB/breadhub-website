@@ -607,100 +607,106 @@ const Auth = {
         
         Modal.open({
             title: '🏁 End Shift',
+            width: '95vw',
             content: `
-                <div class="shift-end-info">
-                    <h3>Shift #${this.currentShift.shiftNumber} Summary</h3>
-                    
-                    <div class="shift-summary-grid">
-                        <div class="summary-item">
-                            <span class="label">Cashier</span>
-                            <span class="value">${this.currentShift.staffName}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Start Time</span>
-                            <span class="value">${Utils.formatTime(this.currentShift.startTime)}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Starting Cash</span>
-                            <span class="value">${Utils.formatCurrency(this.currentShift.startingCash || 0)}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Transactions</span>
-                            <span class="value">${transactionCount}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="sales-breakdown">
-                        <h4>💰 Sales Breakdown</h4>
-                        <div class="breakdown-row">
-                            <span>💵 Cash Sales:</span>
-                            <span class="amount">${Utils.formatCurrency(cashSales)}</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>📱 GCash Sales:</span>
-                            <span class="amount">${Utils.formatCurrency(gcashSales)}</span>
-                        </div>
-                        ${otherSales > 0 ? `
-                        <div class="breakdown-row">
-                            <span>💳 Other:</span>
-                            <span class="amount">${Utils.formatCurrency(otherSales)}</span>
-                        </div>
-                        ` : ''}
-                        <div class="breakdown-row total">
-                            <span>Total Sales:</span>
-                            <span class="amount">${Utils.formatCurrency(totalSales)}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="cash-section">
-                        <h4>🧮 Cash Drawer</h4>
-                        <div class="expected-cash">
-                            Expected Cash in Drawer: <strong>${Utils.formatCurrency(expectedCash)}</strong>
-                            <small>(Starting ₱${(this.currentShift.startingCash || 0).toLocaleString()} + Cash Sales ₱${cashSales.toLocaleString()})</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Actual Cash Count</label>
-                            <input type="number" id="actualCash" class="form-input" placeholder="Count your drawer" step="0.01" oninput="Auth.calculateVariance()">
-                        </div>
-                        
-                        <div class="expenses-section">
-                            <div class="expenses-header">
-                                <h4>🛒 Emergency Stock Purchases</h4>
-                                <button type="button" class="btn btn-sm btn-secondary" onclick="Auth.addExpenseRow()">+ Add Item</button>
+                <div class="shift-end-layout">
+                    <!-- LEFT SIDE: Scrollable Data -->
+                    <div class="shift-end-left">
+                        <div class="shift-end-info">
+                            <h3>Shift #${this.currentShift.shiftNumber} Summary</h3>
+                            
+                            <div class="shift-summary-grid">
+                                <div class="summary-item">
+                                    <span class="label">Cashier</span>
+                                    <span class="value">${this.currentShift.staffName}</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="label">Start Time</span>
+                                    <span class="value">${Utils.formatTime(this.currentShift.startTime)}</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="label">Starting Cash</span>
+                                    <span class="value">${Utils.formatCurrency(this.currentShift.startingCash || 0)}</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="label">Transactions</span>
+                                    <span class="value">${transactionCount}</span>
+                                </div>
                             </div>
-                            <div id="expensesList">
-                                <!-- Expense rows will be added here -->
+                            
+                            <div class="sales-breakdown">
+                                <h4>💰 Sales Breakdown</h4>
+                                <div class="breakdown-row">
+                                    <span>💵 Cash Sales:</span>
+                                    <span class="amount">${Utils.formatCurrency(cashSales)}</span>
+                                </div>
+                                <div class="breakdown-row">
+                                    <span>📱 GCash Sales:</span>
+                                    <span class="amount">${Utils.formatCurrency(gcashSales)}</span>
+                                </div>
+                                ${otherSales > 0 ? `
+                                <div class="breakdown-row">
+                                    <span>💳 Other:</span>
+                                    <span class="amount">${Utils.formatCurrency(otherSales)}</span>
+                                </div>
+                                ` : ''}
+                                <div class="breakdown-row total">
+                                    <span>Total Sales:</span>
+                                    <span class="amount">${Utils.formatCurrency(totalSales)}</span>
+                                </div>
                             </div>
-                            <div class="expenses-total">
-                                Total Expenses: <strong id="totalExpensesDisplay">₱0.00</strong>
+                            
+                            <div class="cash-section">
+                                <h4>🧮 Cash Drawer</h4>
+                                <div class="expected-cash">
+                                    Expected Cash: <strong>${Utils.formatCurrency(expectedCash)}</strong>
+                                    <small>(₱${(this.currentShift.startingCash || 0).toLocaleString()} + ₱${cashSales.toLocaleString()})</small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Actual Cash Count</label>
+                                    <input type="number" id="actualCash" class="form-input form-input-lg" placeholder="Count your drawer" step="0.01" oninput="Auth.calculateVariance()">
+                                </div>
+                                
+                                <div id="varianceDisplay" class="variance-display">
+                                    Enter actual cash count above
+                                </div>
+                            </div>
+                            
+                            <div class="expenses-section">
+                                <div class="expenses-header">
+                                    <h4>🛒 Emergency Stock Purchases</h4>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="Auth.addExpenseRow()">+ Add Item</button>
+                                </div>
+                                <div id="expensesList">
+                                    <!-- Expense rows will be added here -->
+                                </div>
+                                <div class="expenses-total">
+                                    Total Expenses: <strong id="totalExpensesDisplay">₱0.00</strong>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div id="varianceDisplay" class="variance-display">
-                            Enter actual cash count above
+                    </div>
+                    
+                    <!-- RIGHT SIDE: Fixed Actions -->
+                    <div class="shift-end-right">
+                        <div class="end-shift-actions">
+                            <button class="btn btn-success btn-xl" onclick="Auth.finalizeEndShift()">
+                                ✅ End Shift & Generate Report
+                            </button>
+                            
+                            <div class="draft-close-box">
+                                <p>Need to let another cashier start?</p>
+                                <button class="btn btn-warning btn-lg" onclick="Auth.draftCloseShift()">
+                                    📋 Draft Close (Finalize Later)
+                                </button>
+                            </div>
+                            
+                            <button class="btn btn-outline btn-lg" onclick="Modal.close()">
+                                Cancel
+                            </button>
                         </div>
                     </div>
-                </div>
-            `,
-            saveText: '✅ End Shift & Generate Report',
-            onSave: async () => {
-                await this.finalizeEndShift();
-            },
-            customFooter: `
-                <div class="end-shift-footer">
-                    <div class="end-shift-main-buttons">
-                        <button class="btn btn-success btn-lg" onclick="Auth.finalizeEndShift()">
-                            ✅ End Shift & Generate Report
-                        </button>
-                    </div>
-                    <div class="draft-close-section">
-                        <p class="draft-close-hint">Need to let another cashier start? Use Draft Close to hand over quickly.</p>
-                        <button class="btn btn-warning" onclick="Auth.draftCloseShift()">
-                            📋 Draft Close (Finalize Later)
-                        </button>
-                    </div>
-                    <button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
                 </div>
             `,
             hideFooter: true
