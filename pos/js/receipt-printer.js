@@ -322,8 +322,41 @@ const ReceiptPrinter = {
         await this.feedAndCut();
     },
     
-    // Browser print (for WiFi printers)
+    // Browser print (for WiFi printers / RawBT)
     printBrowser(sale) {
+        const receiptHtml = this.generateReceiptHtml(sale);
+        
+        // Create a hidden iframe for printing (works better with RawBT)
+        let printFrame = document.getElementById('printFrame');
+        if (!printFrame) {
+            printFrame = document.createElement('iframe');
+            printFrame.id = 'printFrame';
+            printFrame.style.cssText = 'position:absolute;left:-9999px;width:0;height:0;border:none;';
+            document.body.appendChild(printFrame);
+        }
+        
+        const frameDoc = printFrame.contentWindow || printFrame.contentDocument;
+        const doc = frameDoc.document || frameDoc;
+        
+        doc.open();
+        doc.write(receiptHtml);
+        doc.close();
+        
+        // Wait for content to load, then print
+        setTimeout(() => {
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            } catch (e) {
+                console.error('Print error:', e);
+                // Fallback to window.open method
+                this.printBrowserFallback(sale);
+            }
+        }, 500);
+    },
+    
+    // Fallback print method
+    printBrowserFallback(sale) {
         const receiptHtml = this.generateReceiptHtml(sale);
         const printWindow = window.open('', '_blank', 'width=350,height=600');
         
@@ -336,12 +369,9 @@ const ReceiptPrinter = {
         printWindow.document.close();
         printWindow.focus();
         
-        // Give time for content to render, then print
         setTimeout(() => {
             printWindow.print();
-            // Close after print dialog closes
             printWindow.onafterprint = () => printWindow.close();
-            // Fallback close after 10 seconds
             setTimeout(() => {
                 if (!printWindow.closed) printWindow.close();
             }, 10000);
@@ -350,6 +380,7 @@ const ReceiptPrinter = {
     
     generateReceiptHtml(sale) {
         const paperWidth = this.settings.paperWidth === '80mm' ? '80mm' : '58mm';
+        const charWidth = this.settings.paperWidth === '80mm' ? 48 : 32;
         
         const itemsHtml = sale.items.map(item => {
             const name = item.variantName 
@@ -359,11 +390,11 @@ const ReceiptPrinter = {
                 <div class="item">
                     <span class="qty">${item.quantity}x</span>
                     <span class="name">${name}</span>
-                    <span class="price">₱${item.lineTotal.toFixed(2)}</span>
+                    <span class="price">P${item.lineTotal.toFixed(2)}</span>
                 </div>
             `;
             if (item.discountName) {
-                html += `<div class="discount-line">↳ ${item.discountName} (-${item.discountPercent}%)</div>`;
+                html += `<div class="discount-line">  ${item.discountName} -${item.discountPercent}%</div>`;
             }
             return html;
         }).join('');
@@ -377,7 +408,14 @@ const ReceiptPrinter = {
     <style>
         @page {
             size: ${paperWidth} auto;
-            margin: 0;
+            margin: 0mm;
+        }
+        @media print {
+            html, body {
+                width: ${paperWidth};
+                margin: 0;
+                padding: 0;
+            }
         }
         * {
             margin: 0;
@@ -385,68 +423,72 @@ const ReceiptPrinter = {
             box-sizing: border-box;
         }
         body {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.3;
             width: ${paperWidth};
-            padding: 5px;
+            max-width: ${paperWidth};
+            padding: 2mm;
             background: white;
             color: black;
         }
         .header {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 3mm;
         }
         .store-name {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: bold;
         }
         .info {
-            margin: 8px 0;
-            font-size: 11px;
+            margin: 2mm 0;
+            font-size: 10px;
         }
         .divider {
             border-top: 1px dashed #000;
-            margin: 8px 0;
+            margin: 2mm 0;
         }
         .items {
-            margin: 10px 0;
+            margin: 2mm 0;
         }
         .item {
             display: flex;
             justify-content: space-between;
-            margin: 4px 0;
-            font-size: 11px;
+            margin: 1mm 0;
+            font-size: 10px;
         }
         .item .qty {
-            width: 25px;
+            min-width: 20px;
         }
         .item .name {
             flex: 1;
-            padding: 0 5px;
+            padding: 0 2px;
+            word-break: break-word;
         }
         .item .price {
             text-align: right;
-            min-width: 60px;
+            min-width: 50px;
         }
         .discount-line {
-            font-size: 10px;
-            color: #666;
-            padding-left: 25px;
+            font-size: 9px;
+            color: #333;
+            padding-left: 20px;
         }
         .totals {
-            margin: 10px 0;
+            margin: 2mm 0;
         }
         .total-row {
             display: flex;
             justify-content: space-between;
-            padding: 2px 0;
+            padding: 1mm 0;
+            font-size: 10px;
         }
         .total-row.grand-total {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: bold;
-            border-top: 2px solid #000;
-            padding-top: 5px;
-            margin-top: 5px;
+            border-top: 1px solid #000;
+            padding-top: 2mm;
+            margin-top: 1mm;
         }
         .payment {
             margin: 10px 0;
