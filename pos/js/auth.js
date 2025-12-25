@@ -991,6 +991,16 @@ const Auth = {
             this.allItemsDetails = [
                 ...ingredients.map(i => {
                     const priceInfo = priceMap[i.id] || {};
+                    
+                    // Determine default unit based on package size
+                    let defaultUnit = 'kg';
+                    const packageSize = priceInfo.packageSize || 1000;
+                    if (packageSize >= 1000) {
+                        defaultUnit = 'kg';
+                    } else {
+                        defaultUnit = 'g';
+                    }
+                    
                     return {
                         id: i.id,
                         name: i.name,
@@ -998,9 +1008,9 @@ const Auth = {
                         category: i.category || 'Ingredient',
                         // Price from ingredientPrices collection
                         price: priceInfo.price || 0,
-                        packageSize: priceInfo.packageSize || 1000,
+                        packageSize: packageSize,
                         costPerGram: priceInfo.costPerGram || 0,
-                        unit: 'kg',
+                        defaultUnit: defaultUnit,  // Auto-select this unit
                         // Supplier info
                         supplierId: priceInfo.supplierId || null,
                         supplierName: priceInfo.supplierName || 'No supplier',
@@ -1016,7 +1026,7 @@ const Auth = {
                     category: 'Packaging',
                     price: p.price || p.unitPrice || 0,
                     packageSize: 1,
-                    unit: p.unit || 'pcs',
+                    defaultUnit: p.unit || 'pcs',  // Packaging uses pcs by default
                     supplierId: p.supplierId || null,
                     supplierName: supplierMap[p.supplierId] || 'No supplier',
                     currentStock: p.currentStock || 0,
@@ -1077,14 +1087,14 @@ const Auth = {
                 </div>
                 <div class="expense-item-unit">
                     <select class="expense-unit-select" id="expUnit${index}">
-                        <option value="kg" selected>kg</option>
-                        <option value="g">g</option>
-                        <option value="pcs">pcs</option>
-                        <option value="pack">pack</option>
-                        <option value="sack">sack</option>
-                        <option value="box">box</option>
-                        <option value="bottle">bottle</option>
-                        <option value="can">can</option>
+                        <option value="kg" ${item.defaultUnit === 'kg' ? 'selected' : ''}>kg</option>
+                        <option value="g" ${item.defaultUnit === 'g' ? 'selected' : ''}>g</option>
+                        <option value="pcs" ${item.defaultUnit === 'pcs' ? 'selected' : ''}>pcs</option>
+                        <option value="pack" ${item.defaultUnit === 'pack' ? 'selected' : ''}>pack</option>
+                        <option value="sack" ${item.defaultUnit === 'sack' ? 'selected' : ''}>sack</option>
+                        <option value="box" ${item.defaultUnit === 'box' ? 'selected' : ''}>box</option>
+                        <option value="bottle" ${item.defaultUnit === 'bottle' ? 'selected' : ''}>bottle</option>
+                        <option value="can" ${item.defaultUnit === 'can' ? 'selected' : ''}>can</option>
                     </select>
                 </div>
                 <div class="expense-item-amount">
