@@ -917,7 +917,11 @@ const Auth = {
                     id: p.id, name: p.name, unit: p.unit || 'unit',
                     type: 'packaging', category: 'Packaging'
                 }));
-                this.suppliersList = suppliers.map(s => ({ id: s.id, name: s.name }));
+                // Use companyName OR name (ProofMaster uses companyName)
+                this.suppliersList = suppliers.map(s => ({ 
+                    id: s.id, 
+                    name: s.companyName || s.name || 'Unknown Supplier'
+                }));
                 console.log('Suppliers list:', this.suppliersList); // Debug log
                 this.allItems = [...this.ingredientsList, ...this.packagingList];
             } catch (err) {
