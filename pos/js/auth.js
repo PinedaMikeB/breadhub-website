@@ -960,8 +960,10 @@ const Auth = {
             ]);
             
             // Debug: log first ingredient to see structure
-            console.log('Sample ingredient:', ingredients[0]);
-            console.log('Sample supplier:', suppliers[0]);
+            console.log('Sample ingredient KEYS:', Object.keys(ingredients[0] || {}));
+            console.log('Sample ingredient JSON:', JSON.stringify(ingredients[0], null, 2));
+            console.log('Sample supplier KEYS:', Object.keys(suppliers[0] || {}));
+            console.log('Sample supplier JSON:', JSON.stringify(suppliers[0], null, 2));
             
             // Build supplier lookup map
             const supplierMap = {};
