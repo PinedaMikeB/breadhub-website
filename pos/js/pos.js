@@ -503,7 +503,7 @@ const POS = {
         
         // Reopen checkout modal with GCash already verified
         setTimeout(() => {
-            this.checkout();
+            this.showCheckoutModal();
         }, 150);
     },
     
@@ -1229,6 +1229,12 @@ const POS = {
                 createdBy: Auth.userData?.id || 'unknown',
                 createdByName: Auth.userData?.name || 'Unknown'
             };
+            
+            // Debug log for GCash
+            if (paymentMethod === 'gcash') {
+                console.log('GCash payment data being saved:', this.gcashPaymentData);
+                console.log('Sale record gcashPayment:', saleRecord.gcashPayment);
+            }
             
             await DB.add('sales', saleRecord);
             
