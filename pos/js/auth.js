@@ -1410,6 +1410,10 @@ const Auth = {
         this.calculateVariance();
     },
     
+    getExpensesData() {
+        return this.shiftExpenses || [];
+    },
+    
     
     calculateVariance() {
         const actualCash = parseFloat(document.getElementById('actualCash')?.value) || 0;
@@ -1734,7 +1738,10 @@ const Auth = {
         this.reportHTML = reportHTML;
         this.reportData = { ...report, cashToRemit };
         
-        // Show report modal - NO email button, auto-email on Done
+        // Generate 58mm receipt HTML
+        this.receiptHTML = this.generate58mmReceipt(report, cashToRemit, expensesData);
+        
+        // Show report modal with both print options
         Modal.open({
             title: '📄 Shift Report Generated',
             content: `
@@ -1743,13 +1750,165 @@ const Auth = {
                 </div>
             `,
             customFooter: `
-                <div class="report-modal-footer">
-                    <button class="btn btn-primary btn-lg" onclick="Auth.printReport()">🖨️ Print Report</button>
+                <div class="report-modal-footer" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; padding: 15px;">
+                    <button class="btn btn-secondary btn-lg" onclick="Auth.print58mmReceipt()">🧾 Print 58mm Receipt</button>
+                    <button class="btn btn-primary btn-lg" onclick="Auth.printReport()">🖨️ Print Full Report</button>
                     <button class="btn btn-success btn-lg" onclick="Auth.finishAndLogout()">✅ Done & Logout</button>
                 </div>
             `,
             hideFooter: true
         });
+    },
+    
+    generate58mmReceipt(report, cashToRemit, expensesData) {
+        const shift = this.currentShift;
+        const dateStr = new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+        const timeStr = new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+        
+        // Build expenses section for receipt
+        let expensesLines = '';
+        if (expensesData && expensesData.length > 0) {
+            expensesLines = `
+                <div class="receipt-divider">- - - - - - - - - - - - - - -</div>
+                <div class="receipt-section-title">EXPENSES</div>
+                ${expensesData.map(e => `
+                    <div class="receipt-row">
+                        <span>${e.itemName.substring(0, 16)}</span>
+                        <span>-P${e.amount}</span>
+                    </div>
+                `).join('')}
+                <div class="receipt-row total">
+                    <span>Total Expenses</span>
+                    <span>-P${report.expenses}</span>
+                </div>
+            `;
+        }
+        
+        return `
+            <div class="receipt-58mm">
+                <div class="receipt-header">
+                    <div class="receipt-logo">🍞 BREADHUB</div>
+                    <div class="receipt-title">SHIFT END REPORT</div>
+                </div>
+                
+                <div class="receipt-divider">================================</div>
+                
+                <div class="receipt-info">
+                    <div>Shift #${shift.shiftNumber}</div>
+                    <div>Cashier: ${shift.staffName}</div>
+                    <div>${dateStr} ${timeStr}</div>
+                </div>
+                
+                <div class="receipt-divider">--------------------------------</div>
+                
+                <div class="receipt-section-title">SALES SUMMARY</div>
+                <div class="receipt-row">
+                    <span>Cash Sales</span>
+                    <span>P${report.cashSales.toLocaleString()}</span>
+                </div>
+                <div class="receipt-row">
+                    <span>GCash Sales</span>
+                    <span>P${report.gcashSales.toLocaleString()}</span>
+                </div>
+                <div class="receipt-row total">
+                    <span>TOTAL SALES</span>
+                    <span>P${report.totalSales.toLocaleString()}</span>
+                </div>
+                <div class="receipt-row small">
+                    <span>Transactions: ${report.transactionCount}</span>
+                </div>
+                
+                ${expensesLines}
+                
+                <div class="receipt-divider">================================</div>
+                
+                <div class="receipt-big-total">
+                    <div>CASH TO REMIT</div>
+                    <div class="amount">P${cashToRemit.toLocaleString()}</div>
+                </div>
+                
+                <div class="receipt-divider">--------------------------------</div>
+                
+                <div class="receipt-status ${report.balanceStatus}">
+                    ${report.balanceStatus === 'balanced' ? '✓ BALANCED' : 
+                      report.balanceStatus === 'over' ? `↑ OVER P${report.variance.toLocaleString()}` : 
+                      `↓ SHORT P${Math.abs(report.variance).toLocaleString()}`}
+                </div>
+                
+                <div class="receipt-footer">
+                    <div>Change Fund: P${this.changeFund.toLocaleString()}</div>
+                    <div class="receipt-divider">--------------------------------</div>
+                    <div>Thank you!</div>
+                    <div>BreadHub POS</div>
+                </div>
+            </div>
+        `;
+    },
+    
+    print58mmReceipt() {
+        // Use RawBT-compatible printing via iframe
+        const printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Shift Receipt</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { 
+                        font-family: 'Courier New', monospace; 
+                        font-size: 12px; 
+                        width: 58mm; 
+                        padding: 2mm;
+                        line-height: 1.3;
+                    }
+                    .receipt-58mm { width: 100%; }
+                    .receipt-header { text-align: center; margin-bottom: 5px; }
+                    .receipt-logo { font-size: 16px; font-weight: bold; }
+                    .receipt-title { font-size: 11px; }
+                    .receipt-divider { text-align: center; margin: 3px 0; font-size: 10px; }
+                    .receipt-info { margin: 5px 0; font-size: 11px; }
+                    .receipt-section-title { font-weight: bold; margin: 5px 0 3px; font-size: 11px; }
+                    .receipt-row { display: flex; justify-content: space-between; font-size: 11px; }
+                    .receipt-row.total { font-weight: bold; border-top: 1px dashed #000; margin-top: 3px; padding-top: 3px; }
+                    .receipt-row.small { font-size: 10px; color: #666; }
+                    .receipt-big-total { text-align: center; margin: 8px 0; }
+                    .receipt-big-total .amount { font-size: 18px; font-weight: bold; }
+                    .receipt-status { text-align: center; font-weight: bold; padding: 5px; margin: 5px 0; }
+                    .receipt-status.balanced { background: #d4edda; }
+                    .receipt-status.over { background: #fff3cd; }
+                    .receipt-status.short { background: #f8d7da; }
+                    .receipt-footer { text-align: center; margin-top: 5px; font-size: 10px; }
+                    @media print {
+                        @page { margin: 0; size: 58mm auto; }
+                        body { width: 58mm; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${this.receiptHTML}
+            </body>
+            </html>
+        `;
+        
+        // Create hidden iframe for printing
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+        
+        iframe.contentWindow.document.open();
+        iframe.contentWindow.document.write(printContent);
+        iframe.contentWindow.document.close();
+        
+        iframe.onload = () => {
+            iframe.contentWindow.print();
+            setTimeout(() => document.body.removeChild(iframe), 1000);
+        };
     },
     
     printReport() {
