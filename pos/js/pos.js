@@ -1331,6 +1331,24 @@ const POS = {
                         `}
                     </div>
                     
+                    ${sale.gcashPayment ? `
+                        <div class="gcash-confirmation" style="margin-top: 12px; padding: 10px; background: #E8F5E9; border-radius: 8px; border-left: 4px solid #4CAF50;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="font-size: 1.2rem;">✅</span>
+                                <strong style="color: #2E7D32;">GCash Verified</strong>
+                            </div>
+                            <div style="font-size: 0.85rem; color: #666;">
+                                <div>Ref: <strong>${sale.gcashPayment.refNo}</strong></div>
+                                ${sale.gcashPayment.customerMobile ? `<div>Mobile: ${sale.gcashPayment.customerMobile}</div>` : ''}
+                            </div>
+                            ${sale.gcashPayment.photoData ? `
+                                <img src="${sale.gcashPayment.photoData}" alt="GCash Screenshot" 
+                                     style="margin-top: 8px; max-width: 120px; border-radius: 6px; border: 2px solid #4CAF50; cursor: pointer;"
+                                     onclick="window.open(this.src, '_blank')">
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                    
                     <div class="receipt-footer">
                         <p>${CONFIG.pos.receiptFooter}</p>
                     </div>
