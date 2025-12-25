@@ -27,14 +27,34 @@ const POS = {
     gcashPaymentData: null,
     gcashPhotoStream: null,
     
+    // Feature toggles (can be disabled by admin)
+    discountIdCaptureEnabled: true,
+    gcashCaptureEnabled: true,
+    
     currentCategory: 'all',
     
     async init() {
         await this.loadProducts();
         await this.loadDiscountPresets();
+        await this.loadFeatureSettings();
         this.renderCategories();
         this.renderProducts();
         this.renderDiscountBar();
+    },
+    
+    async loadFeatureSettings() {
+        try {
+            const settings = await DB.get('settings', 'pos');
+            // Default to enabled if not set
+            this.discountIdCaptureEnabled = settings?.discountIdCapture !== false;
+            this.gcashCaptureEnabled = settings?.gcashCapture !== false;
+            console.log('Feature settings loaded:', {
+                discountIdCapture: this.discountIdCaptureEnabled,
+                gcashCapture: this.gcashCaptureEnabled
+            });
+        } catch (error) {
+            console.log('Using default feature settings');
+        }
     },
     
     async loadProducts() {
@@ -107,7 +127,7 @@ const POS = {
             this.renderDiscountBar();
             Toast.info('Discount disabled');
         } else {
-            // For Senior/PWD, require ID photo
+            // For Senior/PWD, require ID photo (if enabled)
             const discount = this.discountPresets.find(d => d.id === discountId);
             console.log('Discount found:', discount);
             
@@ -120,14 +140,20 @@ const POS = {
                 discount.name?.toLowerCase().includes('pwd')
             );
             
-            if (requiresId) {
+            // Only show camera if ID capture is ENABLED
+            if (requiresId && this.discountIdCaptureEnabled) {
                 console.log('Opening ID capture modal for:', discount.name);
                 this.showIdCaptureModal(discount);
             } else {
+                // Skip camera - apply discount directly
                 this.activeDiscount = discount;
                 this.discountIdPhoto = null;
                 this.renderDiscountBar();
-                Toast.info(`${this.activeDiscount?.name || 'Discount'} active`);
+                if (requiresId && !this.discountIdCaptureEnabled) {
+                    Toast.warning(`${discount?.name} discount active (ID capture disabled)`);
+                } else {
+                    Toast.info(`${discount?.name || 'Discount'} active`);
+                }
             }
         }
     },
@@ -1129,11 +1155,16 @@ const POS = {
                     } else if (e.target.value === 'gcash') {
                         cashGroup.style.display = 'none';
                         changeDisplay.style.display = 'none';
-                        gcashGroup.style.display = 'block';
                         
-                        // IMMEDIATELY open camera if not yet verified
-                        if (!POS.gcashPaymentData) {
-                            POS.showGcashVerificationModal(POS.checkoutTotal, POS.checkoutTotalDiscount);
+                        // Only show GCash verification if capture is ENABLED
+                        if (POS.gcashCaptureEnabled) {
+                            gcashGroup.style.display = 'block';
+                            // IMMEDIATELY open camera if not yet verified
+                            if (!POS.gcashPaymentData) {
+                                POS.showGcashVerificationModal(POS.checkoutTotal, POS.checkoutTotalDiscount);
+                            }
+                        } else {
+                            gcashGroup.style.display = 'none';
                         }
                     } else {
                         // Card or other
@@ -1163,8 +1194,8 @@ const POS = {
             return false;
         }
         
-        // GCash payment requires photo verification
-        if (paymentMethod === 'gcash' && !this.gcashPaymentData) {
+        // GCash payment requires photo verification (if enabled)
+        if (paymentMethod === 'gcash' && !this.gcashPaymentData && this.gcashCaptureEnabled) {
             this.showGcashVerificationModal(total, totalDiscount);
             return false;
         }

@@ -17,6 +17,7 @@ const Admin = {
         this.loadDiscountPresets();
         this.loadStaffList();
         this.updateChangeFundDisplay();
+        this.loadFeatureToggles();
         
         // Auto-refresh shifts every 30 seconds
         this.startAutoRefresh();
@@ -1308,6 +1309,62 @@ const Admin = {
             this.showDeviceManagement();
         } catch (error) {
             Toast.error('Failed to delete device');
+        }
+    },
+    
+    // ========== FEATURE TOGGLES ==========
+    
+    async loadFeatureToggles() {
+        try {
+            const settings = await DB.get('settings', 'pos');
+            
+            // Default to enabled if not set
+            const discountIdCapture = settings?.discountIdCapture !== false;
+            const gcashCapture = settings?.gcashCapture !== false;
+            
+            // Update checkboxes
+            const discountToggle = document.getElementById('toggleDiscountIdCapture');
+            const gcashToggle = document.getElementById('toggleGcashCapture');
+            
+            if (discountToggle) discountToggle.checked = discountIdCapture;
+            if (gcashToggle) gcashToggle.checked = gcashCapture;
+            
+            // Also update POS settings
+            if (typeof POS !== 'undefined') {
+                POS.discountIdCaptureEnabled = discountIdCapture;
+                POS.gcashCaptureEnabled = gcashCapture;
+            }
+            
+        } catch (error) {
+            console.log('Using default feature settings');
+        }
+    },
+    
+    async toggleFeature(feature, enabled) {
+        try {
+            // Get current settings
+            let settings = await DB.get('settings', 'pos') || {};
+            
+            // Update the specific feature
+            settings[feature] = enabled;
+            
+            // Save to Firebase
+            await DB.set('settings', 'pos', settings);
+            
+            // Update POS in real-time
+            if (typeof POS !== 'undefined') {
+                if (feature === 'discountIdCapture') {
+                    POS.discountIdCaptureEnabled = enabled;
+                } else if (feature === 'gcashCapture') {
+                    POS.gcashCaptureEnabled = enabled;
+                }
+            }
+            
+            Toast.success(`${enabled ? 'Enabled' : 'Disabled'}: ${feature === 'discountIdCapture' ? 'Discount ID Capture' : 'GCash Photo Capture'}`);
+            
+        } catch (error) {
+            console.error('Error toggling feature:', error);
+            Toast.error('Failed to update setting');
         }
     }
 };

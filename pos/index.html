@@ -384,6 +384,22 @@
                         <button class="btn btn-primary btn-sm" onclick="Admin.showDeviceManagement()">🔒 Manage Devices</button>
                     </div>
                     
+                    <!-- Feature Toggles -->
+                    <div class="admin-card">
+                        <h3>⚙️ Feature Settings</h3>
+                        <p>Enable/disable photo verification features</p>
+                        <div class="feature-toggles" style="margin-top: 10px;">
+                            <label class="toggle-row" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <span>📸 Senior/PWD ID Photo Capture</span>
+                                <input type="checkbox" id="toggleDiscountIdCapture" onchange="Admin.toggleFeature('discountIdCapture', this.checked)" checked>
+                            </label>
+                            <label class="toggle-row" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0;">
+                                <span>📱 GCash Payment Photo Capture</span>
+                                <input type="checkbox" id="toggleGcashCapture" onchange="Admin.toggleFeature('gcashCapture', this.checked)" checked>
+                            </label>
+                        </div>
+                    </div>
+                    
                     <!-- Printer Settings -->
                     <div class="admin-card">
                         <h3>🖨️ Printer Settings</h3>
@@ -501,9 +517,9 @@
     <script src="js/auth.js?v=44"></script>
     <script src="js/receipt-printer.js?v=3"></script>
     <script src="js/inventory-deduction.js"></script>
-    <script src="js/pos.js?v=19"></script>
+    <script src="js/pos.js?v=20"></script>
     <script src="js/orders.js"></script>
-    <script src="js/admin.js?v=11"></script>
+    <script src="js/admin.js?v=12"></script>
     <script src="js/sales-import.js?v=4"></script>
     <script src="js/reports.js?v=6"></script>
     <script src="js/app.js?v=3"></script>
