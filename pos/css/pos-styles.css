@@ -3981,18 +3981,104 @@ details summary {
 
 /* Selected Item Banner */
 .selected-item-banner {
-    background: rgba(212, 137, 74, 0.2);
-    border: 1px solid var(--primary);
-    border-radius: 8px;
-    padding: 12px 15px;
-    margin-bottom: 15px;
+    background: linear-gradient(135deg, rgba(212, 137, 74, 0.3), rgba(212, 137, 74, 0.1));
+    border: 2px solid var(--primary);
+    border-radius: 12px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
     display: flex;
-    flex-direction: column;
-    gap: 5px;
+    align-items: center;
+    gap: 12px;
 }
 
-.selected-item-banner strong {
-    color: var(--primary);
+.selected-item-banner .item-icon {
+    font-size: 2rem;
+}
+
+.selected-item-banner .item-name {
+    font-size: 1.3rem;
+    color: #fff;
+}
+
+/* Quick Add Form */
+.quick-add-form {
+    padding: 10px;
+}
+
+.quick-add-form .form-group {
+    margin-bottom: 15px;
+}
+
+.quick-add-form label {
+    display: block;
+    margin-bottom: 6px;
+    color: #98c1d9;
+    font-size: 0.9rem;
+}
+
+.quick-add-form .form-select-lg,
+.quick-add-form .form-input-lg {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 1.1rem;
+    background: #1e3a5f;
+    border: 2px solid #3d5a80;
+    border-radius: 10px;
+    color: #fff;
+}
+
+.quick-add-form .form-select-lg:focus,
+.quick-add-form .form-input-lg:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.quick-add-form .form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.quick-add-form .flex-1 { flex: 1; }
+.quick-add-form .flex-2 { flex: 2; }
+
+.quick-amounts {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.quick-amt-btn {
+    flex: 1;
+    min-width: 70px;
+    padding: 12px 15px;
+    background: #2a4a6d;
+    border: 2px solid #4a7c9b;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quick-amt-btn:hover,
+.quick-amt-btn:active {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.quick-add-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 15px;
+}
+
+.quick-add-footer .btn {
+    flex: 1;
+    padding: 14px 20px;
+    font-size: 1.1rem;
 }
 
 

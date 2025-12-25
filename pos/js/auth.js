@@ -1000,8 +1000,126 @@ const Auth = {
     pickExpenseItem(itemId, itemName, itemType, itemUnit) {
         this.expenseModalState.item = { id: itemId, name: itemName, type: itemType, unit: itemUnit };
         
-        // Move to supplier selection
-        this.showSupplierPicker();
+        // Show quick add form with supplier dropdown and amount
+        this.showQuickAddForm();
+    },
+    
+    showQuickAddForm() {
+        const item = this.expenseModalState.item;
+        const sortedSuppliers = [...(this.suppliersList || [])].sort((a, b) => a.name.localeCompare(b.name));
+        
+        const supplierOptions = sortedSuppliers.map(s => 
+            `<option value="${s.id}" data-name="${s.name}">${s.name}</option>`
+        ).join('');
+        
+        Modal.open({
+            title: '💰 Add Purchase Details',
+            width: '90vw',
+            content: `
+                <div class="quick-add-form">
+                    <div class="selected-item-banner">
+                        <span class="item-icon">${item.type === 'ingredient' ? '🥚' : '📦'}</span>
+                        <strong class="item-name">${item.name}</strong>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Supplier</label>
+                        <select id="quickSupplierSelect" class="form-select form-select-lg">
+                            <option value="">-- Select Supplier --</option>
+                            ${supplierOptions}
+                            <option value="__new__">➕ Add New Supplier...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label>Qty</label>
+                            <input type="number" id="quickQtyInput" class="form-input form-input-lg" value="1" min="0.01" step="0.01">
+                        </div>
+                        <div class="form-group flex-2">
+                            <label>Amount Paid (₱)</label>
+                            <input type="number" id="quickAmountInput" class="form-input form-input-lg" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                        </div>
+                    </div>
+                    
+                    <div class="quick-amounts">
+                        <button type="button" class="quick-amt-btn" onclick="Auth.setQuickAmount(50)">₱50</button>
+                        <button type="button" class="quick-amt-btn" onclick="Auth.setQuickAmount(100)">₱100</button>
+                        <button type="button" class="quick-amt-btn" onclick="Auth.setQuickAmount(200)">₱200</button>
+                        <button type="button" class="quick-amt-btn" onclick="Auth.setQuickAmount(500)">₱500</button>
+                    </div>
+                </div>
+            `,
+            customFooter: `
+                <div class="quick-add-footer">
+                    <button class="btn btn-outline btn-lg" onclick="Auth.backToItemPicker()">← Back</button>
+                    <button class="btn btn-success btn-lg" onclick="Auth.confirmQuickAdd()">✅ Add Purchase</button>
+                </div>
+            `,
+            hideFooter: true
+        });
+        
+        // Handle new supplier selection
+        setTimeout(() => {
+            const select = document.getElementById('quickSupplierSelect');
+            if (select) {
+                select.addEventListener('change', (e) => {
+                    if (e.target.value === '__new__') {
+                        this.showAddSupplierForm();
+                    }
+                });
+            }
+        }, 100);
+    },
+    
+    setQuickAmount(amount) {
+        const input = document.getElementById('quickAmountInput');
+        if (input) input.value = amount;
+    },
+    
+    confirmQuickAdd() {
+        const supplierSelect = document.getElementById('quickSupplierSelect');
+        const supplierId = supplierSelect?.value;
+        const supplierName = supplierSelect?.selectedOptions[0]?.dataset?.name || '';
+        
+        if (!supplierId || supplierId === '__new__') {
+            Toast.error('Select a supplier');
+            return;
+        }
+        
+        const qty = parseFloat(document.getElementById('quickQtyInput')?.value) || 1;
+        const amount = parseFloat(document.getElementById('quickAmountInput')?.value) || 0;
+        
+        if (amount <= 0) {
+            Toast.error('Enter the amount paid');
+            return;
+        }
+        
+        const item = this.expenseModalState.item;
+        
+        // Add to expenses list
+        if (!this.shiftExpenses) this.shiftExpenses = [];
+        
+        const expense = {
+            id: Date.now(),
+            itemId: item.id,
+            itemName: item.name,
+            itemType: item.type,
+            supplierId: supplierId,
+            supplierName: supplierName,
+            qty: qty,
+            unit: item.unit,
+            amount: amount
+        };
+        
+        this.shiftExpenses.push(expense);
+        
+        // Update the expenses display
+        this.renderExpensesList();
+        this.updateTotalExpenses();
+        
+        Modal.close();
+        Toast.success(`✅ Added: ${item.name} - ₱${amount}`);
     },
     
     showSupplierPicker() {
