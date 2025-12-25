@@ -878,8 +878,14 @@ const Auth = {
             hideFooter: true
         });
         
-        // Initialize expenses array
-        this.shiftExpenses = [];
+        // Initialize expenses array only if not already set (preserve existing expenses)
+        if (!this.shiftExpenses) {
+            this.shiftExpenses = [];
+        }
+        
+        // Render existing expenses
+        this.renderExpensesList();
+        this.updateTotalExpenses();
     },
     
     toggleEndShiftBtn() {
@@ -1099,9 +1105,9 @@ const Auth = {
     confirmQuickAdd() {
         const supplierSelect = document.getElementById('quickSupplierSelect');
         const supplierId = supplierSelect?.value;
-        const supplierName = supplierSelect?.selectedOptions[0]?.dataset?.name || '';
+        const supplierName = supplierSelect?.selectedOptions[0]?.textContent || '';
         
-        if (!supplierId || supplierId === '__new__') {
+        if (!supplierId || supplierId === '' || supplierId === '__new__') {
             Toast.error('Select a supplier');
             return;
         }
@@ -1116,7 +1122,7 @@ const Auth = {
         
         const item = this.expenseModalState.item;
         
-        // Add to expenses list
+        // Add to expenses list (persistent)
         if (!this.shiftExpenses) this.shiftExpenses = [];
         
         const expense = {
@@ -1133,12 +1139,11 @@ const Auth = {
         
         this.shiftExpenses.push(expense);
         
-        // Update the expenses display
-        this.renderExpensesList();
-        this.updateTotalExpenses();
-        
-        Modal.close();
         Toast.success(`✅ Added: ${item.name} - ₱${amount}`);
+        
+        // Return to End Shift modal (not close everything)
+        Modal.close();
+        setTimeout(() => this.showEndShiftModal(), 100);
     },
     
     showSupplierPicker() {
