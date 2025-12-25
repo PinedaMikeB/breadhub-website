@@ -907,6 +907,8 @@ const Auth = {
                     DB.getAll('suppliers')
                 ]);
                 
+                console.log('Loaded suppliers:', suppliers); // Debug log
+                
                 this.ingredientsList = ingredients.map(i => ({ 
                     id: i.id, name: i.name, unit: i.unit || 'unit',
                     type: 'ingredient', category: i.category || 'Ingredient'
@@ -916,6 +918,7 @@ const Auth = {
                     type: 'packaging', category: 'Packaging'
                 }));
                 this.suppliersList = suppliers.map(s => ({ id: s.id, name: s.name }));
+                console.log('Suppliers list:', this.suppliersList); // Debug log
                 this.allItems = [...this.ingredientsList, ...this.packagingList];
             } catch (err) {
                 console.error('Failed to load items:', err);
