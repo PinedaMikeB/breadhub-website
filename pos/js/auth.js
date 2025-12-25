@@ -959,6 +959,10 @@ const Auth = {
                 DB.getAll('suppliers')
             ]);
             
+            // Debug: log first ingredient to see structure
+            console.log('Sample ingredient:', ingredients[0]);
+            console.log('Sample supplier:', suppliers[0]);
+            
             // Build supplier lookup map
             const supplierMap = {};
             suppliers.forEach(s => {
@@ -966,35 +970,47 @@ const Auth = {
             });
             this.supplierMap = supplierMap;
             
-            // Map ingredients with full details
+            // Map ingredients with full details - try all possible field names
             this.allItemsDetails = [
-                ...ingredients.map(i => ({
-                    id: i.id,
-                    name: i.name,
-                    type: 'ingredient',
-                    category: i.category || 'Ingredient',
-                    unit: i.unit || 'kg',
-                    price: i.price || i.costPerUnit || 0,
-                    priceUnit: i.priceUnit || i.unit || 'kg',
-                    supplierId: i.supplierId || i.defaultSupplierId || null,
-                    supplierName: supplierMap[i.supplierId] || supplierMap[i.defaultSupplierId] || 'No supplier',
-                    currentStock: i.currentStock || i.stockQty || 0,
-                    stockUnit: i.stockUnit || i.unit || 'g'
-                })),
-                ...packaging.map(p => ({
-                    id: p.id,
-                    name: p.name,
-                    type: 'packaging',
-                    category: 'Packaging',
-                    unit: p.unit || 'pcs',
-                    price: p.price || p.costPerUnit || 0,
-                    priceUnit: p.priceUnit || p.unit || 'pcs',
-                    supplierId: p.supplierId || p.defaultSupplierId || null,
-                    supplierName: supplierMap[p.supplierId] || supplierMap[p.defaultSupplierId] || 'No supplier',
-                    currentStock: p.currentStock || p.stockQty || 0,
-                    stockUnit: p.stockUnit || p.unit || 'pcs'
-                }))
+                ...ingredients.map(i => {
+                    // Try multiple possible field names for each property
+                    const suppId = i.supplierId || i.defaultSupplierId || i.supplier || null;
+                    return {
+                        id: i.id,
+                        name: i.name,
+                        type: 'ingredient',
+                        category: i.category || i.type || 'Ingredient',
+                        // Price fields
+                        unit: i.purchaseUnit || i.unit || 'kg',
+                        price: i.purchasePrice || i.pricePerUnit || i.price || i.costPerUnit || i.cost || 0,
+                        priceUnit: i.purchaseUnit || i.priceUnit || i.unit || 'kg',
+                        // Supplier
+                        supplierId: suppId,
+                        supplierName: supplierMap[suppId] || i.supplierName || 'No supplier',
+                        // Stock
+                        currentStock: i.currentStock || i.stockQty || i.stock || i.quantity || 0,
+                        stockUnit: i.stockUnit || i.unit || 'g'
+                    };
+                }),
+                ...packaging.map(p => {
+                    const suppId = p.supplierId || p.defaultSupplierId || p.supplier || null;
+                    return {
+                        id: p.id,
+                        name: p.name,
+                        type: 'packaging',
+                        category: 'Packaging',
+                        unit: p.purchaseUnit || p.unit || 'pcs',
+                        price: p.purchasePrice || p.pricePerUnit || p.price || p.costPerUnit || p.cost || 0,
+                        priceUnit: p.purchaseUnit || p.priceUnit || p.unit || 'pcs',
+                        supplierId: suppId,
+                        supplierName: supplierMap[suppId] || p.supplierName || 'No supplier',
+                        currentStock: p.currentStock || p.stockQty || p.stock || p.quantity || 0,
+                        stockUnit: p.stockUnit || p.unit || 'pcs'
+                    };
+                })
             ].sort((a, b) => a.name.localeCompare(b.name));
+            
+            console.log('Mapped item sample:', this.allItemsDetails[0]);
             
             this.showExpenseListModal();
             
