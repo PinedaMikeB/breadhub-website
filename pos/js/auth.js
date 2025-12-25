@@ -953,17 +953,16 @@ const Auth = {
         try {
             Toast.show('Loading items...', 'info');
             
-            const [ingredients, packaging, suppliers] = await Promise.all([
+            const [ingredients, packaging, suppliers, ingredientSuppliers] = await Promise.all([
                 DB.getAll('ingredients'),
                 DB.getAll('packagingMaterials'),
-                DB.getAll('suppliers')
+                DB.getAll('suppliers'),
+                DB.getAll('ingredientSuppliers') // This links ingredients to suppliers with prices
             ]);
             
-            // Debug: log first ingredient to see structure
+            // Debug logs
             console.log('Sample ingredient KEYS:', Object.keys(ingredients[0] || {}));
-            console.log('Sample ingredient JSON:', JSON.stringify(ingredients[0], null, 2));
-            console.log('Sample supplier KEYS:', Object.keys(suppliers[0] || {}));
-            console.log('Sample supplier JSON:', JSON.stringify(suppliers[0], null, 2));
+            console.log('Sample ingredientSupplier:', ingredientSuppliers?.[0]);
             
             // Build supplier lookup map
             const supplierMap = {};
@@ -972,41 +971,51 @@ const Auth = {
             });
             this.supplierMap = supplierMap;
             
-            // Map ingredients with full details - try all possible field names
+            // Build ingredient-supplier lookup (ingredientId -> {supplierId, price, unit})
+            const ingredientSupplierMap = {};
+            (ingredientSuppliers || []).forEach(is => {
+                const ingId = is.ingredientId || is.itemId;
+                if (ingId && (!ingredientSupplierMap[ingId] || is.isDefault)) {
+                    ingredientSupplierMap[ingId] = {
+                        supplierId: is.supplierId,
+                        supplierName: supplierMap[is.supplierId] || 'Unknown',
+                        price: is.price || is.unitPrice || is.pricePerUnit || 0,
+                        unit: is.unit || is.purchaseUnit || 'kg'
+                    };
+                }
+            });
+            
+            // Map ingredients with full details
             this.allItemsDetails = [
                 ...ingredients.map(i => {
-                    // Try multiple possible field names for each property
-                    const suppId = i.supplierId || i.defaultSupplierId || i.supplier || null;
+                    const supplierInfo = ingredientSupplierMap[i.id] || {};
                     return {
                         id: i.id,
                         name: i.name,
                         type: 'ingredient',
                         category: i.category || i.type || 'Ingredient',
-                        // Price fields
-                        unit: i.purchaseUnit || i.unit || 'kg',
-                        price: i.purchasePrice || i.pricePerUnit || i.price || i.costPerUnit || i.cost || 0,
-                        priceUnit: i.purchaseUnit || i.priceUnit || i.unit || 'kg',
-                        // Supplier
-                        supplierId: suppId,
-                        supplierName: supplierMap[suppId] || i.supplierName || 'No supplier',
-                        // Stock
-                        currentStock: i.currentStock || i.stockQty || i.stock || i.quantity || 0,
+                        unit: supplierInfo.unit || i.unit || 'kg',
+                        price: supplierInfo.price || 0,
+                        priceUnit: supplierInfo.unit || i.unit || 'kg',
+                        supplierId: supplierInfo.supplierId || null,
+                        supplierName: supplierInfo.supplierName || 'No supplier',
+                        currentStock: i.currentStock || i.stockQty || 0,
                         stockUnit: i.stockUnit || i.unit || 'g'
                     };
                 }),
                 ...packaging.map(p => {
-                    const suppId = p.supplierId || p.defaultSupplierId || p.supplier || null;
+                    const supplierInfo = ingredientSupplierMap[p.id] || {};
                     return {
                         id: p.id,
                         name: p.name,
                         type: 'packaging',
                         category: 'Packaging',
-                        unit: p.purchaseUnit || p.unit || 'pcs',
-                        price: p.purchasePrice || p.pricePerUnit || p.price || p.costPerUnit || p.cost || 0,
-                        priceUnit: p.purchaseUnit || p.priceUnit || p.unit || 'pcs',
-                        supplierId: suppId,
-                        supplierName: supplierMap[suppId] || p.supplierName || 'No supplier',
-                        currentStock: p.currentStock || p.stockQty || p.stock || p.quantity || 0,
+                        unit: supplierInfo.unit || p.unit || 'pcs',
+                        price: supplierInfo.price || 0,
+                        priceUnit: supplierInfo.unit || p.unit || 'pcs',
+                        supplierId: supplierInfo.supplierId || null,
+                        supplierName: supplierInfo.supplierName || 'No supplier',
+                        currentStock: p.currentStock || p.stockQty || 0,
                         stockUnit: p.stockUnit || p.unit || 'pcs'
                     };
                 })
