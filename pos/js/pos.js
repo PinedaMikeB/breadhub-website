@@ -17,13 +17,8 @@ const POS = {
     // Main category filter (breads vs drinks)
     currentMainCategory: 'all',
     
-    // Discount presets (like Loyverse)
-    discountPresets: [
-        { id: 'senior', name: 'Senior Citizen', percent: 20, icon: '👴' },
-        { id: 'pwd', name: 'PWD', percent: 20, icon: '♿' },
-        { id: 'employee', name: 'Employee', percent: 10, icon: '👷' },
-        { id: 'promo', name: 'Promo', percent: 15, icon: '🎉' }
-    ],
+    // Discount presets - loaded from Firebase (no defaults)
+    discountPresets: [],
     
     // Active discount for new items
     activeDiscount: null,
@@ -59,11 +54,11 @@ const POS = {
     async loadDiscountPresets() {
         try {
             const stored = await DB.getAll('discountPresets');
-            if (stored.length > 0) {
-                this.discountPresets = stored;
-            }
+            // Always use what's in Firebase - no defaults
+            this.discountPresets = stored || [];
         } catch (error) {
-            console.log('Using default discount presets');
+            console.log('Error loading discount presets:', error);
+            this.discountPresets = [];
         }
     },
     

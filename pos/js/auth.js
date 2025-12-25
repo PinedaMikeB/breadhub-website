@@ -25,8 +25,31 @@ const Auth = {
         
         if (savedStaff && savedShift) {
             this.userData = JSON.parse(savedStaff);
-            this.currentShift = JSON.parse(savedShift);
-            this.showPOS();
+            const localShift = JSON.parse(savedShift);
+            
+            // CRITICAL: Verify shift is still active in Firebase
+            // This prevents "ghost shifts" on other devices after logout
+            try {
+                const firebaseShift = await DB.get('shifts', localShift.id);
+                
+                if (firebaseShift && firebaseShift.status === 'active') {
+                    // Shift is genuinely active - restore it
+                    this.currentShift = firebaseShift;
+                    this.showPOS();
+                } else {
+                    // Shift was completed/ended - clear local storage
+                    console.log('Shift was already completed in Firebase, clearing local session');
+                    localStorage.removeItem('pos_shift');
+                    localStorage.removeItem('pos_staff');
+                    this.userData = null;
+                    this.currentShift = null;
+                    this.showLogin();
+                }
+            } catch (error) {
+                console.error('Error verifying shift:', error);
+                // On error, show login to be safe
+                this.showLogin();
+            }
         } else {
             this.showLogin();
         }
@@ -2450,9 +2473,11 @@ const Auth = {
     },
     
     completeLogout() {
-        // Clear shift data
+        // Clear all shift and staff data
         localStorage.removeItem('pos_shift');
+        localStorage.removeItem('pos_staff');
         this.currentShift = null;
+        this.userData = null;
         this.shiftExpenses = null;
         this.expensesData = null;
         this.endShiftData = null;
