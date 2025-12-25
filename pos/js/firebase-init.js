@@ -107,5 +107,14 @@ const DB = {
             .where('dateKey', '==', today)
             .get();
         return snapshot.size + 1;
+    },
+    
+    // Get sub-collection documents (e.g., ingredients/{id}/prices)
+    async getSubcollection(collectionName, docId, subcollectionName) {
+        const snapshot = await db.collection(collectionName)
+            .doc(docId)
+            .collection(subcollectionName)
+            .get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 };

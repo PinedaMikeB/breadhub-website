@@ -953,33 +953,11 @@ const Auth = {
         try {
             Toast.show('Loading items...', 'info');
             
-            // Try multiple possible collection names for supplier-ingredient links
             const [ingredients, packaging, suppliers] = await Promise.all([
                 DB.getAll('ingredients'),
                 DB.getAll('packagingMaterials'),
                 DB.getAll('suppliers')
             ]);
-            
-            // Try to load supplier links from various possible collections
-            let supplierLinks = [];
-            const possibleCollections = ['ingredientSuppliers', 'supplierIngredients', 'itemSuppliers', 'supplierItems', 'purchaseItems'];
-            
-            for (const collName of possibleCollections) {
-                try {
-                    const data = await DB.getAll(collName);
-                    if (data && data.length > 0) {
-                        console.log(`Found data in ${collName}:`, data[0]);
-                        supplierLinks = data;
-                        break;
-                    }
-                } catch (e) {
-                    // Collection doesn't exist, continue
-                }
-            }
-            
-            // Check if ingredients have a 'suppliers' sub-array
-            console.log('Checking ingredient for suppliers array:', ingredients[0]?.suppliers);
-            console.log('Full ingredient keys:', Object.keys(ingredients[0] || {}));
             
             // Build supplier lookup map
             const supplierMap = {};
@@ -988,42 +966,55 @@ const Auth = {
             });
             this.supplierMap = supplierMap;
             
-            // Check if ingredient has embedded supplier info
-            const sampleIng = ingredients[0];
-            if (sampleIng) {
-                console.log('Ingredient suppliers field:', sampleIng.suppliers);
-                console.log('Ingredient defaultSupplier:', sampleIng.defaultSupplier);
-                console.log('Ingredient purchaseInfo:', sampleIng.purchaseInfo);
-                console.log('Ingredient pricing:', sampleIng.pricing);
-            }
-            
-            // Map ingredients - check for embedded supplier data
-            this.allItemsDetails = [
-                ...ingredients.map(i => {
-                    // Check for embedded suppliers array
-                    let supplierInfo = {};
-                    if (i.suppliers && Array.isArray(i.suppliers) && i.suppliers.length > 0) {
-                        const defaultSupp = i.suppliers.find(s => s.isDefault) || i.suppliers[0];
-                        supplierInfo = {
-                            supplierId: defaultSupp.supplierId || defaultSupp.id,
-                            supplierName: supplierMap[defaultSupp.supplierId] || defaultSupp.supplierName || defaultSupp.name || 'Unknown',
-                            price: defaultSupp.price || defaultSupp.unitPrice || defaultSupp.pricePerUnit || 0,
-                            unit: defaultSupp.unit || defaultSupp.purchaseUnit || 'kg'
+            // Load supplier prices from sub-collections for each ingredient
+            const ingredientsWithPrices = await Promise.all(
+                ingredients.map(async (ing) => {
+                    try {
+                        // Try to get prices sub-collection
+                        const prices = await DB.getSubcollection('ingredients', ing.id, 'prices');
+                        
+                        // Find default supplier price (one with ⭐ or first one)
+                        let defaultPrice = null;
+                        if (prices && prices.length > 0) {
+                            defaultPrice = prices.find(p => p.isDefault) || prices[0];
+                        }
+                        
+                        return {
+                            ...ing,
+                            supplierPrices: prices || [],
+                            defaultSupplierPrice: defaultPrice
                         };
+                    } catch (e) {
+                        return { ...ing, supplierPrices: [], defaultSupplierPrice: null };
                     }
+                })
+            );
+            
+            // Map ingredients with full details including supplier prices
+            this.allItemsDetails = [
+                ...ingredientsWithPrices.map(i => {
+                    const priceInfo = i.defaultSupplierPrice || {};
+                    const suppId = priceInfo.supplierId || priceInfo.supplier;
                     
                     return {
                         id: i.id,
                         name: i.name,
                         type: 'ingredient',
-                        category: i.category || i.type || 'Ingredient',
-                        unit: supplierInfo.unit || i.unit || 'kg',
-                        price: supplierInfo.price || i.price || i.unitPrice || 0,
-                        priceUnit: supplierInfo.unit || i.unit || 'kg',
-                        supplierId: supplierInfo.supplierId || i.supplierId || null,
-                        supplierName: supplierInfo.supplierName || supplierMap[i.supplierId] || 'No supplier',
+                        category: i.category || 'Ingredient',
+                        // Price from supplier prices sub-collection
+                        price: priceInfo.price || priceInfo.purchasePrice || 0,
+                        size: priceInfo.size || priceInfo.packageSize || 1000,
+                        costPerGram: priceInfo.costPerGram || priceInfo.costPerG || 0,
+                        unit: 'kg',
+                        priceUnit: `${(priceInfo.size || 1000)}g`,
+                        // Supplier info
+                        supplierId: suppId,
+                        supplierName: supplierMap[suppId] || priceInfo.supplierName || 'No supplier',
+                        // Stock
                         currentStock: i.currentStock || 0,
-                        stockUnit: i.stockUnit || i.unit || 'g'
+                        stockUnit: 'g',
+                        // All supplier prices for reference
+                        allPrices: i.supplierPrices
                     };
                 }),
                 ...packaging.map(p => ({
@@ -1031,15 +1022,19 @@ const Auth = {
                     name: p.name,
                     type: 'packaging',
                     category: 'Packaging',
-                    unit: p.unit || 'pcs',
                     price: p.price || p.unitPrice || 0,
+                    size: p.size || 1,
+                    unit: p.unit || 'pcs',
                     priceUnit: p.unit || 'pcs',
                     supplierId: p.supplierId || null,
                     supplierName: supplierMap[p.supplierId] || 'No supplier',
                     currentStock: p.currentStock || 0,
-                    stockUnit: p.stockUnit || p.unit || 'pcs'
+                    stockUnit: p.unit || 'pcs',
+                    allPrices: []
                 }))
             ].sort((a, b) => a.name.localeCompare(b.name));
+            
+            console.log('Sample mapped item:', this.allItemsDetails[0]);
             
             this.showExpenseListModal();
             
@@ -1053,7 +1048,20 @@ const Auth = {
         const items = this.allItemsDetails || [];
         
         // Build item rows HTML like ProofMaster
-        const itemRowsHTML = items.map((item, index) => `
+        const itemRowsHTML = items.map((item, index) => {
+            // Format price display
+            let priceDisplay = '₱0';
+            if (item.price > 0) {
+                priceDisplay = `₱${item.price.toLocaleString()} / ${item.size || 1000}g`;
+            }
+            
+            // Stock display
+            const stockDisplay = item.currentStock > 0 
+                ? `${item.currentStock.toLocaleString()} ${item.stockUnit}`
+                : '0 g';
+            const stockClass = item.currentStock <= 0 ? 'low-stock' : '';
+            
+            return `
             <div class="expense-item-row" data-item-index="${index}" data-name="${item.name.toLowerCase()}">
                 <div class="expense-item-checkbox">
                     <input type="checkbox" id="expItem${index}" class="expense-checkbox" data-index="${index}">
@@ -1062,11 +1070,11 @@ const Auth = {
                     <div class="expense-item-name">${item.name}</div>
                     <div class="expense-item-details">
                         <span class="item-category">${item.category}</span>
-                        <span class="item-price">₱${item.price.toLocaleString()} / ${item.priceUnit}</span>
+                        <span class="item-price">${priceDisplay}</span>
                         <span class="item-supplier">• ${item.supplierName}</span>
                     </div>
-                    <div class="expense-item-stock ${item.currentStock <= 0 ? 'low-stock' : ''}">
-                        📦 Stock: ${item.currentStock.toLocaleString()} ${item.stockUnit}
+                    <div class="expense-item-stock ${stockClass}">
+                        📦 Stock: ${stockDisplay}
                     </div>
                 </div>
                 <div class="expense-item-qty">
@@ -1075,13 +1083,14 @@ const Auth = {
                 </div>
                 <div class="expense-item-unit">
                     <select class="expense-unit-select" id="expUnit${index}">
-                        <option value="${item.unit}" selected>${item.unit}</option>
-                        ${item.unit !== 'kg' ? '<option value="kg">kg</option>' : ''}
-                        ${item.unit !== 'g' ? '<option value="g">g</option>' : ''}
-                        ${item.unit !== 'pcs' ? '<option value="pcs">pcs</option>' : ''}
-                        ${item.unit !== 'pack' ? '<option value="pack">pack</option>' : ''}
-                        ${item.unit !== 'sack' ? '<option value="sack">sack</option>' : ''}
-                        ${item.unit !== 'box' ? '<option value="box">box</option>' : ''}
+                        <option value="kg" selected>kg</option>
+                        <option value="g">g</option>
+                        <option value="pcs">pcs</option>
+                        <option value="pack">pack</option>
+                        <option value="sack">sack</option>
+                        <option value="box">box</option>
+                        <option value="bottle">bottle</option>
+                        <option value="can">can</option>
                     </select>
                 </div>
                 <div class="expense-item-amount">
@@ -1089,7 +1098,7 @@ const Auth = {
                            placeholder="₱0" min="0" step="0.01">
                 </div>
             </div>
-        `).join('');
+        `}).join('');
         
         Modal.open({
             title: '🛒 Emergency Purchase',
