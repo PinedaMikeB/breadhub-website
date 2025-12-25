@@ -2235,9 +2235,31 @@ const Auth = {
                 const item = await DB.get(collection, purchase.itemId);
                 
                 if (item) {
-                    const oldQty = item.currentStock || item.stockQty || 0;
-                    const addedQty = purchase.qty || 1;
-                    const newQty = oldQty + addedQty;
+                    const oldQty = item.currentStock || item.stockQty || 0; // In grams for ingredients
+                    
+                    // Convert purchase qty to grams if needed (stock is tracked in grams)
+                    let addedQtyInGrams = purchase.qty || 1;
+                    const unit = purchase.unit || 'kg';
+                    
+                    if (purchase.itemType === 'ingredient') {
+                        // Convert to grams for ingredients
+                        if (unit === 'kg') {
+                            addedQtyInGrams = purchase.qty * 1000; // 1 kg = 1000g
+                        } else if (unit === 'g') {
+                            addedQtyInGrams = purchase.qty;
+                        } else if (unit === 'sack') {
+                            // Assume 1 sack = 25kg for flour, etc.
+                            addedQtyInGrams = purchase.qty * 25000;
+                        } else {
+                            // Default: treat as grams
+                            addedQtyInGrams = purchase.qty;
+                        }
+                    } else {
+                        // For packaging, just use the qty as-is (pcs, box, etc.)
+                        addedQtyInGrams = purchase.qty;
+                    }
+                    
+                    const newQty = oldQty + addedQtyInGrams;
                     
                     // Update stock in Firebase
                     await DB.update(collection, purchase.itemId, {
@@ -2262,8 +2284,9 @@ const Auth = {
                     updates.push({
                         itemName: purchase.itemName,
                         itemType: purchase.itemType,
-                        unit: purchase.unit || 'unit',
-                        addedQty: addedQty,
+                        unit: unit,
+                        inputQty: purchase.qty,  // Original input (e.g., 1 kg)
+                        addedQtyGrams: addedQtyInGrams,  // Converted to grams
                         oldQty: oldQty,
                         newQty: newQty,
                         supplierName: purchase.supplierName
@@ -2278,20 +2301,34 @@ const Auth = {
     },
     
     async showInventoryUpdateConfirmation(updates) {
-        const updateRows = updates.map(u => `
+        const updateRows = updates.map(u => {
+            // Format display - show what was added and stock in readable format
+            const addedDisplay = u.itemType === 'ingredient' 
+                ? `+${u.inputQty} ${u.unit} (${u.addedQtyGrams.toLocaleString()}g)`
+                : `+${u.inputQty} ${u.unit}`;
+            
+            const oldStockDisplay = u.itemType === 'ingredient'
+                ? (u.oldQty >= 1000 ? `${(u.oldQty/1000).toFixed(2)} kg` : `${u.oldQty} g`)
+                : `${u.oldQty} ${u.unit}`;
+            
+            const newStockDisplay = u.itemType === 'ingredient'
+                ? (u.newQty >= 1000 ? `${(u.newQty/1000).toFixed(2)} kg` : `${u.newQty} g`)
+                : `${u.newQty} ${u.unit}`;
+            
+            return `
             <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">
                     <strong>${u.itemName}</strong>
                     <br><small style="color: #666;">${u.itemType === 'ingredient' ? '🥚 Ingredient' : '📦 Packaging'}</small>
                 </td>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">
-                    <span style="color: #28a745; font-weight: bold;">+${u.addedQty} ${u.unit}</span>
+                    <span style="color: #28a745; font-weight: bold;">${addedDisplay}</span>
                 </td>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">
-                    ${u.oldQty} → <strong style="color: #007bff;">${u.newQty}</strong> ${u.unit}
+                    ${oldStockDisplay} → <strong style="color: #007bff;">${newStockDisplay}</strong>
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
         
         Modal.open({
             title: '✅ Inventory Updated from Emergency Purchases',
