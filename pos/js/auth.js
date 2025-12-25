@@ -753,8 +753,9 @@ const Auth = {
         const totalSales = cashSales + gcashSales + otherSales;
         const transactionCount = sales.length;
         
-        // Expected cash = starting cash + cash sales only (GCash goes to app, not drawer)
-        const expectedCash = (this.currentShift.startingCash || 0) + cashSales;
+        // IMPORTANT: Expected Cash = CASH SALES ONLY (Change Fund is separate!)
+        // Change fund stays in drawer and is tracked separately
+        const expectedCashFromSales = cashSales;
         
         // Store for later use in PDF
         this.endShiftData = {
@@ -765,7 +766,8 @@ const Auth = {
             otherSales,
             totalSales,
             transactionCount,
-            expectedCash
+            expectedCashFromSales,
+            changeFund: this.changeFund
         };
         
         Modal.open({
@@ -786,10 +788,6 @@ const Auth = {
                                 <div class="summary-item">
                                     <span class="label">Start Time</span>
                                     <span class="value">${Utils.formatTime(this.currentShift.startTime)}</span>
-                                </div>
-                                <div class="summary-item">
-                                    <span class="label">Starting Cash</span>
-                                    <span class="value">${Utils.formatCurrency(this.currentShift.startingCash || 0)}</span>
                                 </div>
                                 <div class="summary-item">
                                     <span class="label">Transactions</span>
@@ -820,19 +818,19 @@ const Auth = {
                             </div>
                             
                             <div class="cash-section">
-                                <h4>🧮 Cash Drawer</h4>
+                                <h4>🧮 Cash Sales Verification</h4>
+                                <p class="cash-instruction">Count your CASH SALES only (excluding the change fund)</p>
                                 <div class="expected-cash">
-                                    Expected Cash: <strong>${Utils.formatCurrency(expectedCash)}</strong>
-                                    <small>(₱${(this.currentShift.startingCash || 0).toLocaleString()} + ₱${cashSales.toLocaleString()})</small>
+                                    Expected from Cash Sales: <strong>${Utils.formatCurrency(expectedCashFromSales)}</strong>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label>Actual Cash Count</label>
-                                    <input type="number" id="actualCash" class="form-input form-input-lg" placeholder="Count your drawer" step="0.01" oninput="Auth.calculateVariance()">
+                                    <label>Actual Cash from Sales</label>
+                                    <input type="number" id="actualCashSales" class="form-input form-input-lg" placeholder="Enter cash sales amount" step="0.01" oninput="Auth.calculateVariance()">
                                 </div>
                                 
                                 <div id="varianceDisplay" class="variance-display">
-                                    Enter actual cash count above
+                                    Enter actual cash from sales above
                                 </div>
                             </div>
                             
@@ -855,12 +853,21 @@ const Auth = {
                     <div class="shift-end-right">
                         <div class="end-shift-actions">
                             <div class="change-fund-confirm">
-                                <h4>🔄 Confirm Change Fund</h4>
-                                <p>Change Fund Left in Drawer:</p>
-                                <div class="change-fund-display">${Utils.formatCurrency(this.changeFund)}</div>
+                                <h4>🔄 Change Fund Handover</h4>
+                                <p>Set Change Fund: <strong>${Utils.formatCurrency(this.changeFund)}</strong></p>
+                                
+                                <div class="form-group" style="margin: 10px 0;">
+                                    <label>Actual Change Fund Left in Drawer:</label>
+                                    <input type="number" id="actualChangeFund" class="form-input" 
+                                           value="${this.changeFund}" step="0.01" 
+                                           oninput="Auth.checkChangeFundShortage()">
+                                </div>
+                                
+                                <div id="changeFundStatus" class="change-fund-status"></div>
+                                
                                 <label class="checkbox-confirm">
                                     <input type="checkbox" id="changeFundConfirmed" onchange="Auth.toggleEndShiftBtn()">
-                                    I confirm the change fund is in the drawer
+                                    I confirm this amount for next cashier
                                 </label>
                             </div>
                             
@@ -886,6 +893,44 @@ const Auth = {
         // Render existing expenses
         this.renderExpensesList();
         this.updateTotalExpenses();
+        
+        // Initialize change fund status
+        this.checkChangeFundShortage();
+    },
+    
+    checkChangeFundShortage() {
+        const actualChangeFund = parseFloat(document.getElementById('actualChangeFund')?.value) || 0;
+        const setChangeFund = this.changeFund || 1000;
+        const shortage = setChangeFund - actualChangeFund;
+        
+        const statusDiv = document.getElementById('changeFundStatus');
+        if (!statusDiv) return;
+        
+        if (shortage > 0) {
+            // There's a shortage - likely used for emergency purchases
+            statusDiv.innerHTML = `
+                <div style="background: #fff3cd; padding: 10px; border-radius: 8px; margin: 10px 0; color: #856404;">
+                    ⚠️ <strong>Shortage: ${Utils.formatCurrency(shortage)}</strong>
+                    <br><small>If used for emergency purchases, it will be noted in the report and owner will be notified.</small>
+                </div>
+            `;
+            this.changeFundShortage = shortage;
+        } else if (shortage < 0) {
+            // Overage
+            statusDiv.innerHTML = `
+                <div style="background: #d4edda; padding: 10px; border-radius: 8px; margin: 10px 0; color: #155724;">
+                    ✅ <strong>Extra: ${Utils.formatCurrency(Math.abs(shortage))}</strong>
+                </div>
+            `;
+            this.changeFundShortage = 0;
+        } else {
+            statusDiv.innerHTML = `
+                <div style="background: #d4edda; padding: 10px; border-radius: 8px; margin: 10px 0; color: #155724;">
+                    ✅ Change fund complete
+                </div>
+            `;
+            this.changeFundShortage = 0;
+        }
     },
     
     toggleEndShiftBtn() {
@@ -1416,18 +1461,20 @@ const Auth = {
     
     
     calculateVariance() {
-        const actualCash = parseFloat(document.getElementById('actualCash')?.value) || 0;
+        const actualCashSales = parseFloat(document.getElementById('actualCashSales')?.value) || 0;
         
         // Get total expenses
         const expenses = (this.shiftExpenses || []).reduce((sum, e) => sum + e.amount, 0);
         
-        const expectedCash = this.endShiftData?.expectedCash || 0;
+        // Expected is cash sales only (NOT including change fund)
+        const expectedCash = this.endShiftData?.expectedCashFromSales || 0;
         
-        // Adjusted expected = expected - expenses
+        // Adjusted expected = cash sales - expenses paid from sales
         const adjustedExpected = expectedCash - expenses;
-        const variance = actualCash - adjustedExpected;
+        const variance = actualCashSales - adjustedExpected;
         
         const display = document.getElementById('varianceDisplay');
+        if (!display) return;
         
         let status, statusClass;
         if (Math.abs(variance) < 1) {
@@ -1444,7 +1491,7 @@ const Auth = {
         display.innerHTML = `
             <div class="variance-calc">
                 <div class="calc-row">
-                    <span>Expected Cash:</span>
+                    <span>Expected Cash Sales:</span>
                     <span>${Utils.formatCurrency(expectedCash)}</span>
                 </div>
                 ${expenses > 0 ? `
@@ -1458,8 +1505,8 @@ const Auth = {
                 </div>
                 ` : ''}
                 <div class="calc-row">
-                    <span>Actual Cash:</span>
-                    <span>${Utils.formatCurrency(actualCash)}</span>
+                    <span>Actual Cash Sales:</span>
+                    <span>${Utils.formatCurrency(actualCashSales)}</span>
                 </div>
             </div>
             <div class="variance-status ${statusClass}">${status}</div>
@@ -1467,13 +1514,19 @@ const Auth = {
     },
     
     async finalizeEndShift() {
-        const actualCash = parseFloat(document.getElementById('actualCash')?.value) || 0;
+        // Get actual cash from SALES (not including change fund)
+        const actualCashSales = parseFloat(document.getElementById('actualCashSales')?.value) || 0;
+        
+        // Get actual change fund left in drawer
+        const actualChangeFund = parseFloat(document.getElementById('actualChangeFund')?.value) || 0;
+        const setChangeFund = this.changeFund || 1000;
+        const changeFundShortage = setChangeFund - actualChangeFund;
         
         // Get structured expenses data
         const expensesData = this.getExpensesData();
         const totalExpenses = expensesData.reduce((sum, e) => sum + e.amount, 0);
         
-        const { shift, sales, cashSales, gcashSales, otherSales, totalSales, transactionCount, expectedCash } = this.endShiftData;
+        const { shift, sales, cashSales, gcashSales, otherSales, totalSales, transactionCount, expectedCashFromSales } = this.endShiftData;
         
         // Calculate discount totals from sales
         let totalDiscountGiven = 0;
@@ -1487,7 +1540,6 @@ const Auth = {
             if (sale.subtotal) {
                 originalSubtotal += sale.subtotal;
             }
-            // Track discounts by type
             if (sale.discountInfo && sale.discountInfo.details) {
                 Object.entries(sale.discountInfo.details).forEach(([type, info]) => {
                     if (!discountBreakdown[type]) {
@@ -1499,13 +1551,17 @@ const Auth = {
             }
         });
         
-        const adjustedExpected = expectedCash - totalExpenses;
-        const variance = actualCash - adjustedExpected;
+        // Cash to remit = actual cash sales - expenses
+        const cashToRemit = actualCashSales - totalExpenses;
+        
+        // Variance calculation (cash sales only, NOT change fund)
+        const adjustedExpectedSales = expectedCashFromSales - totalExpenses;
+        const salesVariance = actualCashSales - adjustedExpectedSales;
         
         let balanceStatus;
-        if (Math.abs(variance) < 1) {
+        if (Math.abs(salesVariance) < 1) {
             balanceStatus = 'balanced';
-        } else if (variance > 0) {
+        } else if (salesVariance > 0) {
             balanceStatus = 'over';
         } else {
             balanceStatus = 'short';
@@ -1520,14 +1576,21 @@ const Auth = {
             otherSales,
             totalSales,
             transactionCount,
-            startingCash: shift.startingCash || 0,
-            expectedCash,
+            // Cash tracking (sales only, change fund separate)
+            expectedCashFromSales,
+            actualCashSales,
             expenses: totalExpenses,
             expensesDetails: expensesData,
-            adjustedExpected,
-            actualCash,
-            variance,
+            cashToRemit,
+            // Variance on sales
+            adjustedExpectedSales,
+            salesVariance,
             balanceStatus,
+            // Change fund tracking (separate from sales)
+            setChangeFund,
+            actualChangeFund,
+            changeFundShortage,
+            changeFundForNextShift: actualChangeFund,
             // Discount tracking
             originalSubtotal,
             totalDiscountGiven,
@@ -1547,25 +1610,22 @@ const Auth = {
                     dateKey: shift.dateKey,
                     cashierName: shift.staffName,
                     cashierId: shift.staffId,
-                    // Item details (linked to actual ingredient/packaging)
                     itemId: purchase.itemId,
                     itemName: purchase.itemName,
-                    itemType: purchase.itemType, // 'ingredient' or 'packaging'
-                    // Supplier details
+                    itemType: purchase.itemType,
                     supplierId: purchase.supplierId,
                     supplierName: purchase.supplierName,
-                    // Quantity and amount
                     qty: purchase.qty,
                     unit: purchase.unit,
                     amount: purchase.amount,
-                    // Status tracking
-                    status: 'pending', // pending → approved → received → added-to-inventory
+                    status: 'pending',
                     createdAt: endTime
                 });
             }
             
-            // Store expenses data for report
+            // Store for report generation
             this.expensesData = expensesData;
+            this.shiftReportData = shiftReport;
             
             // Generate PDF report
             await this.generateShiftReport(shiftReport);
@@ -1583,8 +1643,8 @@ const Auth = {
         const timeStr = new Date().toLocaleTimeString('en-PH');
         const expensesData = this.expensesData || [];
         
-        // Calculate cash to remit (cash sales - expenses)
-        const cashToRemit = report.cashSales - report.expenses;
+        // Cash to remit is now calculated in finalizeEndShift
+        const cashToRemit = report.cashToRemit || (report.actualCashSales - report.expenses);
         
         // Build discount summary HTML
         let discountHTML = '';
@@ -1716,14 +1776,29 @@ const Auth = {
                 </div>
                 
                 <div style="margin-bottom: 20px; background: #fff3e0; padding: 15px; border-radius: 8px;">
-                    <h3 style="color: #e65100; margin-top: 0;">🔄 Change Fund Confirmation</h3>
-                    <p style="margin: 0;">Change Fund Left in Drawer: <strong>₱${this.changeFund.toLocaleString()}</strong></p>
+                    <h3 style="color: #e65100; margin-top: 0;">🔄 Change Fund Handover</h3>
+                    <table style="width: 100%;">
+                        <tr>
+                            <td style="padding: 5px;">Set Change Fund:</td>
+                            <td style="padding: 5px; text-align: right;">₱${(report.setChangeFund || this.changeFund).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px;">Actual Left in Drawer:</td>
+                            <td style="padding: 5px; text-align: right; font-weight: bold;">₱${(report.actualChangeFund || this.changeFund).toLocaleString()}</td>
+                        </tr>
+                        ${(report.changeFundShortage || 0) > 0 ? `
+                        <tr style="color: #c62828;">
+                            <td style="padding: 5px;">⚠️ Shortage:</td>
+                            <td style="padding: 5px; text-align: right;">₱${report.changeFundShortage.toLocaleString()}</td>
+                        </tr>
+                        ` : ''}
+                    </table>
                     <p style="margin: 5px 0 0; font-size: 0.9em; color: #666;">Confirmed by cashier - ready for next shift</p>
                 </div>
                 
                 <div style="text-align: center; padding: 20px; border-radius: 8px; ${report.balanceStatus === 'balanced' ? 'background: #d4edda; color: #155724;' : report.balanceStatus === 'over' ? 'background: #fff3cd; color: #856404;' : 'background: #f8d7da; color: #721c24;'}">
                     <h2 style="margin: 0;">
-                        ${report.balanceStatus === 'balanced' ? '✅ BALANCED' : report.balanceStatus === 'over' ? `⬆️ OVER: ₱${report.variance.toLocaleString()}` : `⬇️ SHORT: ₱${Math.abs(report.variance).toLocaleString()}`}
+                        ${report.balanceStatus === 'balanced' ? '✅ BALANCED' : report.balanceStatus === 'over' ? `⬆️ OVER: ₱${(report.salesVariance || 0).toLocaleString()}` : `⬇️ SHORT: ₱${Math.abs(report.salesVariance || 0).toLocaleString()}`}
                     </h2>
                 </div>
                 
