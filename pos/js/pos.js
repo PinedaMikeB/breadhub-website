@@ -501,10 +501,10 @@ const POS = {
         
         Toast.success('GCash payment verified!');
         
-        // Now complete the sale
+        // Reopen checkout modal with GCash already verified
         setTimeout(() => {
-            this.completeSale(total, totalDiscount);
-        }, 100);
+            this.checkout();
+        }, 150);
     },
     
     cancelGcashVerification() {
@@ -512,7 +512,33 @@ const POS = {
         this.gcashCapturedPhoto = null;
         this.gcashPaymentData = null;
         Modal.close();
-        Toast.info('GCash verification cancelled');
+        this.updateGcashVerificationDisplay();
+        Toast.info('GCash verification cancelled - you can try again or switch to Cash');
+    },
+    
+    clearGcashVerification(total, totalDiscount) {
+        this.gcashPaymentData = null;
+        this.gcashCapturedPhoto = null;
+        this.updateGcashVerificationDisplay();
+        // Re-open verification modal
+        setTimeout(() => this.showGcashVerificationModal(total, totalDiscount), 100);
+    },
+    
+    updateGcashVerificationDisplay() {
+        const notVerifiedDiv = document.getElementById('gcashNotVerified');
+        const verifiedDiv = document.getElementById('gcashVerified');
+        const refDisplay = document.getElementById('gcashRefDisplay');
+        
+        if (!notVerifiedDiv || !verifiedDiv) return;
+        
+        if (this.gcashPaymentData) {
+            notVerifiedDiv.style.display = 'none';
+            verifiedDiv.style.display = 'block';
+            if (refDisplay) refDisplay.textContent = this.gcashPaymentData.refNo;
+        } else {
+            notVerifiedDiv.style.display = 'block';
+            verifiedDiv.style.display = 'none';
+        }
     },
 
     showCustomDiscount() {
@@ -1009,11 +1035,11 @@ const POS = {
                         <label>Payment Method</label>
                         <div class="payment-methods">
                             <label class="payment-option">
-                                <input type="radio" name="paymentMethod" value="cash" checked>
+                                <input type="radio" name="paymentMethod" value="cash" ${!this.gcashPaymentData ? 'checked' : ''}>
                                 <span>💵 Cash</span>
                             </label>
                             <label class="payment-option">
-                                <input type="radio" name="paymentMethod" value="gcash">
+                                <input type="radio" name="paymentMethod" value="gcash" ${this.gcashPaymentData ? 'checked' : ''}>
                                 <span>📱 GCash</span>
                             </label>
                             <label class="payment-option">
@@ -1023,7 +1049,7 @@ const POS = {
                         </div>
                     </div>
                     
-                    <div class="form-group" id="cashReceivedGroup">
+                    <div class="form-group" id="cashReceivedGroup" style="${this.gcashPaymentData ? 'display:none;' : ''}">
                         <label>Cash Received</label>
                         <input type="number" name="cashReceived" id="cashReceived" 
                                class="form-input" value="${Math.ceil(total / 10) * 10}" min="${total}" step="1"
@@ -1037,7 +1063,31 @@ const POS = {
                         </div>
                     </div>
                     
-                    <div class="change-display" id="changeDisplay">
+                    <!-- GCash Verification Status -->
+                    <div id="gcashVerificationGroup" style="display: ${this.gcashPaymentData ? 'block' : 'none'};">
+                        <div id="gcashNotVerified" class="gcash-status not-verified" style="display: ${this.gcashPaymentData ? 'none' : 'block'}; padding: 15px; background: #FFF3E0; border-radius: 8px; text-align: center;">
+                            <p style="margin: 0 0 10px; color: #E65100;">📱 GCash payment requires verification</p>
+                            <button type="button" class="btn btn-primary" onclick="POS.showGcashVerificationModal(${total}, ${totalDiscount})">
+                                📸 Verify GCash Payment
+                            </button>
+                        </div>
+                        <div id="gcashVerified" class="gcash-status verified" style="display: ${this.gcashPaymentData ? 'block' : 'none'}; padding: 15px; background: #E8F5E9; border-radius: 8px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 2rem;">✅</span>
+                                <div style="flex: 1;">
+                                    <strong style="color: #2E7D32;">GCash Payment Verified!</strong>
+                                    <div style="font-size: 0.85rem; color: #666;">
+                                        Ref: <span id="gcashRefDisplay">${this.gcashPaymentData?.refNo || '-'}</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="POS.clearGcashVerification(${total}, ${totalDiscount})">
+                                    Change
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="change-display" id="changeDisplay" style="display: ${this.gcashPaymentData ? 'none' : 'block'};">
                         Change: <strong>${Utils.formatCurrency(Math.ceil(total / 10) * 10 - total)}</strong>
                     </div>
                 </form>
@@ -1046,18 +1096,32 @@ const POS = {
             onSave: () => this.completeSale(total, totalDiscount)
         });
         
-        // Add payment method change listener
+        // Add payment method change listener - trigger GCash verification immediately
         setTimeout(() => {
             document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
                 radio.addEventListener('change', (e) => {
                     const cashGroup = document.getElementById('cashReceivedGroup');
                     const changeDisplay = document.getElementById('changeDisplay');
+                    const gcashGroup = document.getElementById('gcashVerificationGroup');
+                    
                     if (e.target.value === 'cash') {
                         cashGroup.style.display = 'block';
                         changeDisplay.style.display = 'block';
-                    } else {
+                        gcashGroup.style.display = 'none';
+                    } else if (e.target.value === 'gcash') {
                         cashGroup.style.display = 'none';
                         changeDisplay.style.display = 'none';
+                        gcashGroup.style.display = 'block';
+                        
+                        // IMMEDIATELY open camera if not yet verified
+                        if (!POS.gcashPaymentData) {
+                            POS.showGcashVerificationModal(${total}, ${totalDiscount});
+                        }
+                    } else {
+                        // Card or other
+                        cashGroup.style.display = 'none';
+                        changeDisplay.style.display = 'none';
+                        gcashGroup.style.display = 'none';
                     }
                 });
             });
