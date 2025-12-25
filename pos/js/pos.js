@@ -98,6 +98,8 @@ const POS = {
     },
     
     toggleDiscount(discountId) {
+        console.log('toggleDiscount called:', discountId);
+        
         if (this.activeDiscount?.id === discountId) {
             // Turn off
             this.activeDiscount = null;
@@ -107,13 +109,25 @@ const POS = {
         } else {
             // For Senior/PWD, require ID photo
             const discount = this.discountPresets.find(d => d.id === discountId);
-            if (discount && (discountId === 'senior' || discountId === 'pwd' || discount.requiresId)) {
+            console.log('Discount found:', discount);
+            
+            // Check if this discount requires ID (by name or flag)
+            const requiresId = discount && (
+                discountId === 'senior' || 
+                discountId === 'pwd' || 
+                discount.requiresId ||
+                discount.name?.toLowerCase().includes('senior') ||
+                discount.name?.toLowerCase().includes('pwd')
+            );
+            
+            if (requiresId) {
+                console.log('Opening ID capture modal for:', discount.name);
                 this.showIdCaptureModal(discount);
             } else {
                 this.activeDiscount = discount;
                 this.discountIdPhoto = null;
                 this.renderDiscountBar();
-                Toast.info(`${this.activeDiscount.name} discount active`);
+                Toast.info(`${this.activeDiscount?.name || 'Discount'} active`);
             }
         }
     },
