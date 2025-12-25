@@ -3874,7 +3874,7 @@ details summary {
 
 
 /* ==========================================
-   EXPENSE PICKER MODAL v20
+   EXPENSE PICKER MODAL v21 - High Contrast
    ========================================== */
 
 /* Expense Picker Modal Layout */
@@ -3882,12 +3882,12 @@ details summary {
     padding: 10px;
 }
 
-/* Search Bar */
+/* Search Bar - High Contrast */
 .expense-search-bar {
     display: flex;
     align-items: center;
-    background: var(--bg-main);
-    border: 2px solid var(--border);
+    background: #1e3a5f;
+    border: 2px solid #3d5a80;
     border-radius: 8px;
     padding: 10px 15px;
     margin-bottom: 15px;
@@ -3896,21 +3896,26 @@ details summary {
 .expense-search-bar .search-icon {
     font-size: 1.2rem;
     margin-right: 10px;
+    color: #fff;
 }
 
 .expense-search-bar input {
     flex: 1;
     background: transparent;
     border: none;
-    color: var(--text);
+    color: #fff;
     font-size: 1rem;
     outline: none;
+}
+
+.expense-search-bar input::placeholder {
+    color: #98c1d9;
 }
 
 .clear-search-btn {
     background: none;
     border: none;
-    color: var(--text-secondary);
+    color: #98c1d9;
     cursor: pointer;
     font-size: 1.2rem;
     padding: 5px;
@@ -3927,38 +3932,42 @@ details summary {
 }
 
 
-/* Expense Pick Button */
+/* Expense Pick Button - High Contrast */
 .expense-pick-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 15px 10px;
-    background: var(--bg-card);
-    border: 2px solid var(--border);
+    background: linear-gradient(145deg, #2a4a6d, #1e3a5f);
+    border: 2px solid #4a7c9b;
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.2s;
     min-height: 80px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .expense-pick-btn:hover,
 .expense-pick-btn:active {
     border-color: var(--primary);
-    background: rgba(212, 137, 74, 0.15);
+    background: linear-gradient(145deg, #3d5a80, #2a4a6d);
     transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(212, 137, 74, 0.3);
 }
 
 .expense-pick-btn .pick-icon {
-    font-size: 1.5rem;
-    margin-bottom: 5px;
+    font-size: 1.8rem;
+    margin-bottom: 8px;
 }
 
 .expense-pick-btn .pick-name {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     text-align: center;
-    line-height: 1.2;
-    color: var(--text);
+    line-height: 1.3;
+    color: #ffffff;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .expense-pick-btn.add-new-btn {

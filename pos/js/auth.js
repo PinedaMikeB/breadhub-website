@@ -927,13 +927,13 @@ const Auth = {
         // Sort alphabetically
         const sortedItems = [...this.allItems].sort((a, b) => a.name.localeCompare(b.name));
         
-        // Store for modal state
+        // Store for modal state - also store sorted items for click handler
         this.expenseModalState = { step: 1, item: null, supplier: null, qty: 1, amount: 0 };
+        this.sortedItemsCache = sortedItems;
         
-        // Build item buttons HTML
-        const itemButtonsHTML = sortedItems.map(item => `
-            <button type="button" class="expense-pick-btn" 
-                    onclick="Auth.pickExpenseItem('${item.id}', '${item.name.replace(/'/g, "\\'")}', '${item.type}', '${item.unit}')">
+        // Build item buttons HTML using data attributes (safer than inline onclick)
+        const itemButtonsHTML = sortedItems.map((item, index) => `
+            <button type="button" class="expense-pick-btn" data-item-index="${index}">
                 <span class="pick-icon">${item.type === 'ingredient' ? '🥚' : '📦'}</span>
                 <span class="pick-name">${item.name}</span>
             </button>
@@ -965,6 +965,19 @@ const Auth = {
             </div>`,
             hideFooter: true
         });
+        
+        // Attach click handlers after modal opens
+        setTimeout(() => {
+            document.querySelectorAll('#expensePickerGrid .expense-pick-btn[data-item-index]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const index = parseInt(btn.dataset.itemIndex);
+                    const item = this.sortedItemsCache[index];
+                    if (item) {
+                        this.pickExpenseItem(item.id, item.name, item.type, item.unit);
+                    }
+                });
+            });
+        }, 100);
     },
     
     filterExpenseButtons(query) {
@@ -993,10 +1006,10 @@ const Auth = {
     
     showSupplierPicker() {
         const sortedSuppliers = [...(this.suppliersList || [])].sort((a, b) => a.name.localeCompare(b.name));
+        this.sortedSuppliersCache = sortedSuppliers;
         
-        const supplierButtonsHTML = sortedSuppliers.map(s => `
-            <button type="button" class="expense-pick-btn supplier-btn" 
-                    onclick="Auth.pickExpenseSupplier('${s.id}', '${s.name.replace(/'/g, "\\'")}')">
+        const supplierButtonsHTML = sortedSuppliers.map((s, index) => `
+            <button type="button" class="expense-pick-btn supplier-btn" data-supplier-index="${index}">
                 <span class="pick-icon">🏪</span>
                 <span class="pick-name">${s.name}</span>
             </button>
@@ -1038,6 +1051,19 @@ const Auth = {
             </div>`,
             hideFooter: true
         });
+        
+        // Attach click handlers after modal opens
+        setTimeout(() => {
+            document.querySelectorAll('#supplierPickerGrid .expense-pick-btn[data-supplier-index]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const index = parseInt(btn.dataset.supplierIndex);
+                    const supplier = this.sortedSuppliersCache[index];
+                    if (supplier) {
+                        this.pickExpenseSupplier(supplier.id, supplier.name);
+                    }
+                });
+            });
+        }, 100);
     },
     
     filterSupplierButtons(query) {
