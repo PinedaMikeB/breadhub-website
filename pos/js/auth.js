@@ -975,6 +975,7 @@ const Auth = {
                     // Keep the first one or one marked as default
                     if (!priceMap[ingId] || p.isDefault) {
                         priceMap[ingId] = {
+                            ingredientPriceId: p.id,  // Store the document ID for price updates
                             supplierId: p.supplierId,
                             supplierName: p.supplierName || supplierMap[p.supplierId] || 'Unknown',
                             price: p.purchasePrice || p.price || 0,
@@ -1007,6 +1008,7 @@ const Auth = {
                         type: 'ingredient',
                         category: i.category || 'Ingredient',
                         // Price from ingredientPrices collection
+                        ingredientPriceId: priceInfo.ingredientPriceId || null,  // For price updates
                         price: priceInfo.price || 0,
                         packageSize: packageSize,
                         costPerGram: priceInfo.costPerGram || 0,
@@ -1213,6 +1215,8 @@ const Auth = {
                         unit: unit,
                         amount: amount,
                         pricePerUnit: item.price,
+                        packageSize: item.packageSize,
+                        ingredientPriceId: item.ingredientPriceId,  // For price updates
                         category: item.category
                     });
                     
@@ -1799,6 +1803,10 @@ const Auth = {
                     qty: purchase.qty,
                     unit: purchase.unit,
                     amount: purchase.amount,
+                    // Price tracking for ProofMaster
+                    storedPrice: purchase.pricePerUnit || 0,
+                    packageSize: purchase.packageSize || 1000,
+                    ingredientPriceId: purchase.ingredientPriceId || null,
                     status: 'pending',
                     createdAt: endTime
                 });
@@ -2280,6 +2288,49 @@ const Auth = {
                         lastUpdateShiftId: this.currentShift?.id
                     });
                     
+                    // ====== PRICE UPDATE LOGIC ======
+                    // Update ingredientPrices if the actual amount paid differs from stored price
+                    let priceUpdated = false;
+                    let oldPrice = 0;
+                    let newPrice = 0;
+                    
+                    if (purchase.itemType === 'ingredient' && purchase.ingredientPriceId) {
+                        // Calculate price per standard package (1kg = 1000g)
+                        const storedPrice = purchase.pricePerUnit || 0;
+                        
+                        // Calculate new price normalized to package size
+                        // If they bought 1kg for ₱320, and package size is 1000g, price = ₱320
+                        // If they bought 500g for ₱160, and package size is 1000g, price = ₱320 per kg
+                        const packageSizeGrams = purchase.packageSize || 1000;
+                        const pricePerGram = purchase.amount / addedQtyInGrams;
+                        const newPackagePrice = pricePerGram * packageSizeGrams;
+                        const newCostPerGram = pricePerGram;
+                        
+                        // Check if price changed (allow small tolerance for rounding)
+                        const priceDiff = Math.abs(newPackagePrice - storedPrice);
+                        if (priceDiff > 1) {  // More than ₱1 difference
+                            try {
+                                oldPrice = storedPrice;
+                                newPrice = newPackagePrice;
+                                
+                                await DB.update('ingredientPrices', purchase.ingredientPriceId, {
+                                    purchasePrice: newPackagePrice,
+                                    costPerGram: newCostPerGram,
+                                    lastPurchaseDate: new Date().toISOString(),
+                                    lastPurchaseShiftId: this.currentShift?.id,
+                                    lastPurchaseAmount: purchase.amount,
+                                    lastPurchaseQty: purchase.qty,
+                                    lastPurchaseUnit: unit
+                                });
+                                
+                                priceUpdated = true;
+                                console.log(`💰 Price updated for ${purchase.itemName}: ₱${storedPrice} → ₱${newPackagePrice.toFixed(2)}`);
+                            } catch (priceErr) {
+                                console.error(`Failed to update price for ${purchase.itemName}:`, priceErr);
+                            }
+                        }
+                    }
+                    
                     // Mark pending purchase as processed
                     const pendingPurchases = await DB.query('pendingPurchases', 'itemId', '==', purchase.itemId);
                     for (const pp of pendingPurchases) {
@@ -2299,7 +2350,11 @@ const Auth = {
                         addedQtyGrams: addedQtyInGrams,  // Converted to grams
                         oldQty: oldQty,
                         newQty: newQty,
-                        supplierName: purchase.supplierName
+                        supplierName: purchase.supplierName,
+                        // Price update info
+                        priceUpdated: priceUpdated,
+                        oldPrice: oldPrice,
+                        newPrice: newPrice
                     });
                 }
             } catch (err) {
@@ -2311,6 +2366,9 @@ const Auth = {
     },
     
     async showInventoryUpdateConfirmation(updates) {
+        // Check if any prices were updated
+        const priceUpdates = updates.filter(u => u.priceUpdated);
+        
         const updateRows = updates.map(u => {
             // Format display - show what was added and stock in readable format
             const addedDisplay = u.itemType === 'ingredient' 
@@ -2325,11 +2383,17 @@ const Auth = {
                 ? (u.newQty >= 1000 ? `${(u.newQty/1000).toFixed(2)} kg` : `${u.newQty} g`)
                 : `${u.newQty} ${u.unit}`;
             
+            // Price change indicator
+            const priceChangeHtml = u.priceUpdated 
+                ? `<br><small style="color: #e65100;">💰 Price: ₱${u.oldPrice.toFixed(0)} → ₱${u.newPrice.toFixed(0)}</small>`
+                : '';
+            
             return `
             <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">
                     <strong>${u.itemName}</strong>
                     <br><small style="color: #666;">${u.itemType === 'ingredient' ? '🥚 Ingredient' : '📦 Packaging'}</small>
+                    ${priceChangeHtml}
                 </td>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">
                     <span style="color: #28a745; font-weight: bold;">${addedDisplay}</span>
@@ -2339,6 +2403,13 @@ const Auth = {
                 </td>
             </tr>
         `}).join('');
+        
+        // Price update warning section
+        const priceWarningHtml = priceUpdates.length > 0 
+            ? `<p style="margin-top: 15px; padding: 10px; background: #fff3e0; border-radius: 8px; color: #e65100;">
+                💰 <strong>${priceUpdates.length} price(s) updated</strong> - Recipe costs will reflect new prices
+               </p>`
+            : '';
         
         Modal.open({
             title: '✅ Inventory Updated from Emergency Purchases',
@@ -2360,6 +2431,7 @@ const Auth = {
                             ${updateRows}
                         </tbody>
                     </table>
+                    ${priceWarningHtml}
                     <p style="margin-top: 15px; padding: 10px; background: #e8f5e9; border-radius: 8px; color: #2e7d32;">
                         ✅ Email notification sent to owner<br>
                         📱 Push notification sent
