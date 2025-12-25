@@ -1931,22 +1931,186 @@ const Auth = {
     },
     
     async finishAndLogout() {
-        // Auto-send email to owner
-        await this.autoEmailReport();
+        try {
+            Toast.show('Processing shift completion...', 'info');
+            console.log('Starting finishAndLogout...');
+            
+            // 1. Update inventory from emergency purchases
+            console.log('Updating inventory from purchases...');
+            const inventoryUpdates = await this.updateInventoryFromPurchases();
+            console.log('Inventory updates:', inventoryUpdates);
+            
+            // 2. Mark shift as completed in Firebase
+            console.log('Marking shift as completed...');
+            if (this.currentShift && this.currentShift.id) {
+                await DB.update('shifts', this.currentShift.id, {
+                    status: 'completed',
+                    completedAt: new Date().toISOString()
+                });
+                console.log('Shift marked as completed');
+            }
+            
+            // 3. Send email report
+            console.log('Sending email report...');
+            await this.sendEmailReport();
+            console.log('Email sent');
+            
+            // 4. Send push notification
+            console.log('Sending push notification...');
+            await this.sendPushNotification();
+            console.log('Push notification sent');
+            
+            // 5. Show inventory update confirmation
+            if (inventoryUpdates.length > 0) {
+                console.log('Showing inventory confirmation...');
+                await this.showInventoryUpdateConfirmation(inventoryUpdates);
+            } else {
+                // No inventory updates, just logout
+                console.log('No inventory updates, completing logout...');
+                this.completeLogout();
+            }
+            
+        } catch (error) {
+            console.error('Error finishing shift:', error);
+            Toast.error('Error completing shift: ' + error.message);
+        }
+    },
+    
+    async updateInventoryFromPurchases() {
+        const expensesData = this.expensesData || [];
+        const updates = [];
         
-        // Clear shift and logout
-        Toast.success('Shift completed! Report sent to owner.');
+        for (const purchase of expensesData) {
+            try {
+                // Determine collection based on item type
+                const collection = purchase.itemType === 'ingredient' ? 'ingredients' : 'packagingMaterials';
+                
+                // Get current item data
+                const item = await DB.get(collection, purchase.itemId);
+                
+                if (item) {
+                    const oldQty = item.currentStock || item.stockQty || 0;
+                    const addedQty = purchase.qty || 1;
+                    const newQty = oldQty + addedQty;
+                    
+                    // Update stock in Firebase
+                    await DB.update(collection, purchase.itemId, {
+                        currentStock: newQty,
+                        stockQty: newQty,
+                        lastUpdated: new Date().toISOString(),
+                        lastUpdateSource: 'emergency_purchase',
+                        lastUpdateShiftId: this.currentShift?.id
+                    });
+                    
+                    // Mark pending purchase as processed
+                    const pendingPurchases = await DB.query('pendingPurchases', 'itemId', '==', purchase.itemId);
+                    for (const pp of pendingPurchases) {
+                        if (pp.shiftId === this.currentShift?.id && pp.status === 'pending') {
+                            await DB.update('pendingPurchases', pp.id, {
+                                status: 'processed',
+                                processedAt: new Date().toISOString()
+                            });
+                        }
+                    }
+                    
+                    updates.push({
+                        itemName: purchase.itemName,
+                        itemType: purchase.itemType,
+                        unit: purchase.unit || 'unit',
+                        addedQty: addedQty,
+                        oldQty: oldQty,
+                        newQty: newQty,
+                        supplierName: purchase.supplierName
+                    });
+                }
+            } catch (err) {
+                console.error(`Failed to update inventory for ${purchase.itemName}:`, err);
+            }
+        }
         
+        return updates;
+    },
+    
+    async showInventoryUpdateConfirmation(updates) {
+        const updateRows = updates.map(u => `
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">
+                    <strong>${u.itemName}</strong>
+                    <br><small style="color: #666;">${u.itemType === 'ingredient' ? '🥚 Ingredient' : '📦 Packaging'}</small>
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">
+                    <span style="color: #28a745; font-weight: bold;">+${u.addedQty} ${u.unit}</span>
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">
+                    ${u.oldQty} → <strong style="color: #007bff;">${u.newQty}</strong> ${u.unit}
+                </td>
+            </tr>
+        `).join('');
+        
+        Modal.open({
+            title: '✅ Inventory Updated from Emergency Purchases',
+            width: '600px',
+            content: `
+                <div style="padding: 15px;">
+                    <p style="margin-bottom: 15px; color: #28a745;">
+                        <strong>📦 ${updates.length} item(s) have been added to inventory:</strong>
+                    </p>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 10px; text-align: left;">Item</th>
+                                <th style="padding: 10px; text-align: center;">Added</th>
+                                <th style="padding: 10px; text-align: center;">Stock Level</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${updateRows}
+                        </tbody>
+                    </table>
+                    <p style="margin-top: 15px; padding: 10px; background: #e8f5e9; border-radius: 8px; color: #2e7d32;">
+                        ✅ Email notification sent to owner<br>
+                        📱 Push notification sent
+                    </p>
+                </div>
+            `,
+            customFooter: `
+                <div style="text-align: center; padding: 15px;">
+                    <button class="btn btn-success btn-lg" onclick="Auth.completeLogout()">
+                        ✅ OK - Logout
+                    </button>
+                </div>
+            `,
+            hideFooter: true
+        });
+    },
+    
+    completeLogout() {
+        // Clear shift data
         localStorage.removeItem('pos_shift');
         this.currentShift = null;
+        this.shiftExpenses = null;
+        this.expensesData = null;
+        this.endShiftData = null;
         
         Modal.close();
+        Toast.success('Shift completed successfully!');
         this.showLogin();
     },
     
-    async autoEmailReport() {
+    async sendEmailReport() {
         const shift = this.currentShift;
         const report = this.reportData;
+        const expensesData = this.expensesData || [];
+        
+        // Build expenses text
+        let expensesText = '';
+        if (expensesData.length > 0) {
+            expensesText = '\nEMERGENCY PURCHASES\n───────────────────\n';
+            expensesData.forEach(e => {
+                expensesText += `• ${e.itemName} (${e.qty} ${e.unit}) - ₱${e.amount} from ${e.supplierName}\n`;
+            });
+            expensesText += `Total: ₱${report.expenses.toLocaleString()}\n`;
+        }
         
         // Create email content
         const subject = encodeURIComponent(`BreadHub Shift Report - ${shift.staffName} - Shift #${shift.shiftNumber} - ${shift.dateKey}`);
@@ -1964,18 +2128,12 @@ SALES SUMMARY
 ─────────────
 Cash Sales: ₱${report.cashSales.toLocaleString()}
 GCash Sales: ₱${report.gcashSales.toLocaleString()}
-TOTAL: ₱${report.totalSales.toLocaleString()}
+TOTAL SALES: ₱${report.totalSales.toLocaleString()}
 Transactions: ${report.transactionCount}
+${expensesText}
+CASH TO REMIT: ₱${report.cashToRemit.toLocaleString()}
 
-${report.expenses > 0 ? `EXPENSES: ₱${report.expenses.toLocaleString()}` : ''}
-
-CASH TO REMIT
-─────────────
-₱${report.cashToRemit.toLocaleString()}
-
-CHANGE FUND LEFT IN DRAWER
-─────────────────────────
-₱${this.changeFund.toLocaleString()}
+CHANGE FUND IN DRAWER: ₱${this.changeFund.toLocaleString()}
 
 STATUS: ${report.balanceStatus.toUpperCase()}
 ${report.balanceStatus !== 'balanced' ? `Variance: ₱${Math.abs(report.variance).toLocaleString()} ${report.balanceStatus}` : ''}
@@ -1984,8 +2142,78 @@ ${report.balanceStatus !== 'balanced' ? `Variance: ₱${Math.abs(report.variance
 BreadHub POS System
         `.trim());
         
-        // Open email client
-        window.open(`mailto:michael.marga@gmail.com?subject=${subject}&body=${body}`, '_blank');
+        // Try to use EmailJS or fallback to mailto
+        try {
+            // Store report in Firebase for email pickup (can be sent by Cloud Function)
+            await DB.add('emailQueue', {
+                to: 'michael.marga@gmail.com',
+                subject: `BreadHub Shift Report - ${shift.staffName} - Shift #${shift.shiftNumber}`,
+                shiftId: shift.id,
+                reportData: report,
+                expensesData: expensesData,
+                createdAt: new Date().toISOString(),
+                status: 'pending'
+            });
+            
+            // Also open mailto as backup
+            window.open(`mailto:michael.marga@gmail.com?subject=${subject}&body=${body}`, '_blank');
+            
+        } catch (err) {
+            console.error('Email queue failed:', err);
+            // Fallback to mailto
+            window.open(`mailto:michael.marga@gmail.com?subject=${subject}&body=${body}`, '_blank');
+        }
+    },
+    
+    async sendPushNotification() {
+        const shift = this.currentShift;
+        const report = this.reportData;
+        const expensesData = this.expensesData || [];
+        
+        // Request notification permission if not granted
+        if ('Notification' in window) {
+            if (Notification.permission === 'default') {
+                await Notification.requestPermission();
+            }
+            
+            if (Notification.permission === 'granted') {
+                // Create local notification
+                const notification = new Notification('BreadHub - Shift Completed', {
+                    body: `Shift #${shift.shiftNumber} by ${shift.staffName}\nSales: ₱${report.totalSales.toLocaleString()}\nCash to Remit: ₱${report.cashToRemit.toLocaleString()}`,
+                    icon: '/pos/images/icon-192.png',
+                    badge: '/pos/images/icon-72.png',
+                    tag: `shift-${shift.id}`,
+                    requireInteraction: true
+                });
+                
+                notification.onclick = () => {
+                    window.focus();
+                    notification.close();
+                };
+            }
+        }
+        
+        // Store notification in Firebase for mobile app pickup
+        try {
+            await DB.add('notifications', {
+                type: 'shift_completed',
+                title: 'Shift Completed',
+                message: `Shift #${shift.shiftNumber} by ${shift.staffName} - Sales: ₱${report.totalSales.toLocaleString()}, Cash to Remit: ₱${report.cashToRemit.toLocaleString()}`,
+                shiftId: shift.id,
+                data: {
+                    cashierName: shift.staffName,
+                    shiftNumber: shift.shiftNumber,
+                    totalSales: report.totalSales,
+                    cashToRemit: report.cashToRemit,
+                    expenses: report.expenses,
+                    expensesCount: expensesData.length
+                },
+                createdAt: new Date().toISOString(),
+                read: false
+            });
+        } catch (err) {
+            console.error('Failed to store notification:', err);
+        }
     },
     
     // ========== ADMIN LOGIN (Firebase) ==========
