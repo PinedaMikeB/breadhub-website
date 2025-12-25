@@ -1015,7 +1015,7 @@ const Auth = {
     closeExpenseAndReturn() {
         Modal.close();
         // Re-open end shift modal
-        setTimeout(() => this.showEndShiftModal(), 100);
+        setTimeout(() => this.endShift(), 150);
     },
     
     pickExpenseItem(itemId, itemName, itemType, itemUnit) {
@@ -1143,7 +1143,7 @@ const Auth = {
         
         // Return to End Shift modal (not close everything)
         Modal.close();
-        setTimeout(() => this.showEndShiftModal(), 100);
+        setTimeout(() => this.endShift(), 150);
     },
     
     showSupplierPicker() {
