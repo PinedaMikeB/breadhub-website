@@ -975,6 +975,10 @@ const POS = {
         const totalDiscount = this.cart.reduce((sum, item) => sum + (item.discountAmount * item.quantity), 0);
         const total = this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         
+        // Store totals for GCash verification modal (before building HTML)
+        this.checkoutTotal = total;
+        this.checkoutTotalDiscount = totalDiscount;
+        
         // Group discounts by type
         const discountsByType = {};
         this.cart.forEach(item => {
@@ -1067,7 +1071,7 @@ const POS = {
                     <div id="gcashVerificationGroup" style="display: ${this.gcashPaymentData ? 'block' : 'none'};">
                         <div id="gcashNotVerified" class="gcash-status not-verified" style="display: ${this.gcashPaymentData ? 'none' : 'block'}; padding: 15px; background: #FFF3E0; border-radius: 8px; text-align: center;">
                             <p style="margin: 0 0 10px; color: #E65100;">📱 GCash payment requires verification</p>
-                            <button type="button" class="btn btn-primary" onclick="POS.showGcashVerificationModal(${total}, ${totalDiscount})">
+                            <button type="button" class="btn btn-primary" onclick="POS.showGcashVerificationModal(POS.checkoutTotal, POS.checkoutTotalDiscount)">
                                 📸 Verify GCash Payment
                             </button>
                         </div>
@@ -1080,7 +1084,7 @@ const POS = {
                                         Ref: <span id="gcashRefDisplay">${this.gcashPaymentData?.refNo || '-'}</span>
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="POS.clearGcashVerification(${total}, ${totalDiscount})">
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="POS.clearGcashVerification(POS.checkoutTotal, POS.checkoutTotalDiscount)">
                                     Change
                                 </button>
                             </div>
@@ -1115,7 +1119,7 @@ const POS = {
                         
                         // IMMEDIATELY open camera if not yet verified
                         if (!POS.gcashPaymentData) {
-                            POS.showGcashVerificationModal(${total}, ${totalDiscount});
+                            POS.showGcashVerificationModal(POS.checkoutTotal, POS.checkoutTotalDiscount);
                         }
                     } else {
                         // Card or other
