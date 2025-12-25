@@ -949,104 +949,227 @@ const Auth = {
     },
     
     async openExpenseModal() {
-        // Load items and suppliers if not loaded
-        if (!this.allItems || this.allItems.length === 0) {
-            try {
-                const [ingredients, packaging, suppliers] = await Promise.all([
-                    DB.getAll('ingredients'),
-                    DB.getAll('packagingMaterials'),
-                    DB.getAll('suppliers')
-                ]);
-                
-                console.log('Loaded suppliers:', suppliers); // Debug log
-                
-                this.ingredientsList = ingredients.map(i => ({ 
-                    id: i.id, name: i.name, unit: i.unit || 'unit',
-                    type: 'ingredient', category: i.category || 'Ingredient'
-                }));
-                this.packagingList = packaging.map(p => ({ 
-                    id: p.id, name: p.name, unit: p.unit || 'unit',
-                    type: 'packaging', category: 'Packaging'
-                }));
-                // Use companyName OR name (ProofMaster uses companyName)
-                this.suppliersList = suppliers.map(s => ({ 
-                    id: s.id, 
-                    name: s.companyName || s.name || 'Unknown Supplier'
-                }));
-                console.log('Suppliers list:', this.suppliersList); // Debug log
-                this.allItems = [...this.ingredientsList, ...this.packagingList];
-            } catch (err) {
-                console.error('Failed to load items:', err);
-                Toast.error('Failed to load items');
-                return;
-            }
+        // Load full item details from Firebase
+        try {
+            Toast.show('Loading items...', 'info');
+            
+            const [ingredients, packaging, suppliers] = await Promise.all([
+                DB.getAll('ingredients'),
+                DB.getAll('packagingMaterials'),
+                DB.getAll('suppliers')
+            ]);
+            
+            // Build supplier lookup map
+            const supplierMap = {};
+            suppliers.forEach(s => {
+                supplierMap[s.id] = s.companyName || s.name || 'Unknown';
+            });
+            this.supplierMap = supplierMap;
+            
+            // Map ingredients with full details
+            this.allItemsDetails = [
+                ...ingredients.map(i => ({
+                    id: i.id,
+                    name: i.name,
+                    type: 'ingredient',
+                    category: i.category || 'Ingredient',
+                    unit: i.unit || 'kg',
+                    price: i.price || i.costPerUnit || 0,
+                    priceUnit: i.priceUnit || i.unit || 'kg',
+                    supplierId: i.supplierId || i.defaultSupplierId || null,
+                    supplierName: supplierMap[i.supplierId] || supplierMap[i.defaultSupplierId] || 'No supplier',
+                    currentStock: i.currentStock || i.stockQty || 0,
+                    stockUnit: i.stockUnit || i.unit || 'g'
+                })),
+                ...packaging.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    type: 'packaging',
+                    category: 'Packaging',
+                    unit: p.unit || 'pcs',
+                    price: p.price || p.costPerUnit || 0,
+                    priceUnit: p.priceUnit || p.unit || 'pcs',
+                    supplierId: p.supplierId || p.defaultSupplierId || null,
+                    supplierName: supplierMap[p.supplierId] || supplierMap[p.defaultSupplierId] || 'No supplier',
+                    currentStock: p.currentStock || p.stockQty || 0,
+                    stockUnit: p.stockUnit || p.unit || 'pcs'
+                }))
+            ].sort((a, b) => a.name.localeCompare(b.name));
+            
+            this.showExpenseListModal();
+            
+        } catch (err) {
+            console.error('Failed to load items:', err);
+            Toast.error('Failed to load items');
         }
+    },
+    
+    showExpenseListModal() {
+        const items = this.allItemsDetails || [];
         
-        // Sort alphabetically with safety check
-        const sortedItems = [...this.allItems]
-            .filter(item => item && item.name)
-            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        
-        // Store for modal state - also store sorted items for click handler
-        this.expenseModalState = { step: 1, item: null, supplier: null, qty: 1, amount: 0 };
-        this.sortedItemsCache = sortedItems;
-        
-        // Build item buttons HTML using data attributes (safer than inline onclick)
-        const itemButtonsHTML = sortedItems.map((item, index) => `
-            <button type="button" class="expense-pick-btn" data-item-index="${index}">
-                <span class="pick-icon">${item.type === 'ingredient' ? '🥚' : '📦'}</span>
-                <span class="pick-name">${item.name}</span>
-            </button>
+        // Build item rows HTML like ProofMaster
+        const itemRowsHTML = items.map((item, index) => `
+            <div class="expense-item-row" data-item-index="${index}" data-name="${item.name.toLowerCase()}">
+                <div class="expense-item-checkbox">
+                    <input type="checkbox" id="expItem${index}" class="expense-checkbox" data-index="${index}">
+                </div>
+                <div class="expense-item-info">
+                    <div class="expense-item-name">${item.name}</div>
+                    <div class="expense-item-details">
+                        <span class="item-category">${item.category}</span>
+                        <span class="item-price">₱${item.price.toLocaleString()} / ${item.priceUnit}</span>
+                        <span class="item-supplier">• ${item.supplierName}</span>
+                    </div>
+                    <div class="expense-item-stock ${item.currentStock <= 0 ? 'low-stock' : ''}">
+                        📦 Stock: ${item.currentStock.toLocaleString()} ${item.stockUnit}
+                    </div>
+                </div>
+                <div class="expense-item-qty">
+                    <input type="number" class="expense-qty-input" id="expQty${index}" 
+                           value="0" min="0" step="0.1" placeholder="0">
+                </div>
+                <div class="expense-item-unit">
+                    <select class="expense-unit-select" id="expUnit${index}">
+                        <option value="${item.unit}" selected>${item.unit}</option>
+                        ${item.unit !== 'kg' ? '<option value="kg">kg</option>' : ''}
+                        ${item.unit !== 'g' ? '<option value="g">g</option>' : ''}
+                        ${item.unit !== 'pcs' ? '<option value="pcs">pcs</option>' : ''}
+                        ${item.unit !== 'pack' ? '<option value="pack">pack</option>' : ''}
+                        ${item.unit !== 'sack' ? '<option value="sack">sack</option>' : ''}
+                        ${item.unit !== 'box' ? '<option value="box">box</option>' : ''}
+                    </select>
+                </div>
+                <div class="expense-item-amount">
+                    <input type="number" class="expense-amount-input" id="expAmt${index}" 
+                           placeholder="₱0" min="0" step="0.01">
+                </div>
+            </div>
         `).join('');
         
         Modal.open({
-            title: '🛒 Add Emergency Purchase',
+            title: '🛒 Emergency Purchase',
             width: '95vw',
             content: `
-                <div class="expense-picker-modal">
+                <div class="expense-list-modal">
+                    <p class="expense-instruction">Select items purchased. Enter qty and amount paid.</p>
+                    
                     <!-- Search Box -->
-                    <div class="expense-search-bar">
-                        <span class="search-icon">🔍</span>
+                    <div class="expense-search-box">
                         <input type="text" id="expenseSearchInput" 
-                               placeholder="Search items..." 
-                               oninput="Auth.filterExpenseButtons(this.value)"
+                               placeholder="🔍 Search ingredients or materials..." 
+                               oninput="Auth.filterExpenseRows(this.value)"
                                autocomplete="off">
-                        <button type="button" class="clear-search-btn" onclick="Auth.clearExpenseSearch()">✕</button>
                     </div>
                     
-                    <!-- Items Grid -->
-                    <div class="expense-picker-grid" id="expensePickerGrid">
-                        ${itemButtonsHTML}
+                    <!-- Header Row -->
+                    <div class="expense-list-header">
+                        <div class="header-checkbox">
+                            <input type="checkbox" id="selectAllExp" onchange="Auth.toggleAllExpenses(this.checked)">
+                        </div>
+                        <div class="header-item">Item</div>
+                        <div class="header-qty">Qty</div>
+                        <div class="header-unit">Unit</div>
+                        <div class="header-amount">Amount Paid</div>
+                    </div>
+                    
+                    <!-- Item List (scrollable) -->
+                    <div class="expense-items-list" id="expenseItemsList">
+                        ${itemRowsHTML}
                     </div>
                 </div>
             `,
-            customFooter: `<div style="text-align:center;padding:15px;">
-                <button class="btn btn-outline btn-lg" onclick="Auth.closeExpenseAndReturn()" style="padding: 12px 30px;">✕ Close & Return to End Shift</button>
-            </div>`,
+            customFooter: `
+                <div class="expense-modal-footer">
+                    <button class="btn btn-outline btn-lg" onclick="Auth.closeExpenseAndReturn()">Cancel</button>
+                    <button class="btn btn-success btn-lg" onclick="Auth.addSelectedExpenses()">✅ Add Selected Purchases</button>
+                </div>
+            `,
             hideFooter: true
         });
         
-        // Attach click handlers after modal opens
+        // Auto-check when qty is entered
         setTimeout(() => {
-            document.querySelectorAll('#expensePickerGrid .expense-pick-btn[data-item-index]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const index = parseInt(btn.dataset.itemIndex);
-                    const item = this.sortedItemsCache[index];
-                    if (item) {
-                        this.pickExpenseItem(item.id, item.name, item.type, item.unit);
+            document.querySelectorAll('.expense-qty-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const index = e.target.id.replace('expQty', '');
+                    const checkbox = document.getElementById(`expItem${index}`);
+                    if (checkbox && parseFloat(e.target.value) > 0) {
+                        checkbox.checked = true;
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.expense-amount-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const index = e.target.id.replace('expAmt', '');
+                    const checkbox = document.getElementById(`expItem${index}`);
+                    if (checkbox && parseFloat(e.target.value) > 0) {
+                        checkbox.checked = true;
                     }
                 });
             });
         }, 100);
     },
     
-    filterExpenseButtons(query) {
+    filterExpenseRows(query) {
         const q = query.toLowerCase();
-        const buttons = document.querySelectorAll('.expense-pick-btn');
-        buttons.forEach(btn => {
-            const name = btn.querySelector('.pick-name').textContent.toLowerCase();
-            btn.style.display = name.includes(q) ? '' : 'none';
+        document.querySelectorAll('.expense-item-row').forEach(row => {
+            const name = row.dataset.name || '';
+            row.style.display = name.includes(q) ? '' : 'none';
         });
+    },
+    
+    toggleAllExpenses(checked) {
+        document.querySelectorAll('.expense-checkbox').forEach(cb => {
+            cb.checked = checked;
+        });
+    },
+    
+    addSelectedExpenses() {
+        const items = this.allItemsDetails || [];
+        let addedCount = 0;
+        
+        items.forEach((item, index) => {
+            const checkbox = document.getElementById(`expItem${index}`);
+            const qtyInput = document.getElementById(`expQty${index}`);
+            const unitSelect = document.getElementById(`expUnit${index}`);
+            const amtInput = document.getElementById(`expAmt${index}`);
+            
+            if (checkbox && checkbox.checked) {
+                const qty = parseFloat(qtyInput?.value) || 0;
+                const unit = unitSelect?.value || item.unit;
+                const amount = parseFloat(amtInput?.value) || 0;
+                
+                if (qty > 0 && amount > 0) {
+                    // Add to expenses list
+                    if (!this.shiftExpenses) this.shiftExpenses = [];
+                    
+                    this.shiftExpenses.push({
+                        id: Date.now() + index,
+                        itemId: item.id,
+                        itemName: item.name,
+                        itemType: item.type,
+                        supplierId: item.supplierId,
+                        supplierName: item.supplierName,
+                        qty: qty,
+                        unit: unit,
+                        amount: amount,
+                        pricePerUnit: item.price,
+                        category: item.category
+                    });
+                    
+                    addedCount++;
+                }
+            }
+        });
+        
+        if (addedCount > 0) {
+            Toast.success(`✅ Added ${addedCount} item(s) to expenses`);
+            Modal.close();
+            setTimeout(() => this.endShift(), 150);
+        } else {
+            Toast.error('Please select items with qty and amount');
+        }
     },
     
     clearExpenseSearch() {

@@ -4952,3 +4952,190 @@ details summary {
     margin-left: 15px;
     font-size: 0.9rem;
 }
+
+
+/* ==========================================
+   EXPENSE LIST MODAL (ProofMaster Style) v30
+   ========================================== */
+
+.expense-list-modal {
+    padding: 10px;
+}
+
+.expense-instruction {
+    color: #666;
+    margin-bottom: 15px;
+    font-size: 0.95rem;
+}
+
+.expense-search-box {
+    margin-bottom: 15px;
+}
+
+.expense-search-box input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.expense-search-box input:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.expense-list-header {
+    display: grid;
+    grid-template-columns: 40px 1fr 100px 80px 120px;
+    gap: 10px;
+    padding: 10px 15px;
+    background: var(--bg-card);
+    border-radius: 8px 8px 0 0;
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-bottom: 2px solid var(--border);
+}
+
+.expense-items-list {
+    max-height: 50vh;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 0 0 8px 8px;
+}
+
+.expense-item-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 100px 80px 120px;
+    gap: 10px;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.expense-item-row:hover {
+    background: rgba(212, 137, 74, 0.1);
+}
+
+.expense-item-row:last-child {
+    border-bottom: none;
+}
+
+.expense-item-checkbox {
+    display: flex;
+    justify-content: center;
+}
+
+.expense-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.expense-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.expense-item-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.expense-item-details {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.item-category {
+    background: var(--bg-main);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--primary);
+}
+
+.item-price {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.item-supplier {
+    color: #666;
+}
+
+.expense-item-stock {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+.expense-item-stock.low-stock {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.expense-qty-input,
+.expense-amount-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.expense-qty-input:focus,
+.expense-amount-input:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.expense-unit-select {
+    width: 100%;
+    padding: 8px 5px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.expense-modal-footer {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    padding: 15px;
+    border-top: 1px solid var(--border);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .expense-list-header {
+        display: none;
+    }
+    
+    .expense-item-row {
+        grid-template-columns: 30px 1fr;
+        grid-template-rows: auto auto;
+    }
+    
+    .expense-item-qty,
+    .expense-item-unit,
+    .expense-item-amount {
+        grid-column: 2;
+    }
+    
+    .expense-items-list {
+        max-height: 40vh;
+    }
+}
