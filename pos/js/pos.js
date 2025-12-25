@@ -1537,6 +1537,34 @@ const POS = {
                             ` : ''}
                         </div>
                     ` : ''}
+                    
+                    ${sale.gcashPayment ? `
+                        <div class="detail-gcash" style="margin-top: 15px; padding: 12px; background: #E3F2FD; border-radius: 8px;">
+                            <h4 style="margin: 0 0 10px; color: #1565C0;">📱 GCash Payment Verification</h4>
+                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; font-size: 0.9rem;">
+                                <strong>Reference No:</strong>
+                                <span style="font-family: monospace;">${sale.gcashPayment.refNo}</span>
+                                <strong>Amount:</strong>
+                                <span>₱${sale.gcashPayment.amount?.toLocaleString() || sale.total?.toLocaleString()}</span>
+                                ${sale.gcashPayment.customerMobile ? `
+                                    <strong>Customer Mobile:</strong>
+                                    <span>${sale.gcashPayment.customerMobile}</span>
+                                ` : ''}
+                                ${sale.gcashPayment.senderName ? `
+                                    <strong>Sender Name:</strong>
+                                    <span>${sale.gcashPayment.senderName}</span>
+                                ` : ''}
+                            </div>
+                            ${sale.gcashPayment.photoData ? `
+                                <div style="margin-top: 10px;">
+                                    <img src="${sale.gcashPayment.photoData}" alt="GCash Screenshot" 
+                                         style="max-width: 200px; border-radius: 8px; border: 2px solid #1565C0; cursor: pointer;"
+                                         onclick="POS.showFullPhoto('${sale.gcashPayment.photoData.replace(/'/g, "\\'")}')">
+                                    <div style="font-size: 0.8rem; color: #666; margin-top: 4px;">Tap to enlarge</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
                 </div>
             `,
             saveText: '🖨️ Reprint Receipt',
