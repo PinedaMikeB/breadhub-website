@@ -953,16 +953,33 @@ const Auth = {
         try {
             Toast.show('Loading items...', 'info');
             
-            const [ingredients, packaging, suppliers, ingredientSuppliers] = await Promise.all([
+            // Try multiple possible collection names for supplier-ingredient links
+            const [ingredients, packaging, suppliers] = await Promise.all([
                 DB.getAll('ingredients'),
                 DB.getAll('packagingMaterials'),
-                DB.getAll('suppliers'),
-                DB.getAll('ingredientSuppliers') // This links ingredients to suppliers with prices
+                DB.getAll('suppliers')
             ]);
             
-            // Debug logs
-            console.log('Sample ingredient KEYS:', Object.keys(ingredients[0] || {}));
-            console.log('Sample ingredientSupplier:', ingredientSuppliers?.[0]);
+            // Try to load supplier links from various possible collections
+            let supplierLinks = [];
+            const possibleCollections = ['ingredientSuppliers', 'supplierIngredients', 'itemSuppliers', 'supplierItems', 'purchaseItems'];
+            
+            for (const collName of possibleCollections) {
+                try {
+                    const data = await DB.getAll(collName);
+                    if (data && data.length > 0) {
+                        console.log(`Found data in ${collName}:`, data[0]);
+                        supplierLinks = data;
+                        break;
+                    }
+                } catch (e) {
+                    // Collection doesn't exist, continue
+                }
+            }
+            
+            // Check if ingredients have a 'suppliers' sub-array
+            console.log('Checking ingredient for suppliers array:', ingredients[0]?.suppliers);
+            console.log('Full ingredient keys:', Object.keys(ingredients[0] || {}));
             
             // Build supplier lookup map
             const supplierMap = {};
@@ -971,57 +988,58 @@ const Auth = {
             });
             this.supplierMap = supplierMap;
             
-            // Build ingredient-supplier lookup (ingredientId -> {supplierId, price, unit})
-            const ingredientSupplierMap = {};
-            (ingredientSuppliers || []).forEach(is => {
-                const ingId = is.ingredientId || is.itemId;
-                if (ingId && (!ingredientSupplierMap[ingId] || is.isDefault)) {
-                    ingredientSupplierMap[ingId] = {
-                        supplierId: is.supplierId,
-                        supplierName: supplierMap[is.supplierId] || 'Unknown',
-                        price: is.price || is.unitPrice || is.pricePerUnit || 0,
-                        unit: is.unit || is.purchaseUnit || 'kg'
-                    };
-                }
-            });
+            // Check if ingredient has embedded supplier info
+            const sampleIng = ingredients[0];
+            if (sampleIng) {
+                console.log('Ingredient suppliers field:', sampleIng.suppliers);
+                console.log('Ingredient defaultSupplier:', sampleIng.defaultSupplier);
+                console.log('Ingredient purchaseInfo:', sampleIng.purchaseInfo);
+                console.log('Ingredient pricing:', sampleIng.pricing);
+            }
             
-            // Map ingredients with full details
+            // Map ingredients - check for embedded supplier data
             this.allItemsDetails = [
                 ...ingredients.map(i => {
-                    const supplierInfo = ingredientSupplierMap[i.id] || {};
+                    // Check for embedded suppliers array
+                    let supplierInfo = {};
+                    if (i.suppliers && Array.isArray(i.suppliers) && i.suppliers.length > 0) {
+                        const defaultSupp = i.suppliers.find(s => s.isDefault) || i.suppliers[0];
+                        supplierInfo = {
+                            supplierId: defaultSupp.supplierId || defaultSupp.id,
+                            supplierName: supplierMap[defaultSupp.supplierId] || defaultSupp.supplierName || defaultSupp.name || 'Unknown',
+                            price: defaultSupp.price || defaultSupp.unitPrice || defaultSupp.pricePerUnit || 0,
+                            unit: defaultSupp.unit || defaultSupp.purchaseUnit || 'kg'
+                        };
+                    }
+                    
                     return {
                         id: i.id,
                         name: i.name,
                         type: 'ingredient',
                         category: i.category || i.type || 'Ingredient',
                         unit: supplierInfo.unit || i.unit || 'kg',
-                        price: supplierInfo.price || 0,
+                        price: supplierInfo.price || i.price || i.unitPrice || 0,
                         priceUnit: supplierInfo.unit || i.unit || 'kg',
-                        supplierId: supplierInfo.supplierId || null,
-                        supplierName: supplierInfo.supplierName || 'No supplier',
-                        currentStock: i.currentStock || i.stockQty || 0,
+                        supplierId: supplierInfo.supplierId || i.supplierId || null,
+                        supplierName: supplierInfo.supplierName || supplierMap[i.supplierId] || 'No supplier',
+                        currentStock: i.currentStock || 0,
                         stockUnit: i.stockUnit || i.unit || 'g'
                     };
                 }),
-                ...packaging.map(p => {
-                    const supplierInfo = ingredientSupplierMap[p.id] || {};
-                    return {
-                        id: p.id,
-                        name: p.name,
-                        type: 'packaging',
-                        category: 'Packaging',
-                        unit: supplierInfo.unit || p.unit || 'pcs',
-                        price: supplierInfo.price || 0,
-                        priceUnit: supplierInfo.unit || p.unit || 'pcs',
-                        supplierId: supplierInfo.supplierId || null,
-                        supplierName: supplierInfo.supplierName || 'No supplier',
-                        currentStock: p.currentStock || p.stockQty || 0,
-                        stockUnit: p.stockUnit || p.unit || 'pcs'
-                    };
-                })
+                ...packaging.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    type: 'packaging',
+                    category: 'Packaging',
+                    unit: p.unit || 'pcs',
+                    price: p.price || p.unitPrice || 0,
+                    priceUnit: p.unit || 'pcs',
+                    supplierId: p.supplierId || null,
+                    supplierName: supplierMap[p.supplierId] || 'No supplier',
+                    currentStock: p.currentStock || 0,
+                    stockUnit: p.stockUnit || p.unit || 'pcs'
+                }))
             ].sort((a, b) => a.name.localeCompare(b.name));
-            
-            console.log('Mapped item sample:', this.allItemsDetails[0]);
             
             this.showExpenseListModal();
             
