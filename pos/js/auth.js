@@ -924,8 +924,10 @@ const Auth = {
             }
         }
         
-        // Sort alphabetically
-        const sortedItems = [...this.allItems].sort((a, b) => a.name.localeCompare(b.name));
+        // Sort alphabetically with safety check
+        const sortedItems = [...this.allItems]
+            .filter(item => item && item.name)
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         
         // Store for modal state - also store sorted items for click handler
         this.expenseModalState = { step: 1, item: null, supplier: null, qty: 1, amount: 0 };
@@ -960,8 +962,8 @@ const Auth = {
                     </div>
                 </div>
             `,
-            customFooter: `<div style="text-align:center;padding:10px;">
-                <button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
+            customFooter: `<div style="text-align:center;padding:15px;">
+                <button class="btn btn-outline btn-lg" onclick="Auth.closeExpenseAndReturn()" style="padding: 12px 30px;">✕ Close & Return to End Shift</button>
             </div>`,
             hideFooter: true
         });
@@ -997,6 +999,12 @@ const Auth = {
         }
     },
     
+    closeExpenseAndReturn() {
+        Modal.close();
+        // Re-open end shift modal
+        setTimeout(() => this.showEndShiftModal(), 100);
+    },
+    
     pickExpenseItem(itemId, itemName, itemType, itemUnit) {
         this.expenseModalState.item = { id: itemId, name: itemName, type: itemType, unit: itemUnit };
         
@@ -1006,7 +1014,11 @@ const Auth = {
     
     showQuickAddForm() {
         const item = this.expenseModalState.item;
-        const sortedSuppliers = [...(this.suppliersList || [])].sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Safe sort with null check
+        const sortedSuppliers = [...(this.suppliersList || [])]
+            .filter(s => s && s.name)
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         
         const supplierOptions = sortedSuppliers.map(s => 
             `<option value="${s.id}" data-name="${s.name}">${s.name}</option>`
