@@ -967,6 +967,27 @@ const Auth = {
             this.supplierMap = supplierMap;
             
             // Load supplier prices from sub-collections for each ingredient
+            // First, test with one ingredient to see the sub-collection name
+            const testIngredient = ingredients[0];
+            if (testIngredient) {
+                console.log('Testing sub-collections for:', testIngredient.name, testIngredient.id);
+                
+                // Try different possible sub-collection names
+                const possibleSubcollections = ['prices', 'supplierPrices', 'suppliers', 'pricing'];
+                for (const subName of possibleSubcollections) {
+                    try {
+                        const subData = await DB.getSubcollection('ingredients', testIngredient.id, subName);
+                        console.log(`Sub-collection '${subName}':`, subData);
+                        if (subData && subData.length > 0) {
+                            console.log(`✅ Found data in '${subName}' sub-collection!`);
+                            break;
+                        }
+                    } catch (e) {
+                        console.log(`Sub-collection '${subName}' error:`, e.message);
+                    }
+                }
+            }
+            
             const ingredientsWithPrices = await Promise.all(
                 ingredients.map(async (ing) => {
                     try {
