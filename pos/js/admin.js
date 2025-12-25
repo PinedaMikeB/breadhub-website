@@ -409,6 +409,34 @@ const Admin = {
                             ` : ''}
                         </div>
                     ` : ''}
+                    
+                    ${sale.gcashPayment ? `
+                        <div class="gcash-verification-section" style="margin-top: 16px; padding: 12px; background: #E3F2FD; border-radius: 8px;">
+                            <h4 style="margin: 0 0 10px; color: #1565C0;">📱 GCash Payment Verification</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem;">
+                                <div><strong>Reference No:</strong></div>
+                                <div style="font-family: monospace;">${sale.gcashPayment.refNo}</div>
+                                <div><strong>Amount:</strong></div>
+                                <div>₱${sale.gcashPayment.amount?.toLocaleString() || sale.total?.toLocaleString()}</div>
+                                ${sale.gcashPayment.customerMobile ? `
+                                    <div><strong>Customer Mobile:</strong></div>
+                                    <div>${sale.gcashPayment.customerMobile}</div>
+                                ` : ''}
+                                ${sale.gcashPayment.senderName ? `
+                                    <div><strong>Sender Name:</strong></div>
+                                    <div>${sale.gcashPayment.senderName}</div>
+                                ` : ''}
+                            </div>
+                            ${sale.gcashPayment.photoData ? `
+                                <div style="margin-top: 10px;">
+                                    <img src="${sale.gcashPayment.photoData}" alt="GCash Screenshot" 
+                                         style="max-width: 200px; border-radius: 8px; border: 2px solid #1565C0; cursor: pointer;"
+                                         onclick="Admin.showFullIdPhoto('${sale.gcashPayment.photoData.replace(/'/g, "\\'")}')">
+                                    <div style="font-size: 0.8rem; color: #666; margin-top: 4px;">Click to enlarge</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
                 </div>
             `,
             showFooter: true,

@@ -23,6 +23,10 @@ const POS = {
     // Active discount for new items
     activeDiscount: null,
     
+    // GCash payment verification
+    gcashPaymentData: null,
+    gcashPhotoStream: null,
+    
     currentCategory: 'all',
     
     async init() {
@@ -322,6 +326,195 @@ const POS = {
         this.renderDiscountBar();
     },
     
+    // ========== GCASH PAYMENT VERIFICATION ==========
+    
+    showGcashVerificationModal(total, totalDiscount) {
+        this.gcashPaymentData = null;
+        
+        Modal.open({
+            title: '📱 GCash Payment Verification',
+            width: '95vw',
+            content: `
+                <div class="gcash-verification">
+                    <div class="gcash-amount-display">
+                        <span>Amount to Receive:</span>
+                        <strong style="font-size: 1.5rem; color: #007bff;">₱${total.toLocaleString()}</strong>
+                    </div>
+                    
+                    <div class="gcash-camera-section">
+                        <p style="text-align: center; margin-bottom: 10px; color: #666;">
+                            📸 Take a photo of the customer's GCash payment confirmation
+                        </p>
+                        <div class="camera-container" style="position: relative; background: #000; border-radius: 12px; overflow: hidden;">
+                            <video id="gcashCameraPreview" autoplay playsinline style="width: 100%; display: block;"></video>
+                            <canvas id="gcashPhotoCanvas" style="display: none;"></canvas>
+                        </div>
+                        
+                        <div id="gcashCameraControls" class="camera-controls" style="text-align: center; margin-top: 12px;">
+                            <button type="button" class="btn btn-primary btn-lg" onclick="POS.captureGcashPhoto()">
+                                📸 Capture Photo
+                            </button>
+                        </div>
+                        
+                        <div id="gcashCapturedPhoto" style="display: none; margin-top: 12px;">
+                            <img id="gcashPhotoPreview" style="width: 100%; border-radius: 8px; border: 3px solid #28a745;">
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <button type="button" class="btn btn-secondary" onclick="POS.retakeGcashPhoto()">🔄 Retake</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="gcash-details-form" style="margin-top: 16px;">
+                        <div class="form-group">
+                            <label>📋 Reference Number *</label>
+                            <input type="text" id="gcashRefNo" class="form-input" placeholder="e.g., 3036128587755" required
+                                   style="font-size: 1.1rem; letter-spacing: 1px;">
+                        </div>
+                        <div class="form-group">
+                            <label>📱 Customer Mobile (optional)</label>
+                            <input type="tel" id="gcashCustomerMobile" class="form-input" placeholder="e.g., 09602965868">
+                            <small style="color: #666;">For sending thank you message</small>
+                        </div>
+                        <div class="form-group">
+                            <label>👤 Sender Name (from screen)</label>
+                            <input type="text" id="gcashSenderName" class="form-input" placeholder="e.g., JE****O B.">
+                        </div>
+                    </div>
+                </div>
+            `,
+            customFooter: `
+                <div style="display: flex; gap: 10px; padding: 15px;">
+                    <button class="btn btn-secondary btn-lg" style="flex: 1;" onclick="POS.cancelGcashVerification()">Cancel</button>
+                    <button class="btn btn-success btn-lg" style="flex: 2;" onclick="POS.confirmGcashPayment(${total}, ${totalDiscount})">
+                        ✅ Confirm Payment
+                    </button>
+                </div>
+            `,
+            hideFooter: true
+        });
+        
+        // Start camera
+        setTimeout(() => this.startGcashCamera(), 200);
+    },
+    
+    async startGcashCamera() {
+        try {
+            const video = document.getElementById('gcashCameraPreview');
+            if (!video) return;
+            
+            this.gcashPhotoStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+            });
+            
+            video.srcObject = this.gcashPhotoStream;
+        } catch (error) {
+            console.error('Camera error:', error);
+            Toast.error('Could not access camera');
+        }
+    },
+    
+    stopGcashCamera() {
+        if (this.gcashPhotoStream) {
+            this.gcashPhotoStream.getTracks().forEach(track => track.stop());
+            this.gcashPhotoStream = null;
+        }
+    },
+    
+    captureGcashPhoto() {
+        const video = document.getElementById('gcashCameraPreview');
+        const canvas = document.getElementById('gcashPhotoCanvas');
+        const preview = document.getElementById('gcashPhotoPreview');
+        const capturedDiv = document.getElementById('gcashCapturedPhoto');
+        const controlsDiv = document.getElementById('gcashCameraControls');
+        
+        if (!video || !canvas) return;
+        
+        // Set canvas size to match video
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw video frame to canvas
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        // Convert to data URL
+        const photoData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        // Store temporarily
+        this.gcashCapturedPhoto = photoData;
+        
+        // Show preview
+        preview.src = photoData;
+        capturedDiv.style.display = 'block';
+        video.style.display = 'none';
+        controlsDiv.style.display = 'none';
+        
+        // Stop camera to save battery
+        this.stopGcashCamera();
+        
+        Toast.success('Photo captured!');
+    },
+    
+    retakeGcashPhoto() {
+        const video = document.getElementById('gcashCameraPreview');
+        const capturedDiv = document.getElementById('gcashCapturedPhoto');
+        const controlsDiv = document.getElementById('gcashCameraControls');
+        
+        this.gcashCapturedPhoto = null;
+        capturedDiv.style.display = 'none';
+        video.style.display = 'block';
+        controlsDiv.style.display = 'block';
+        
+        // Restart camera
+        this.startGcashCamera();
+    },
+    
+    confirmGcashPayment(total, totalDiscount) {
+        const refNo = document.getElementById('gcashRefNo')?.value?.trim();
+        const customerMobile = document.getElementById('gcashCustomerMobile')?.value?.trim();
+        const senderName = document.getElementById('gcashSenderName')?.value?.trim();
+        
+        // Validate
+        if (!this.gcashCapturedPhoto) {
+            Toast.error('Please capture a photo of the payment');
+            return;
+        }
+        
+        if (!refNo) {
+            Toast.error('Please enter the reference number');
+            document.getElementById('gcashRefNo')?.focus();
+            return;
+        }
+        
+        // Store GCash payment data
+        this.gcashPaymentData = {
+            photoData: this.gcashCapturedPhoto,
+            refNo: refNo,
+            amount: total,
+            customerMobile: customerMobile || null,
+            senderName: senderName || null,
+            verifiedAt: new Date().toISOString()
+        };
+        
+        this.stopGcashCamera();
+        Modal.close();
+        
+        Toast.success('GCash payment verified!');
+        
+        // Now complete the sale
+        setTimeout(() => {
+            this.completeSale(total, totalDiscount);
+        }, 100);
+    },
+    
+    cancelGcashVerification() {
+        this.stopGcashCamera();
+        this.gcashCapturedPhoto = null;
+        this.gcashPaymentData = null;
+        Modal.close();
+        Toast.info('GCash verification cancelled');
+    },
+
     showCustomDiscount() {
         Modal.open({
             title: '✏️ Custom Discount',
@@ -888,6 +1081,12 @@ const POS = {
             return false;
         }
         
+        // GCash payment requires photo verification
+        if (paymentMethod === 'gcash' && !this.gcashPaymentData) {
+            this.showGcashVerificationModal(total, totalDiscount);
+            return false;
+        }
+        
         try {
             const today = Utils.getTodayKey();
             const saleNum = await DB.getNextSaleNumber();
@@ -955,6 +1154,9 @@ const POS = {
                 cashReceived: paymentMethod === 'cash' ? cashReceived : null,
                 change: paymentMethod === 'cash' ? cashReceived - total : null,
                 
+                // GCash payment verification data
+                gcashPayment: paymentMethod === 'gcash' ? this.gcashPaymentData : null,
+                
                 source: 'pos',
                 createdBy: Auth.userData?.id || 'unknown',
                 createdByName: Auth.userData?.name || 'Unknown'
@@ -980,6 +1182,7 @@ const POS = {
             this.activeDiscount = null;
             this.discountIdPhoto = null;
             this.capturedIdPhotos = [];
+            this.gcashPaymentData = null;  // Clear GCash data
             this.renderCart();
             this.renderDiscountBar();
             
