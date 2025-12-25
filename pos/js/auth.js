@@ -953,10 +953,11 @@ const Auth = {
         try {
             Toast.show('Loading items...', 'info');
             
-            const [ingredients, packaging, suppliers] = await Promise.all([
+            const [ingredients, packaging, suppliers, ingredientPrices] = await Promise.all([
                 DB.getAll('ingredients'),
                 DB.getAll('packagingMaterials'),
-                DB.getAll('suppliers')
+                DB.getAll('suppliers'),
+                DB.getAll('ingredientPrices')  // This has the supplier-price links!
             ]);
             
             // Build supplier lookup map
@@ -966,104 +967,46 @@ const Auth = {
             });
             this.supplierMap = supplierMap;
             
-            // Try to find supplier price data from various possible collections
-            console.log('Looking for supplier price collections...');
-            
-            // Try top-level collections that might store ingredient-supplier-price relationships
-            const possiblePriceCollections = [
-                'ingredientPrices', 
-                'supplierPrices', 
-                'itemPrices',
-                'ingredientSuppliers',
-                'supplierIngredients'
-            ];
-            
-            let priceData = [];
-            let priceCollectionName = null;
-            
-            for (const collName of possiblePriceCollections) {
-                try {
-                    const data = await DB.getAll(collName);
-                    if (data && data.length > 0) {
-                        console.log(`✅ Found price data in '${collName}':`, data.length, 'records');
-                        console.log('Sample record:', JSON.stringify(data[0], null, 2));
-                        priceData = data;
-                        priceCollectionName = collName;
-                        break;
-                    }
-                } catch (e) {
-                    // Collection doesn't exist
-                }
-            }
-            
-            if (!priceCollectionName) {
-                console.log('No separate price collection found. Checking if prices are embedded in ingredients...');
-                // Check first ingredient for any price-related fields
-                const sampleIng = ingredients.find(i => i.name.toLowerCase().includes('kewpie'));
-                if (sampleIng) {
-                    console.log('Kewpie Mayo full data:', JSON.stringify(sampleIng, null, 2));
-                }
-            }
-            
-            // Build price lookup map (ingredientId -> price info)
+            // Build ingredient price lookup (ingredientId -> best price info)
             const priceMap = {};
-            priceData.forEach(p => {
-                const ingId = p.ingredientId || p.itemId;
+            (ingredientPrices || []).forEach(p => {
+                const ingId = p.ingredientId;
                 if (ingId) {
+                    // Keep the first one or one marked as default
                     if (!priceMap[ingId] || p.isDefault) {
-                        priceMap[ingId] = p;
+                        priceMap[ingId] = {
+                            supplierId: p.supplierId,
+                            supplierName: p.supplierName || supplierMap[p.supplierId] || 'Unknown',
+                            price: p.purchasePrice || p.price || 0,
+                            packageSize: p.packageSize || 1000,
+                            costPerGram: p.costPerGram || 0
+                        };
                     }
                 }
             });
             
-            const ingredientsWithPrices = await Promise.all(
-                ingredients.map(async (ing) => {
-                    try {
-                        // Try to get prices sub-collection
-                        const prices = await DB.getSubcollection('ingredients', ing.id, 'prices');
-                        
-                        // Find default supplier price (one with ⭐ or first one)
-                        let defaultPrice = null;
-                        if (prices && prices.length > 0) {
-                            defaultPrice = prices.find(p => p.isDefault) || prices[0];
-                        }
-                        
-                        return {
-                            ...ing,
-                            supplierPrices: prices || [],
-                            defaultSupplierPrice: defaultPrice
-                        };
-                    } catch (e) {
-                        return { ...ing, supplierPrices: [], defaultSupplierPrice: null };
-                    }
-                })
-            );
+            console.log('Price map sample:', Object.entries(priceMap)[0]);
             
-            // Map ingredients with full details including supplier prices
+            // Map ingredients with price data
             this.allItemsDetails = [
-                ...ingredientsWithPrices.map(i => {
-                    const priceInfo = i.defaultSupplierPrice || {};
-                    const suppId = priceInfo.supplierId || priceInfo.supplier;
-                    
+                ...ingredients.map(i => {
+                    const priceInfo = priceMap[i.id] || {};
                     return {
                         id: i.id,
                         name: i.name,
                         type: 'ingredient',
                         category: i.category || 'Ingredient',
-                        // Price from supplier prices sub-collection
-                        price: priceInfo.price || priceInfo.purchasePrice || 0,
-                        size: priceInfo.size || priceInfo.packageSize || 1000,
-                        costPerGram: priceInfo.costPerGram || priceInfo.costPerG || 0,
+                        // Price from ingredientPrices collection
+                        price: priceInfo.price || 0,
+                        packageSize: priceInfo.packageSize || 1000,
+                        costPerGram: priceInfo.costPerGram || 0,
                         unit: 'kg',
-                        priceUnit: `${(priceInfo.size || 1000)}g`,
                         // Supplier info
-                        supplierId: suppId,
-                        supplierName: supplierMap[suppId] || priceInfo.supplierName || 'No supplier',
+                        supplierId: priceInfo.supplierId || null,
+                        supplierName: priceInfo.supplierName || 'No supplier',
                         // Stock
                         currentStock: i.currentStock || 0,
-                        stockUnit: 'g',
-                        // All supplier prices for reference
-                        allPrices: i.supplierPrices
+                        stockUnit: 'g'
                     };
                 }),
                 ...packaging.map(p => ({
@@ -1072,18 +1015,14 @@ const Auth = {
                     type: 'packaging',
                     category: 'Packaging',
                     price: p.price || p.unitPrice || 0,
-                    size: p.size || 1,
+                    packageSize: 1,
                     unit: p.unit || 'pcs',
-                    priceUnit: p.unit || 'pcs',
                     supplierId: p.supplierId || null,
                     supplierName: supplierMap[p.supplierId] || 'No supplier',
                     currentStock: p.currentStock || 0,
-                    stockUnit: p.unit || 'pcs',
-                    allPrices: []
+                    stockUnit: p.unit || 'pcs'
                 }))
             ].sort((a, b) => a.name.localeCompare(b.name));
-            
-            console.log('Sample mapped item:', this.allItemsDetails[0]);
             
             this.showExpenseListModal();
             
@@ -1098,15 +1037,21 @@ const Auth = {
         
         // Build item rows HTML like ProofMaster
         const itemRowsHTML = items.map((item, index) => {
-            // Format price display
+            // Format price display - show price / package size
             let priceDisplay = '₱0';
             if (item.price > 0) {
-                priceDisplay = `₱${item.price.toLocaleString()} / ${item.size || 1000}g`;
+                // Convert packageSize to kg if >= 1000g
+                const sizeDisplay = item.packageSize >= 1000 
+                    ? `${item.packageSize / 1000}kg` 
+                    : `${item.packageSize}g`;
+                priceDisplay = `₱${item.price.toLocaleString()} / ${sizeDisplay}`;
             }
             
             // Stock display
             const stockDisplay = item.currentStock > 0 
-                ? `${item.currentStock.toLocaleString()} ${item.stockUnit}`
+                ? (item.currentStock >= 1000 
+                    ? `${(item.currentStock / 1000).toFixed(2)} kg`
+                    : `${item.currentStock.toLocaleString()} g`)
                 : '0 g';
             const stockClass = item.currentStock <= 0 ? 'low-stock' : '';
             
