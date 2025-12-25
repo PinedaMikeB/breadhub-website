@@ -967,8 +967,8 @@ const Auth = {
             this.supplierMap = supplierMap;
             
             // Load supplier prices from sub-collections for each ingredient
-            // First, test with one ingredient to see the sub-collection name
-            const testIngredient = ingredients[0];
+            // Find an ingredient that should have prices (Mayonnaise Kewpie Mayo)
+            const testIngredient = ingredients.find(i => i.name.toLowerCase().includes('mayo')) || ingredients[0];
             if (testIngredient) {
                 console.log('Testing sub-collections for:', testIngredient.name, testIngredient.id);
                 
@@ -979,7 +979,7 @@ const Auth = {
                         const subData = await DB.getSubcollection('ingredients', testIngredient.id, subName);
                         console.log(`Sub-collection '${subName}':`, subData);
                         if (subData && subData.length > 0) {
-                            console.log(`✅ Found data in '${subName}' sub-collection!`);
+                            console.log(`✅ Found data in '${subName}' sub-collection!`, JSON.stringify(subData[0]));
                             break;
                         }
                     } catch (e) {
