@@ -966,27 +966,55 @@ const Auth = {
             });
             this.supplierMap = supplierMap;
             
-            // Load supplier prices from sub-collections for each ingredient
-            // Find an ingredient that should have prices (Mayonnaise Kewpie Mayo)
-            const testIngredient = ingredients.find(i => i.name.toLowerCase().includes('mayo')) || ingredients[0];
-            if (testIngredient) {
-                console.log('Testing sub-collections for:', testIngredient.name, testIngredient.id);
-                
-                // Try different possible sub-collection names
-                const possibleSubcollections = ['prices', 'supplierPrices', 'suppliers', 'pricing'];
-                for (const subName of possibleSubcollections) {
-                    try {
-                        const subData = await DB.getSubcollection('ingredients', testIngredient.id, subName);
-                        console.log(`Sub-collection '${subName}':`, subData);
-                        if (subData && subData.length > 0) {
-                            console.log(`✅ Found data in '${subName}' sub-collection!`, JSON.stringify(subData[0]));
-                            break;
-                        }
-                    } catch (e) {
-                        console.log(`Sub-collection '${subName}' error:`, e.message);
+            // Try to find supplier price data from various possible collections
+            console.log('Looking for supplier price collections...');
+            
+            // Try top-level collections that might store ingredient-supplier-price relationships
+            const possiblePriceCollections = [
+                'ingredientPrices', 
+                'supplierPrices', 
+                'itemPrices',
+                'ingredientSuppliers',
+                'supplierIngredients'
+            ];
+            
+            let priceData = [];
+            let priceCollectionName = null;
+            
+            for (const collName of possiblePriceCollections) {
+                try {
+                    const data = await DB.getAll(collName);
+                    if (data && data.length > 0) {
+                        console.log(`✅ Found price data in '${collName}':`, data.length, 'records');
+                        console.log('Sample record:', JSON.stringify(data[0], null, 2));
+                        priceData = data;
+                        priceCollectionName = collName;
+                        break;
                     }
+                } catch (e) {
+                    // Collection doesn't exist
                 }
             }
+            
+            if (!priceCollectionName) {
+                console.log('No separate price collection found. Checking if prices are embedded in ingredients...');
+                // Check first ingredient for any price-related fields
+                const sampleIng = ingredients.find(i => i.name.toLowerCase().includes('kewpie'));
+                if (sampleIng) {
+                    console.log('Kewpie Mayo full data:', JSON.stringify(sampleIng, null, 2));
+                }
+            }
+            
+            // Build price lookup map (ingredientId -> price info)
+            const priceMap = {};
+            priceData.forEach(p => {
+                const ingId = p.ingredientId || p.itemId;
+                if (ingId) {
+                    if (!priceMap[ingId] || p.isDefault) {
+                        priceMap[ingId] = p;
+                    }
+                }
+            });
             
             const ingredientsWithPrices = await Promise.all(
                 ingredients.map(async (ing) => {
