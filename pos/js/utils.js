@@ -1,5 +1,5 @@
 /**
- * BreadHub POS - Utility Functions v2
+ * BreadHub POS - Utility Functions v3
  */
 
 const Utils = {
@@ -38,7 +38,12 @@ const Utils = {
     },
     
     getTodayKey() {
-        return new Date().toISOString().split('T')[0];
+        // Use local time (Philippine time), not UTC
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     },
     
     getMonthKey(date) {
