@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix DateKey - BreadHub</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #fbbf24;
+        }
+        .card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            margin-top: 0;
+            color: #fbbf24;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            border-radius: 8px;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .btn-check {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-fix {
+            background: #10b981;
+            color: white;
+        }
+        .btn-fix:disabled {
+            background: #6b7280;
+            cursor: not-allowed;
+        }
+        #log {
+            background: #000;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .info { color: #3b82f6; }
+        .warning { color: #fbbf24; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 12px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        th { color: #fbbf24; }
+        .wrong { color: #ef4444; }
+        .correct { color: #10b981; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix DateKey Bug</h1>
+        
+        <div class="card">
+            <h3>📋 What This Does</h3>
+            <p>Finds sales where <code>dateKey</code> doesn't match the actual <code>createdAt</code> date (timezone bug), and fixes them.</p>
+            <p>Sales created early morning (before 4 PM PH time) got wrong dateKey due to UTC timezone issue.</p>
+        </div>
+        
+        <div class="card">
+            <h3>⚡ Actions</h3>
+            <button class="btn-check" onclick="checkSales()">1️⃣ Find Mismatched Sales</button>
+            <button class="btn-fix" id="fixBtn" onclick="fixSales()" disabled>2️⃣ Fix All DateKeys</button>
+        </div>
+        
+        <div class="card">
+            <h3>📜 Log</h3>
+            <div id="log">Ready. Click "Find Mismatched Sales" to begin...</div>
+        </div>
+        
+        <div id="tableContainer"></div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAw60qR9sHw4ZURLO7JvyBIbGC1s5x8gxQ",
+            authDomain: "breadhub-proofmaster.firebaseapp.com",
+            projectId: "breadhub-proofmaster",
+            storageBucket: "breadhub-proofmaster.firebasestorage.app",
+            messagingSenderId: "188107818498",
+            appId: "1:188107818498:web:3f3fa23e8c4666ebfc7078"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        let salesToFix = [];
+        
+        function log(message, type = '') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `\n<span class="${type}">[${time}] ${message}</span>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function getLocalDateKey(dateString) {
+            // Convert to local date and get YYYY-MM-DD
+            const d = new Date(dateString);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        async function checkSales() {
+            document.getElementById('log').innerHTML = '';
+            log('🔍 Scanning all sales...', 'info');
+            
+            try {
+                const snapshot = await db.collection('sales').get();
+                log(`Found ${snapshot.size} total sales`, 'info');
+                
+                salesToFix = [];
+                let tableHtml = `
+                    <div class="card">
+                        <h3>📊 Mismatched Sales</h3>
+                        <table>
+                            <tr>
+                                <th>Sale ID</th>
+                                <th>Created At (Local)</th>
+                                <th>Current dateKey</th>
+                                <th>Correct dateKey</th>
+                            </tr>
+                `;
+                
+                snapshot.forEach(doc => {
+                    const sale = doc.data();
+                    const createdAt = sale.createdAt;
+                    
+                    if (createdAt) {
+                        const correctDateKey = getLocalDateKey(createdAt);
+                        const currentDateKey = sale.dateKey;
+                        
+                        if (currentDateKey !== correctDateKey) {
+                            salesToFix.push({
+                                ref: doc.ref,
+                                id: doc.id,
+                                saleId: sale.saleId,
+                                createdAt: createdAt,
+                                currentDateKey: currentDateKey,
+                                correctDateKey: correctDateKey,
+                                total: sale.total
+                            });
+                            
+                            const localTime = new Date(createdAt).toLocaleString('en-PH');
+                            tableHtml += `
+                                <tr>
+                                    <td>${sale.saleId || doc.id}</td>
+                                    <td>${localTime}</td>
+                                    <td class="wrong">${currentDateKey}</td>
+                                    <td class="correct">${correctDateKey}</td>
+                                </tr>
+                            `;
+                        }
+                    }
+                });
+                
+                tableHtml += `</table></div>`;
+                
+                if (salesToFix.length > 0) {
+                    log(`\n⚠️ Found ${salesToFix.length} sales with wrong dateKey!`, 'warning');
+                    
+                    // Calculate totals
+                    const totalAmount = salesToFix.reduce((sum, s) => sum + (s.total || 0), 0);
+                    log(`💰 Total amount affected: ₱${totalAmount.toLocaleString()}`, 'info');
+                    
+                    // Group by what the correct date should be
+                    const byCorrectDate = {};
+                    salesToFix.forEach(s => {
+                        if (!byCorrectDate[s.correctDateKey]) {
+                            byCorrectDate[s.correctDateKey] = { count: 0, total: 0 };
+                        }
+                        byCorrectDate[s.correctDateKey].count++;
+                        byCorrectDate[s.correctDateKey].total += s.total || 0;
+                    });
+                    
+                    log(`\n📅 Will be moved to:`, 'info');
+                    for (const [date, data] of Object.entries(byCorrectDate)) {
+                        log(`   ${date}: ${data.count} sales, ₱${data.total.toLocaleString()}`, '');
+                    }
+                    
+                    document.getElementById('tableContainer').innerHTML = tableHtml;
+                    document.getElementById('fixBtn').disabled = false;
+                    log(`\n✅ Ready! Click "Fix All DateKeys" to update.`, 'success');
+                } else {
+                    log(`\n✅ All sales have correct dateKey! Nothing to fix.`, 'success');
+                    document.getElementById('tableContainer').innerHTML = '';
+                }
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function fixSales() {
+            if (salesToFix.length === 0) {
+                log('❌ No sales to fix. Run check first.', 'error');
+                return;
+            }
+            
+            if (!confirm(`Update dateKey for ${salesToFix.length} sales?`)) {
+                return;
+            }
+            
+            log(`\n🔧 Updating ${salesToFix.length} sales...`, 'info');
+            
+            let updated = 0;
+            let errors = 0;
+            
+            for (const sale of salesToFix) {
+                try {
+                    await sale.ref.update({ dateKey: sale.correctDateKey });
+                    updated++;
+                    log(`✅ ${updated}/${salesToFix.length}: ${sale.saleId} → ${sale.correctDateKey}`, 'success');
+                } catch (error) {
+                    errors++;
+                    log(`❌ Failed: ${sale.saleId} - ${error.message}`, 'error');
+                }
+            }
+            
+            log(`\n========================================`, '');
+            log(`🎉 DONE! Updated: ${updated}, Errors: ${errors}`, 'success');
+            log(`\n👉 Refresh Admin panel to see correct totals!`, 'info');
+            
+            document.getElementById('fixBtn').disabled = true;
+            document.getElementById('tableContainer').innerHTML = '';
+            salesToFix = [];
+        }
+    </script>
+</body>
+</html>
