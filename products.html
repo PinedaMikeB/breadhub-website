@@ -181,6 +181,14 @@
             box-shadow: 0 12px 40px var(--shadow);
         }
         
+        .product-card.sold-out {
+            opacity: 0.7;
+        }
+        
+        .product-card.sold-out .product-image {
+            filter: grayscale(50%);
+        }
+        
         .product-image {
             height: 200px;
             background: var(--cream-dark);
@@ -817,16 +825,68 @@
         let cart = JSON.parse(localStorage.getItem('breadhub_cart') || '[]');
         let allProducts = [];
         let currentCategory = 'all';
+        let stockCache = {}; // Cache for today's stock
         
         // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             currentCategory = urlParams.get('category') || 'all';
             
             renderCategoryFilter();
-            loadProducts();
+            await loadStock(); // Load stock first
+            await loadProducts();
             updateCartUI();
         });
+        
+        // Load today's stock from dailyInventory
+        async function loadStock() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const snapshot = await db.collection('dailyInventory')
+                    .where('date', '==', today)
+                    .get();
+                
+                stockCache = {};
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const total = data.totalAvailable || 0;
+                    const reserved = data.reservedQty || 0;
+                    const sold = data.soldQty || 0;
+                    const cancelled = data.cancelledQty || 0;
+                    stockCache[data.productId] = Math.max(0, total - reserved - sold + cancelled);
+                });
+                console.log(`Loaded stock for ${Object.keys(stockCache).length} products`);
+            } catch (error) {
+                console.error('Error loading stock:', error);
+            }
+        }
+        
+        // Get stock status for display
+        function getStockDisplay(productId) {
+            const stock = stockCache[productId];
+            if (stock === undefined) {
+                return { badge: '', class: '', canOrder: true };
+            }
+            if (stock <= 0) {
+                return { 
+                    badge: '<span style="position:absolute;top:10px;right:10px;background:#FFEBEE;color:#C62828;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">Sold Out</span>', 
+                    class: 'sold-out',
+                    canOrder: false 
+                };
+            }
+            if (stock <= 5) {
+                return { 
+                    badge: `<span style="position:absolute;top:10px;right:10px;background:#FFF3E0;color:#E65100;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">Only ${stock} left!</span>`, 
+                    class: 'low-stock',
+                    canOrder: true 
+                };
+            }
+            return { 
+                badge: '<span style="position:absolute;top:10px;right:10px;background:#E8F5E9;color:#2E7D32;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">In Stock</span>', 
+                class: '',
+                canOrder: true 
+            };
+        }
         
         // Utility function to truncate text
         function truncateText(text, maxLength = 80) {
@@ -965,8 +1025,12 @@
                     `;
                 }
                 
+                // Get stock info
+                const stockInfo = getStockDisplay(product.id);
+                
                 return `
-                    <div class="product-card">
+                    <div class="product-card ${stockInfo.class}" style="position:relative;">
+                        ${stockInfo.badge}
                         <div class="product-image" style="${product.imageUrl ? `background-image:url('${product.imageUrl}')` : ''}" onclick="window.location.href='${productPageUrl}'">
                             ${!product.imageUrl ? catInfo.emoji : ''}
                         </div>
@@ -979,7 +1043,10 @@
                                 <span class="product-price" id="price-${product.id}">${priceDisplay}</span>
                                 <div class="product-actions">
                                     <a href="${productPageUrl}" class="view-product">View</a>
-                                    <button class="add-to-cart" onclick="addToCart('${product.id}')">Add</button>
+                                    ${stockInfo.canOrder 
+                                        ? `<button class="add-to-cart" onclick="addToCart('${product.id}')">Add</button>`
+                                        : `<button class="add-to-cart" disabled style="opacity:0.5;cursor:not-allowed;">Sold Out</button>`
+                                    }
                                 </div>
                             </div>
                         </div>

@@ -37,6 +37,12 @@ const POS = {
         await this.loadProducts();
         await this.loadDiscountPresets();
         await this.loadFeatureSettings();
+        
+        // Initialize stock manager
+        if (typeof StockManager !== 'undefined') {
+            await StockManager.init();
+        }
+        
         this.renderCategories();
         this.renderProducts();
         this.renderDiscountBar();
@@ -740,12 +746,30 @@ const POS = {
                 ? `₱${Math.min(...p.variants.map(v => v.price))} - ₱${Math.max(...p.variants.map(v => v.price))}`
                 : Utils.formatCurrency(price);
             
+            // Get stock status
+            let stockBadge = '';
+            let cardClass = 'product-card';
+            if (typeof StockManager !== 'undefined') {
+                const stockStatus = StockManager.getStockStatusText(p.id);
+                if (stockStatus.class === 'stock-out') {
+                    stockBadge = `<div class="stock-badge sold-out">SOLD OUT</div>`;
+                    cardClass += ' out-of-stock';
+                } else if (stockStatus.class === 'stock-low') {
+                    stockBadge = `<div class="stock-badge low-stock">${stockStatus.qty} left</div>`;
+                } else if (stockStatus.class === 'stock-ok') {
+                    stockBadge = `<div class="stock-badge in-stock">${stockStatus.qty}</div>`;
+                } else {
+                    stockBadge = `<div class="stock-badge no-record">--</div>`;
+                }
+            }
+            
             return `
-                <div class="product-card" onclick="POS.addToCart('${p.id}')">
+                <div class="${cardClass}" onclick="POS.addToCart('${p.id}')">
                     <div class="product-image">
                         ${p.shop?.imageUrl 
                             ? `<img src="${p.shop.imageUrl}" alt="${p.name}">` 
                             : '<span class="no-image">🍞</span>'}
+                        ${stockBadge}
                     </div>
                     <div class="product-info">
                         <div class="product-name">${p.name}</div>
@@ -767,6 +791,24 @@ const POS = {
         if (product.hasVariants && product.variants?.length > 0 && variantIndex === null) {
             this.showVariantSelector(product);
             return;
+        }
+        
+        // Check stock before adding
+        if (typeof StockManager !== 'undefined') {
+            const currentCartQty = this.cart
+                .filter(item => item.productId === productId)
+                .reduce((sum, item) => sum + item.quantity, 0);
+            
+            const stockCheck = StockManager.canAddToCart(productId, 1, currentCartQty);
+            
+            if (!stockCheck.allowed) {
+                Toast.error(stockCheck.warning || 'Out of stock');
+                return;
+            }
+            
+            if (stockCheck.warning && stockCheck.available !== null) {
+                Toast.warning(stockCheck.warning);
+            }
         }
         
         // Get price
@@ -1283,7 +1325,23 @@ const POS = {
             
             await DB.add('sales', saleRecord);
             
-            // Deduct inventory (async, don't block sale)
+            // Deduct product stock (dailyInventory)
+            if (typeof StockManager !== 'undefined') {
+                const stockItems = this.cart.map(item => ({
+                    productId: item.productId,
+                    quantity: item.quantity
+                }));
+                StockManager.deductStock(stockItems, saleId)
+                    .then(results => {
+                        const failed = results.filter(r => !r.success);
+                        if (failed.length > 0) {
+                            console.warn('Stock deduction issues:', failed);
+                        }
+                    })
+                    .catch(err => console.error('Stock deduction failed:', err));
+            }
+            
+            // Deduct ingredient inventory (async, don't block sale)
             if (typeof InventoryDeduction !== 'undefined') {
                 InventoryDeduction.deductForSale(saleRecord)
                     .then(result => {
