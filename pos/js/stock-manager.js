@@ -185,10 +185,24 @@ const StockManager = {
                     const data = doc.data();
                     const newSoldQty = (data.soldQty || 0) + item.quantity;
                     
-                    transaction.update(docRef, {
+                    // Calculate if this sale causes sell-out
+                    const totalAvailable = data.totalAvailable || 0;
+                    const reserved = data.reservedQty || 0;
+                    const newSellable = totalAvailable - reserved - newSoldQty;
+                    
+                    const updateData = {
                         soldQty: newSoldQty,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    };
+                    
+                    // Track sell-out time if stock just hit 0
+                    if (newSellable <= 0 && !data.soldOutAt) {
+                        updateData.soldOutAt = firebase.firestore.FieldValue.serverTimestamp();
+                        console.log(`📢 ${item.productId} SOLD OUT at ${new Date().toLocaleTimeString()}`);
+                    }
+                    
+                    transaction.update(docRef, updateData);
+                });
                 });
                 
                 // Log stock movement
