@@ -33,7 +33,19 @@ const StockManager = {
     // Load today's inventory
     async loadTodayStock() {
         try {
+            // Wait for db to be ready
+            if (typeof db === 'undefined' || !db) {
+                console.warn('StockManager: Firestore not ready, retrying in 500ms...');
+                await new Promise(r => setTimeout(r, 500));
+                if (!db) {
+                    console.error('StockManager: Firestore still not available');
+                    return;
+                }
+            }
+            
             const today = this.getTodayString();
+            console.log('StockManager: Loading stock for date:', today);
+            
             const snapshot = await db.collection('dailyInventory')
                 .where('date', '==', today)
                 .get();
@@ -48,9 +60,14 @@ const StockManager = {
                 };
             });
             
-            console.log(`Loaded stock for ${Object.keys(this.stockCache).length} products`);
+            console.log(`StockManager: Loaded stock for ${Object.keys(this.stockCache).length} products`);
+            
+            // Refresh POS display after loading
+            if (typeof POS !== 'undefined' && POS.renderProducts) {
+                POS.renderProducts();
+            }
         } catch (error) {
-            console.error('Error loading stock:', error);
+            console.error('StockManager: Error loading stock:', error);
         }
     },
     
