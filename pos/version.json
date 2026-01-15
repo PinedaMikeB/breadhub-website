@@ -1,0 +1,9 @@
+{
+    "version": "2.1.0",
+    "releaseDate": "2026-01-15",
+    "changes": [
+        "Added version update checker",
+        "PWA auto-update support",
+        "Bug fixes and improvements"
+    ]
+}
