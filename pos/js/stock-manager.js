@@ -220,7 +220,6 @@ const StockManager = {
                     
                     transaction.update(docRef, updateData);
                 });
-                });
                 
                 // Log stock movement
                 await db.collection('stockMovements').add({
