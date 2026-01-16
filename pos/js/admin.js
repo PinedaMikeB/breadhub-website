@@ -232,7 +232,21 @@ const Admin = {
             let discountTransactions = 0;
             const discountBreakdown = {};
             
+            // Calculate payment method breakdown
+            const paymentBreakdown = {
+                cash: { count: 0, amount: 0 },
+                gcash: { count: 0, amount: 0 },
+                card: { count: 0, amount: 0 }
+            };
+            
             shiftSales.forEach(sale => {
+                // Payment method tracking
+                const method = sale.paymentMethod || 'cash';
+                if (paymentBreakdown[method]) {
+                    paymentBreakdown[method].count++;
+                    paymentBreakdown[method].amount += sale.total || 0;
+                }
+                
                 if (sale.totalDiscount > 0) {
                     totalDiscounts += sale.totalDiscount;
                     discountTransactions++;
@@ -290,6 +304,30 @@ const Admin = {
                             <div class="detail-item">
                                 <span class="label">Transactions</span>
                                 <span class="value">${shiftSales.length}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="payment-summary-box">
+                            <h4>💳 Payment Methods</h4>
+                            <div class="payment-breakdown">
+                                <div class="payment-item">
+                                    <span class="payment-icon">💵</span>
+                                    <span class="payment-label">Cash</span>
+                                    <span class="payment-count">${paymentBreakdown.cash.count}x</span>
+                                    <span class="payment-amount">${Utils.formatCurrency(paymentBreakdown.cash.amount)}</span>
+                                </div>
+                                <div class="payment-item gcash">
+                                    <span class="payment-icon">📱</span>
+                                    <span class="payment-label">GCash</span>
+                                    <span class="payment-count">${paymentBreakdown.gcash.count}x</span>
+                                    <span class="payment-amount">${Utils.formatCurrency(paymentBreakdown.gcash.amount)}</span>
+                                </div>
+                                <div class="payment-item">
+                                    <span class="payment-icon">💳</span>
+                                    <span class="payment-label">Card</span>
+                                    <span class="payment-count">${paymentBreakdown.card.count}x</span>
+                                    <span class="payment-amount">${Utils.formatCurrency(paymentBreakdown.card.amount)}</span>
+                                </div>
                             </div>
                         </div>
                         

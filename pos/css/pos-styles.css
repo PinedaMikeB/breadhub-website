@@ -5206,3 +5206,70 @@ details summary {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.05); }
 }
+
+
+/* ===== Payment Method Breakdown ===== */
+.payment-summary-box {
+    background: linear-gradient(135deg, #1a365d, #2d4a6f);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.payment-summary-box h4 {
+    color: #fff;
+    margin: 0 0 15px 0;
+    font-size: 1rem;
+}
+
+.payment-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.payment-item {
+    display: grid;
+    grid-template-columns: 30px 1fr 50px 100px;
+    align-items: center;
+    background: rgba(255,255,255,0.1);
+    padding: 12px 15px;
+    border-radius: 8px;
+    color: #fff;
+}
+
+.payment-item.gcash {
+    background: rgba(0, 123, 255, 0.3);
+    border: 1px solid rgba(0, 123, 255, 0.5);
+}
+
+.payment-icon {
+    font-size: 1.2rem;
+}
+
+.payment-label {
+    font-weight: 500;
+}
+
+.payment-count {
+    text-align: center;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.payment-amount {
+    text-align: right;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+@media (max-width: 500px) {
+    .payment-item {
+        grid-template-columns: 25px 1fr 40px 80px;
+        padding: 10px 12px;
+    }
+    
+    .payment-amount {
+        font-size: 0.95rem;
+    }
+}
