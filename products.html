@@ -676,6 +676,162 @@
                 font-size: 0.9rem;
             }
         }
+        
+        /* Customer Account Styles */
+        .account-btn {
+            cursor: pointer;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.1);
+            transition: background 0.3s;
+        }
+        .account-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        .customer-welcome {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            text-align: center;
+            padding: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        /* Login Modal */
+        .login-modal .modal {
+            max-width: 400px;
+        }
+        .login-modal .modal-body {
+            padding: 2rem;
+            text-align: center;
+        }
+        .login-modal h3 {
+            margin-bottom: 0.5rem;
+            color: var(--brown);
+        }
+        .login-modal p {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+        .login-modal input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            text-align: center;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+        }
+        .login-modal input:focus {
+            border-color: var(--orange);
+            outline: none;
+        }
+        .login-modal .btn-verify {
+            width: 100%;
+            padding: 1rem;
+            background: var(--orange);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .login-modal .btn-verify:hover {
+            background: var(--orange-light);
+        }
+        .login-modal .new-customer-note {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #eee;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        /* Orders Modal */
+        .orders-modal .modal {
+            max-width: 500px;
+            max-height: 80vh;
+        }
+        .orders-modal .modal-body {
+            padding: 1rem;
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+        .orders-modal .customer-header {
+            background: var(--cream-dark);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .orders-modal .customer-info h4 {
+            margin: 0;
+            color: var(--brown);
+        }
+        .orders-modal .customer-stats {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .orders-modal .logout-btn {
+            padding: 0.5rem 1rem;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .orders-modal .logout-btn:hover {
+            background: #eee;
+        }
+        
+        /* Order Confirmation Modal */
+        .confirmation-modal .modal {
+            max-width: 450px;
+            text-align: center;
+        }
+        .confirmation-modal .success-icon {
+            font-size: 4rem;
+            margin: 1rem 0;
+        }
+        .confirmation-modal .order-number {
+            background: var(--cream-dark);
+            padding: 1rem;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--brown);
+            margin: 1rem 0;
+        }
+        .confirmation-modal .confirmation-message {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+        .confirmation-modal .btn-track {
+            width: 100%;
+            padding: 1rem;
+            background: var(--orange);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+        }
+        .confirmation-modal .btn-continue {
+            width: 100%;
+            padding: 1rem;
+            background: white;
+            color: var(--brown);
+            border: 2px solid var(--brown);
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -686,12 +842,14 @@
             <nav>
                 <a href="index.html">Home</a>
                 <a href="products.html">Products</a>
+                <a href="#" id="accountBtn" class="account-btn" onclick="Customer.data ? Customer.showOrdersModal() : Customer.showLoginModal()">👤 Account</a>
                 <div class="cart-btn" onclick="toggleCart()">
                     🛒 Cart
                     <span class="cart-count" id="cartCount">0</span>
                 </div>
             </nav>
         </div>
+        <div id="customerWelcome" class="customer-welcome" style="display:none;"></div>
     </header>
     
     <!-- Main Content -->
@@ -749,12 +907,12 @@
                         <input type="text" id="customerName" required placeholder="Juan Dela Cruz">
                     </div>
                     <div class="form-group">
-                        <label>Phone Number *</label>
-                        <input type="tel" id="customerPhone" required placeholder="09XX XXX XXXX">
+                        <label>Phone Number * <small style="color:#666;">(Philippine mobile)</small></label>
+                        <input type="tel" id="customerPhone" required placeholder="09XX XXX XXXX" pattern="^(09|\+639|639)\d{9}$" title="Please enter a valid Philippine mobile number">
                     </div>
                     <div class="form-group">
-                        <label>Delivery Address *</label>
-                        <textarea id="customerAddress" rows="3" required placeholder="House #, Street, Barangay, Taytay, Rizal"></textarea>
+                        <label>Complete Delivery Address *</label>
+                        <textarea id="customerAddress" rows="3" required minlength="20" placeholder="House/Unit #, Street, Barangay, Taytay, Rizal" title="Please enter your complete address (at least 20 characters)"></textarea>
                     </div>
                     <div class="form-group">
                         <label>Special Instructions (Optional)</label>
@@ -762,7 +920,7 @@
                     </div>
                     <div class="order-summary" id="orderSummary"></div>
                     <button type="submit" class="submit-order">
-                        📱 Send Order via Messenger
+                        ✅ Place Order
                     </button>
                 </form>
             </div>
@@ -770,7 +928,73 @@
     </div>
     
     <!-- Toast -->
-    <div class="toast" id="toast"></div>    
+    <div class="toast" id="toast"></div>
+    
+    <!-- Login Modal -->
+    <div class="modal-overlay login-modal" id="loginModal" onclick="closeLoginModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>👤 My Account</h2>
+                <button class="close-cart" onclick="closeLoginModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h3>Welcome Back!</h3>
+                <p>Enter your phone number to view your orders</p>
+                <input type="tel" id="loginPhone" placeholder="09XX XXX XXXX" maxlength="11">
+                <button class="btn-verify" onclick="verifyPhone()">Find My Account</button>
+                <div class="new-customer-note">
+                    <strong>New customer?</strong><br>
+                    Just place an order and your account will be created automatically!
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Orders Modal -->
+    <div class="modal-overlay orders-modal" id="ordersModal" onclick="closeOrdersModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>📦 My Orders</h2>
+                <button class="close-cart" onclick="closeOrdersModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="customer-header">
+                    <div class="customer-info">
+                        <h4 id="customerDisplayName">Customer</h4>
+                        <div class="customer-stats" id="customerStats"></div>
+                    </div>
+                    <button class="logout-btn" onclick="Customer.logout(); closeOrdersModal();">Sign Out</button>
+                </div>
+                <div id="ordersContainer">
+                    <p style="text-align:center;padding:2rem;">Loading orders...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Confirmation Modal -->
+    <div class="modal-overlay confirmation-modal" id="confirmationModal" onclick="closeConfirmationModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>🎉 Order Placed!</h2>
+                <button class="close-cart" onclick="closeConfirmationModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:2rem;">
+                <div class="success-icon">✅</div>
+                <div class="order-number" id="confirmOrderNumber">ORDER-XXX</div>
+                <p class="confirmation-message">
+                    Thank you for your order!<br>
+                    We'll prepare it right away and contact you when ready.
+                </p>
+                <button class="btn-track" onclick="Customer.showOrdersModal(); closeConfirmationModal();">
+                    📦 Track My Order
+                </button>
+                <button class="btn-continue" onclick="closeConfirmationModal()">
+                    Continue Shopping
+                </button>
+            </div>
+        </div>
+    </div>    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -788,11 +1012,12 @@
         
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        
-        // Messenger link (using messenger.com instead of m.me to avoid SSL issues)
-        const MESSENGER_LINK = 'https://www.messenger.com/t/61581500712810';
-        
-        // Category data with main category grouping
+    </script>
+    
+    <!-- Customer Account System -->
+    <script src="js/customer.js"></script>
+    
+    <script>
         const mainCategories = {
             'bread': { name: 'Bread & Pastries', emoji: '🍞' },
             'drinks': { name: 'Drinks & Beverages', emoji: '🥤' }
@@ -831,6 +1056,9 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             currentCategory = urlParams.get('category') || 'all';
+            
+            // Initialize customer system
+            await Customer.init();
             
             renderCategoryFilter();
             await loadStock(); // Load stock first
@@ -1232,6 +1460,10 @@
             
             document.getElementById('orderSummary').innerHTML = summaryHtml;
             document.getElementById('checkoutModal').classList.add('open');
+            
+            // Auto-fill customer data if logged in
+            Customer.autoFillCheckout();
+            
             toggleCart();
         }
         
@@ -1245,31 +1477,53 @@
             document.getElementById('checkoutModal').classList.remove('open');
         }
         
-        // Submit order via Messenger
+        // Submit order - creates customer account automatically
         async function submitOrder(e) {
             e.preventDefault();
             
-            const name = document.getElementById('customerName').value;
-            const phone = document.getElementById('customerPhone').value;
-            const address = document.getElementById('customerAddress').value;
-            const notes = document.getElementById('customerNotes').value;
+            const name = document.getElementById('customerName').value.trim();
+            const phone = document.getElementById('customerPhone').value.trim();
+            const address = document.getElementById('customerAddress').value.trim();
+            const notes = document.getElementById('customerNotes').value.trim();
+            
+            // Validate phone number
+            if (!Customer.validatePhone(phone)) {
+                showToast('Please enter a valid PH mobile number (09XX XXX XXXX)');
+                return;
+            }
+            
+            // Validate address length
+            if (address.length < 20) {
+                showToast('Please enter your complete address');
+                return;
+            }
             
             const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             
             // Generate order number (matches POS format)
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-            const orderNum = Math.floor(Math.random() * 900 + 100); // 3 digit random
+            const orderNum = Math.floor(Math.random() * 900 + 100);
             const orderNumber = `O-${dateStr}-${orderNum}`;
             
-            // Save order to Firebase (format matches POS expectations)
             try {
+                // Create or find customer account
+                const customer = await Customer.create({
+                    name: name,
+                    phone: phone,
+                    address: address
+                });
+                
+                // Save order to Firebase with customer reference
                 await db.collection('orders').add({
                     orderNumber: orderNumber,
                     
+                    // Link to customer account
+                    customerId: customer.id,
+                    
                     // Customer info (flat structure for POS compatibility)
                     customerName: name,
-                    customerPhone: phone,
+                    customerPhone: Customer.normalizePhone(phone),
                     customerAddress: address,
                     notes: notes || '',
                     
@@ -1289,69 +1543,47 @@
                     total: totalPrice,
                     
                     deliveryMethod: 'delivery',
-                    paymentMethod: 'cod', // Cash on delivery
+                    paymentMethod: 'cod',
                     
                     status: 'pending',
                     source: 'website',
+                    dateKey: today.toISOString().split('T')[0],
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                console.log('Order saved to Firebase:', orderNumber);
-                showToast(`Order ${orderNumber} placed successfully!`);
+                
+                // Update customer order stats
+                await Customer.addOrderStats(totalPrice);
+                
+                console.log('Order saved:', orderNumber);
+                
+                // Show confirmation modal
+                document.getElementById('confirmOrderNumber').textContent = orderNumber;
+                document.getElementById('confirmationModal').classList.add('open');
+                
+                // Update orders modal info
+                if (document.getElementById('customerDisplayName')) {
+                    document.getElementById('customerDisplayName').textContent = customer.name;
+                    document.getElementById('customerStats').textContent = 
+                        `${customer.orderCount || 1} order(s) • ₱${(customer.totalSpent || totalPrice).toFixed(2)} total`;
+                }
+                
+                // Clear cart
+                cart = [];
+                saveCart();
+                updateCartUI();
+                closeCheckoutModal();
+                
+                // Update customer UI
+                Customer.updateUI();
+                
             } catch (error) {
                 console.error('Error saving order:', error);
                 showToast('Error placing order. Please try again.');
-                return;
             }
-            
-            // Build full order message for Messenger
-            let message = `🍞 NEW ORDER #${orderNumber}\n\n`;
-            message += `👤 Customer: ${name}\n`;
-            message += `📞 Phone: ${phone}\n`;
-            message += `📍 Address: ${address}\n`;
-            if (notes) message += `📝 Notes: ${notes}\n`;
-            message += `\n📦 ORDER DETAILS:\n`;
-            message += cart.map(item => `• ${item.name} x${item.quantity} = ₱${(item.price * item.quantity).toFixed(2)}`).join('\n');
-            message += `\n\n💰 TOTAL: ₱${totalPrice.toFixed(2)}`;
-            
-            // Open Messenger with pre-filled message
-            const encodedMessage = encodeURIComponent(message);
-            const pageId = '61581500712810';
-            
-            // Detect mobile device
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            if (isMobile) {
-                // Mobile: Use m.me with ref parameter, then show instructions
-                // Unfortunately Messenger app doesn't support pre-filled text via URL
-                // So we copy to clipboard and instruct user to paste
-                try {
-                    await navigator.clipboard.writeText(message);
-                } catch (err) {
-                    const textArea = document.createElement('textarea');
-                    textArea.value = message;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                }
-                showToast('Order copied! Paste it in Messenger');
-                // Use intent URL for Android, universal link for iOS
-                window.location.href = `fb-messenger://user-thread/${pageId}`;
-                // Fallback after short delay if app doesn't open
-                setTimeout(() => {
-                    window.location.href = `https://m.me/${pageId}`;
-                }, 1500);
-            } else {
-                // Desktop: Pre-filled message works
-                window.open(`https://www.facebook.com/messages/t/${pageId}?text=${encodedMessage}`, '_blank');
-                showToast('Opening Messenger... Just click SEND!');
-            }
-            
-            // Clear cart
-            cart = [];
-            saveCart();
-            updateCartUI();
-            closeCheckoutModal();
+        }
+        
+        function closeConfirmationModal() {
+            document.getElementById('confirmationModal').classList.remove('open');
         }
         
         // Show toast notification
