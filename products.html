@@ -1313,22 +1313,10 @@
             message += cart.map(item => `• ${item.name} x${item.quantity} = ₱${(item.price * item.quantity).toFixed(2)}`).join('\n');
             message += `\n\n💰 TOTAL: ₱${totalPrice.toFixed(2)}`;
             
-            // Copy message to clipboard
-            try {
-                await navigator.clipboard.writeText(message);
-                showToast('Order copied! Opening Messenger...');
-            } catch (err) {
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = message;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-            }
-            
-            // Open Messenger
-            window.open(MESSENGER_LINK, '_blank');
+            // Open Messenger with pre-filled message (customer just clicks Send!)
+            const encodedMessage = encodeURIComponent(message);
+            window.open(`https://www.facebook.com/messages/t/61581500712810?text=${encodedMessage}`, '_blank');
+            showToast('Opening Messenger... Just click SEND!');
             
             // Clear cart
             cart = [];
