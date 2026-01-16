@@ -1017,6 +1017,9 @@
     <!-- Customer Account System -->
     <script src="js/customer.js"></script>
     
+    <!-- Order Tracker -->
+    <script src="js/order-tracker.js"></script>
+    
     <!-- Chat System -->
     <script src="js/chat.js"></script>
     
@@ -1590,10 +1593,27 @@
         }
         
         // Open chat with order context
-        function openOrderChat() {
+        async function openOrderChat() {
             const orderNumber = document.getElementById('confirmOrderNumber').textContent;
             closeConfirmationModal();
-            Chat.openModal(`📦 Order: <strong>${orderNumber}</strong> - Ask about your order or track its status`);
+            
+            // Find the order ID by order number
+            try {
+                const snapshot = await db.collection('orders')
+                    .where('orderNumber', '==', orderNumber)
+                    .limit(1)
+                    .get();
+                
+                if (!snapshot.empty) {
+                    const orderId = snapshot.docs[0].id;
+                    Chat.openModal(null, orderId);
+                } else {
+                    Chat.openModal();
+                }
+            } catch (error) {
+                console.error('Error finding order:', error);
+                Chat.openModal();
+            }
         }
         
         // Show toast notification

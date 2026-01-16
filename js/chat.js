@@ -159,7 +159,7 @@ const Chat = {
     },
 
     // Open chat modal
-    openModal(context = null) {
+    async openModal(context = null, orderId = null) {
         this.isOpen = true;
         
         // Create modal if doesn't exist
@@ -173,7 +173,31 @@ const Chat = {
         }
         
         const customerName = Customer.data?.name?.split(' ')[0] || 'there';
-        const contextMessage = context ? `<div class="chat-context">${context}</div>` : '';
+        
+        // Get order for tracking if customer is logged in
+        let trackerHtml = '';
+        if (Customer.data?.id && typeof OrderTracker !== 'undefined') {
+            let order = null;
+            if (orderId) {
+                // Get specific order
+                const doc = await db.collection('orders').doc(orderId).get();
+                if (doc.exists) order = { id: doc.id, ...doc.data() };
+            } else {
+                // Get latest order
+                order = await OrderTracker.getLatestOrder(Customer.data.id);
+            }
+            
+            if (order && order.status !== 'delivered' && order.status !== 'cancelled') {
+                trackerHtml = `<div id="chatOrderTracker">${OrderTracker.render(order)}</div>`;
+                // Start listening for updates
+                OrderTracker.listenToOrder(order.id, (updatedOrder) => {
+                    const trackerContainer = document.getElementById('chatOrderTracker');
+                    if (trackerContainer) {
+                        trackerContainer.innerHTML = OrderTracker.render(updatedOrder);
+                    }
+                });
+            }
+        }
         
         modal.innerHTML = `
             <div class="chat-modal">
@@ -181,7 +205,7 @@ const Chat = {
                     <span>💬 Chat with BreadHub</span>
                     <button onclick="Chat.closeModal()" class="chat-modal-close">&times;</button>
                 </div>
-                ${contextMessage}
+                ${trackerHtml}
                 <div id="chatModalMessages" class="chat-modal-messages"></div>
                 <div class="chat-modal-input">
                     <input type="text" id="chatModalInput" placeholder="Type your message..." 
@@ -203,6 +227,11 @@ const Chat = {
         this.isOpen = false;
         const modal = document.getElementById('chatModal');
         if (modal) modal.classList.remove('open');
+        
+        // Stop order tracker listener
+        if (typeof OrderTracker !== 'undefined') {
+            OrderTracker.stopListening();
+        }
     },
 
     // Render messages
