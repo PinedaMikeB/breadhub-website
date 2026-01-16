@@ -66,6 +66,7 @@ const Orders = {
             confirmed: 0,
             ready: 0,
             completed: 0,
+            delivered: 0,
             cancelled: 0
         };
         
@@ -153,7 +154,8 @@ const Orders = {
             confirmed: '🟢',
             preparing: '👨‍🍳',
             ready: '📦',
-            completed: '✅',
+            completed: '🚗',
+            delivered: '✅',
             cancelled: '❌'
         };
         return emojis[status] || '⚪';
@@ -168,11 +170,15 @@ const Orders = {
                 `;
             case 'confirmed':
                 return `
-                    <button class="btn btn-primary btn-sm" onclick="Orders.markReady('${order.id}')">📦 Ready</button>
+                    <button class="btn btn-primary btn-sm" onclick="Orders.markReady('${order.id}')">📦 Ready for Delivery</button>
                 `;
             case 'ready':
                 return `
-                    <button class="btn btn-success btn-sm" onclick="Orders.complete('${order.id}')">✅ Complete</button>
+                    <button class="btn btn-success btn-sm" onclick="Orders.markOutForDelivery('${order.id}')">🚗 Out for Delivery</button>
+                `;
+            case 'completed':
+                return `
+                    <button class="btn btn-success btn-sm" onclick="Orders.markDelivered('${order.id}')">🏠 Mark Delivered</button>
                 `;
             default:
                 return '';
@@ -199,22 +205,35 @@ const Orders = {
                 status: 'ready',
                 readyAt: new Date().toISOString()
             });
-            Toast.success('Order marked as ready!');
+            Toast.success('Order ready for delivery!');
         } catch (error) {
             console.error('Error:', error);
             Toast.error('Failed to update order');
         }
     },
     
-    async complete(orderId) {
+    async markOutForDelivery(orderId) {
+        try {
+            await DB.update('orders', orderId, { 
+                status: 'completed',
+                outForDeliveryAt: new Date().toISOString()
+            });
+            Toast.success('Order out for delivery!');
+        } catch (error) {
+            console.error('Error:', error);
+            Toast.error('Failed to update order');
+        }
+    },
+    
+    async markDelivered(orderId) {
         const order = this.orders.find(o => o.id === orderId);
         if (!order) return;
         
         try {
-            // Update order status
+            // Update order status to delivered
             await DB.update('orders', orderId, { 
-                status: 'completed',
-                completedAt: new Date().toISOString(),
+                status: 'delivered',
+                deliveredAt: new Date().toISOString(),
                 completedBy: Auth.userData?.id
             });
             
@@ -238,7 +257,7 @@ const Orders = {
                 createdBy: Auth.userData?.id
             });
             
-            Toast.success('Order completed and recorded!');
+            Toast.success('Order delivered and recorded!');
         } catch (error) {
             console.error('Error:', error);
             Toast.error('Failed to complete order');
