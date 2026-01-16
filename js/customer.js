@@ -14,6 +14,12 @@ const Customer = {
             await this.loadCustomer(customerId);
         }
         this.updateUI();
+        
+        // Initialize chat if customer is logged in
+        if (this.data?.id && typeof Chat !== 'undefined') {
+            Chat.init();
+        }
+        
         return this.data;
     },
 
@@ -97,6 +103,12 @@ const Customer = {
             localStorage.setItem('breadhub_customer_id', docRef.id);
             this.isLoaded = true;
             console.log('New customer created:', this.data.name);
+            
+            // Initialize chat for new customer
+            if (typeof Chat !== 'undefined') {
+                Chat.init();
+            }
+            
             return this.data;
         } catch (error) {
             console.error('Error creating customer:', error);

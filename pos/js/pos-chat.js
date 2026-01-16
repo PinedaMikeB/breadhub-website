@@ -486,13 +486,14 @@ const POSChat = {
 };
 
 // Auto-initialize when POS loads
-if (typeof Auth !== 'undefined') {
-    // Wait for auth to be ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for Auth to be ready (user logged in with shift)
     const initChat = setInterval(() => {
-        if (Auth.isLoggedIn) {
+        if (Auth && Auth.userData && Auth.currentShift) {
             clearInterval(initChat);
             POSChat.init();
         }
     }, 1000);
-    setTimeout(() => clearInterval(initChat), 30000);
-}
+    // Stop checking after 60 seconds
+    setTimeout(() => clearInterval(initChat), 60000);
+});
