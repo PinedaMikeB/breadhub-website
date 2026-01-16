@@ -78,13 +78,48 @@ const OrderTracker = {
                 </div>
             `;
         }
+        
+        // If delivered, show success message
+        if (order.status === 'delivered') {
+            return `
+                <div class="order-tracker delivered">
+                    <div class="tracker-status-banner" style="background: linear-gradient(135deg, #4CAF50, #2E7D32);">
+                        <span class="status-icon">✅</span>
+                        <div class="status-text">
+                            <strong>Delivered!</strong>
+                            <span>Thank you for ordering from BreadHub!</span>
+                        </div>
+                    </div>
+                    <div class="tracker-progress all-complete">
+                        <div class="tracker-step completed"><div class="step-icon">📋</div><div class="step-label">Ordered</div></div>
+                        <div class="step-connector completed"></div>
+                        <div class="tracker-step completed"><div class="step-icon">👨‍🍳</div><div class="step-label">Prepared</div></div>
+                        <div class="step-connector completed"></div>
+                        <div class="tracker-step completed"><div class="step-icon">📦</div><div class="step-label">Ready</div></div>
+                        <div class="step-connector completed"></div>
+                        <div class="tracker-step completed"><div class="step-icon">🚗</div><div class="step-label">Delivered</div></div>
+                    </div>
+                    <div class="tracker-order-info">
+                        <div class="order-number">Order #${order.orderNumber || order.id?.slice(-8).toUpperCase()}</div>
+                        <div class="order-items">${(order.items || []).map(i => `${i.quantity}x ${i.productName}`).join(', ')}</div>
+                        <div class="order-total">Total: ₱${(order.total || 0).toFixed(2)}</div>
+                    </div>
+                </div>
+            `;
+        }
 
-        // Build progress steps (only show first 4 for active tracking)
-        const trackingStatuses = this.statuses.slice(0, 4);
-        const stepsHtml = trackingStatuses.map((status, idx) => {
-            const isCompleted = idx < currentIdx;
-            const isCurrent = idx === currentIdx;
-            const isUpcoming = idx > currentIdx;
+        // Build progress steps for active orders
+        const steps = [
+            { key: 'pending', icon: '📋', label: 'Pending' },
+            { key: 'confirmed', icon: '👨‍🍳', label: 'Confirmed' },
+            { key: 'ready', icon: '📦', label: 'Ready' },
+            { key: 'completed', icon: '🚗', label: 'Delivery' }
+        ];
+        
+        const stepsHtml = steps.map((step, idx) => {
+            const stepStatusIdx = this.getStatusIndex(step.key);
+            const isCompleted = currentIdx > stepStatusIdx;
+            const isCurrent = currentIdx === stepStatusIdx;
             
             let stepClass = 'upcoming';
             if (isCompleted) stepClass = 'completed';
@@ -92,10 +127,10 @@ const OrderTracker = {
             
             return `
                 <div class="tracker-step ${stepClass}">
-                    <div class="step-icon">${status.icon}</div>
-                    <div class="step-label">${idx === 3 ? 'Delivery' : status.label}</div>
+                    <div class="step-icon">${step.icon}</div>
+                    <div class="step-label">${step.label}</div>
                 </div>
-                ${idx < trackingStatuses.length - 1 ? `<div class="step-connector ${isCompleted ? 'completed' : ''}"></div>` : ''}
+                ${idx < steps.length - 1 ? `<div class="step-connector ${isCompleted ? 'completed' : ''}"></div>` : ''}
             `;
         }).join('');
 
@@ -195,6 +230,12 @@ const OrderTracker = {
             }
             .order-tracker.cancelled {
                 opacity: 0.8;
+            }
+            .order-tracker.delivered {
+                border: 2px solid #4CAF50;
+            }
+            .order-tracker.delivered .tracker-progress.all-complete {
+                background: #E8F5E9;
             }
             
             /* Status Banner */
