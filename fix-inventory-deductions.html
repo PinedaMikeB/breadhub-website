@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Inventory - Jan 15, 2026</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 { color: #8B4513; }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .btn-primary { background: #8B4513; color: white; }
+        .btn-success { background: #2E7D32; color: white; }
+        .btn-danger { background: #C62828; color: white; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        #log {
+            background: #1a1a2e;
+            color: #0f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th { background: #f5f5f5; font-weight: 600; }
+        .diff-positive { color: #C62828; font-weight: 600; }
+        .diff-zero { color: #666; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
+        .status-pending { background: #FFF3E0; color: #E65100; }
+        .status-fixed { background: #E8F5E9; color: #2E7D32; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Fix Inventory Deductions - January 15, 2026</h1>
+    
+    <div class="card">
+        <h3>📋 What This Tool Does</h3>
+        <ol>
+            <li>Reads all completed sales from January 15</li>
+            <li>Calculates total sold quantity per product</li>
+            <li>Compares with current dailyInventory soldQty</li>
+            <li>Updates the missing deductions</li>
+        </ol>
+    </div>
+    
+    <div class="card">
+        <h3>🎯 Target Date</h3>
+        <input type="date" id="targetDate" value="2026-01-15" style="padding:10px;font-size:1rem;border-radius:8px;border:1px solid #ddd;">
+        <p style="color:#666;margin-top:10px;">Change this to fix a different date</p>
+    </div>
+    
+    <div class="card">
+        <h3>⚡ Actions</h3>
+        <button class="btn btn-primary" onclick="analyzeData()">1. Analyze Sales vs Inventory</button>
+        <button class="btn btn-success" onclick="applyFixes()" id="applyBtn" disabled>2. Apply Fixes</button>
+    </div>
+    
+    <div class="card">
+        <h3>📊 Analysis Results</h3>
+        <div id="results">Click "Analyze" to see discrepancies...</div>
+    </div>
+    
+    <div class="card">
+        <h3>📝 Log</h3>
+        <div id="log">Waiting for action...</div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Firebase config - BreadHub
+        const firebaseConfig = {
+            apiKey: "AIzaSyAw40f_Y7OMhzBzWHLfAfDhnb5mYDkNdjY",
+            authDomain: "breadhub-pos.firebaseapp.com",
+            projectId: "breadhub-pos",
+            storageBucket: "breadhub-pos.firebasestorage.app",
+            messagingSenderId: "577266788912",
+            appId: "1:577266788912:web:8d52be98bfba5a6a49a498"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        let discrepancies = [];
+        
+        function log(msg) {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logEl.textContent += `[${time}] ${msg}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+        
+        async function analyzeData() {
+            clearLog();
+            const targetDate = document.getElementById('targetDate').value;
+            log(`🔍 Analyzing data for ${targetDate}...`);
+            
+            try {
+                // Step 1: Get all sales for the target date
+                // POS uses 'dateKey' field, not 'date'
+                log('Loading sales...');
+                const salesSnapshot = await db.collection('sales')
+                    .where('dateKey', '==', targetDate)
+                    .get();
+                
+                log(`Found ${salesSnapshot.size} sales records`);
+                
+                // Calculate sold qty per product from sales
+                const soldFromSales = {};
+                
+                salesSnapshot.forEach(doc => {
+                    const sale = doc.data();
+                    const items = sale.items || [];
+                    
+                    items.forEach(item => {
+                        const productId = item.productId;
+                        const qty = item.quantity || 1;
+                        
+                        if (!soldFromSales[productId]) {
+                            soldFromSales[productId] = {
+                                productId,
+                                productName: item.productName || item.name || productId,
+                                totalSold: 0,
+                                saleCount: 0
+                            };
+                        }
+                        soldFromSales[productId].totalSold += qty;
+                        soldFromSales[productId].saleCount++;
+                    });
+                });
+                
+                log(`Found ${Object.keys(soldFromSales).length} unique products in sales`);
+                
+                // Step 2: Get current dailyInventory for target date
+                log('Loading daily inventory...');
+                const invSnapshot = await db.collection('dailyInventory')
+                    .where('date', '==', targetDate)
+                    .get();
+                
+                log(`Found ${invSnapshot.size} inventory records`);
+                
+                const inventoryData = {};
+                invSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    inventoryData[data.productId] = {
+                        docId: doc.id,
+                        ...data
+                    };
+                });
+                
+                // Step 3: Compare and find discrepancies
+                discrepancies = [];
+                
+                for (const [productId, salesData] of Object.entries(soldFromSales)) {
+                    const inv = inventoryData[productId];
+                    const currentSoldQty = inv ? (inv.soldQty || 0) : 0;
+                    const expectedSoldQty = salesData.totalSold;
+                    const difference = expectedSoldQty - currentSoldQty;
+                    
+                    if (difference > 0) {
+                        discrepancies.push({
+                            productId,
+                            productName: salesData.productName,
+                            docId: inv?.docId,
+                            currentSoldQty,
+                            expectedSoldQty,
+                            difference,
+                            hasInventoryRecord: !!inv
+                        });
+                    }
+                }
+                
+                log(`Found ${discrepancies.length} products with missing deductions`);
+                
+                // Display results
+                displayResults(discrepancies);
+                
+                // Enable apply button if there are fixes to make
+                document.getElementById('applyBtn').disabled = discrepancies.length === 0;
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+                console.error(error);
+            }
+        }
+        
+        function displayResults(data) {
+            const container = document.getElementById('results');
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p style="color:#2E7D32;">✅ No discrepancies found! Inventory matches sales.</p>';
+                return;
+            }
+            
+            let totalMissing = data.reduce((sum, d) => sum + d.difference, 0);
+            
+            let html = `
+                <p><strong>Found ${data.length} products</strong> with missing deductions (${totalMissing} total units)</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Current Sold</th>
+                            <th>Expected Sold</th>
+                            <th>Missing</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            data.forEach(d => {
+                html += `
+                    <tr>
+                        <td>${d.productName}</td>
+                        <td>${d.currentSoldQty}</td>
+                        <td>${d.expectedSoldQty}</td>
+                        <td class="diff-positive">+${d.difference}</td>
+                        <td><span class="status status-pending">Needs Fix</span></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        async function applyFixes() {
+            if (discrepancies.length === 0) {
+                log('No fixes to apply');
+                return;
+            }
+            
+            const targetDate = document.getElementById('targetDate').value;
+            log(`\n🔧 Applying ${discrepancies.length} fixes...`);
+            
+            let fixed = 0;
+            let failed = 0;
+            
+            for (const item of discrepancies) {
+                try {
+                    if (!item.hasInventoryRecord) {
+                        log(`⚠️ Skipping ${item.productName} - no inventory record exists`);
+                        failed++;
+                        continue;
+                    }
+                    
+                    // Update the soldQty
+                    await db.collection('dailyInventory').doc(item.docId).update({
+                        soldQty: item.expectedSoldQty,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        fixedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        fixNote: `Auto-fixed from sales data. Was ${item.currentSoldQty}, should be ${item.expectedSoldQty}`
+                    });
+                    
+                    log(`✅ Fixed ${item.productName}: ${item.currentSoldQty} → ${item.expectedSoldQty}`);
+                    fixed++;
+                    
+                } catch (error) {
+                    log(`❌ Failed to fix ${item.productName}: ${error.message}`);
+                    failed++;
+                }
+            }
+            
+            log(`\n📊 Summary: ${fixed} fixed, ${failed} failed`);
+            log('🔄 Re-analyzing to verify...');
+            
+            // Re-analyze to show updated status
+            setTimeout(() => analyzeData(), 1000);
+        }
+    </script>
+</body>
+</html>

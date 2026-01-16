@@ -1366,5 +1366,109 @@ const Admin = {
             console.error('Error toggling feature:', error);
             Toast.error('Failed to update setting');
         }
+    },
+    
+    // ===== REPAIR INVENTORY DEDUCTIONS =====
+    async repairInventoryDeductions(targetDate) {
+        if (!targetDate) {
+            targetDate = prompt('Enter date to fix (YYYY-MM-DD):', Utils.getTodayKey());
+            if (!targetDate) return;
+        }
+        
+        console.log(`🔧 Repairing inventory for ${targetDate}...`);
+        Toast.info(`Analyzing ${targetDate}...`);
+        
+        try {
+            // Step 1: Get all sales for the target date
+            const salesSnapshot = await db.collection('sales')
+                .where('dateKey', '==', targetDate)
+                .get();
+            
+            console.log(`Found ${salesSnapshot.size} sales records`);
+            
+            // Calculate sold qty per product from sales
+            const soldFromSales = {};
+            
+            salesSnapshot.forEach(doc => {
+                const sale = doc.data();
+                const items = sale.items || [];
+                
+                items.forEach(item => {
+                    const productId = item.productId;
+                    const qty = item.quantity || 1;
+                    
+                    if (!soldFromSales[productId]) {
+                        soldFromSales[productId] = {
+                            productId,
+                            productName: item.productName || productId,
+                            totalSold: 0
+                        };
+                    }
+                    soldFromSales[productId].totalSold += qty;
+                });
+            });
+            
+            console.log(`Found ${Object.keys(soldFromSales).length} unique products in sales`);
+            
+            // Step 2: Get current dailyInventory for target date
+            const invSnapshot = await db.collection('dailyInventory')
+                .where('date', '==', targetDate)
+                .get();
+            
+            console.log(`Found ${invSnapshot.size} inventory records`);
+            
+            const inventoryData = {};
+            invSnapshot.forEach(doc => {
+                const data = doc.data();
+                inventoryData[data.productId] = {
+                    docId: doc.id,
+                    ...data
+                };
+            });
+            
+            // Step 3: Find and fix discrepancies
+            let fixed = 0;
+            let skipped = 0;
+            const results = [];
+            
+            for (const [productId, salesData] of Object.entries(soldFromSales)) {
+                const inv = inventoryData[productId];
+                const currentSoldQty = inv ? (inv.soldQty || 0) : 0;
+                const expectedSoldQty = salesData.totalSold;
+                const difference = expectedSoldQty - currentSoldQty;
+                
+                if (difference > 0 && inv) {
+                    // Fix it
+                    await db.collection('dailyInventory').doc(inv.docId).update({
+                        soldQty: expectedSoldQty,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        fixedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        fixNote: `Auto-fixed: was ${currentSoldQty}, should be ${expectedSoldQty}`
+                    });
+                    
+                    results.push(`✅ ${salesData.productName}: ${currentSoldQty} → ${expectedSoldQty}`);
+                    fixed++;
+                } else if (difference > 0 && !inv) {
+                    results.push(`⚠️ ${salesData.productName}: No inventory record`);
+                    skipped++;
+                }
+            }
+            
+            // Show results
+            if (fixed === 0 && skipped === 0) {
+                Toast.success('No discrepancies found!');
+                console.log('✅ Inventory matches sales - no fixes needed');
+            } else {
+                Toast.success(`Fixed ${fixed} products, skipped ${skipped}`);
+                console.log('📊 Repair Results:');
+                results.forEach(r => console.log(r));
+            }
+            
+            return { fixed, skipped, results };
+            
+        } catch (error) {
+            console.error('Repair failed:', error);
+            Toast.error('Repair failed: ' + error.message);
+        }
     }
 };
