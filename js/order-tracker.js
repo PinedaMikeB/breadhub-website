@@ -27,7 +27,7 @@ const OrderTracker = {
             key: 'ready', 
             label: 'Ready', 
             icon: '📦',
-            message: 'Your order is ready for delivery',
+            message: 'Preparing to deliver your order',
             color: '#2196F3'
         },
         { 
@@ -41,7 +41,7 @@ const OrderTracker = {
             key: 'delivered', 
             label: 'Delivered', 
             icon: '🏠',
-            message: 'Order delivered. Enjoy!',
+            message: 'Order delivered. Enjoy your food!',
             color: '#4CAF50'
         }
     ],
