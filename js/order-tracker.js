@@ -147,12 +147,28 @@ const OrderTracker = {
                     ${stepsHtml}
                 </div>
                 <div class="tracker-order-info">
+                    ${this.getPaymentStatusHtml(order)}
                     <div class="order-number">Order #${order.orderNumber || order.id?.slice(-8).toUpperCase()}</div>
                     <div class="order-items">${(order.items || []).map(i => `${i.quantity}x ${i.productName}`).join(', ')}</div>
                     <div class="order-total">Total: ₱${(order.total || 0).toFixed(2)}</div>
                 </div>
             </div>
         `;
+    },
+    
+    // Get payment status HTML
+    getPaymentStatusHtml(order) {
+        const method = order.paymentMethod === 'gcash' ? 'GCash' : 
+                       order.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 'Payment';
+        
+        switch (order.paymentStatus) {
+            case 'verified':
+                return `<div class="payment-status verified">✅ ${method} Verified</div>`;
+            case 'pending_verification':
+                return `<div class="payment-status pending">⏳ ${method} - Verifying...</div>`;
+            default:
+                return `<div class="payment-status unpaid">⚠️ Awaiting Payment</div>`;
+        }
     },
 
     // Start listening to order updates
@@ -339,6 +355,25 @@ const OrderTracker = {
             .tracker-order-info {
                 padding: 12px 16px;
                 border-top: 1px solid #eee;
+            }
+            .payment-status {
+                padding: 8px 12px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                margin-bottom: 10px;
+            }
+            .payment-status.verified {
+                background: #E8F5E9;
+                color: #2E7D32;
+            }
+            .payment-status.pending {
+                background: #FFF3E0;
+                color: #E65100;
+            }
+            .payment-status.unpaid {
+                background: #FFEBEE;
+                color: #C62828;
             }
             .order-number {
                 font-weight: 600;
