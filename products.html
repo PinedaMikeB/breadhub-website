@@ -1313,10 +1313,39 @@
             message += cart.map(item => `• ${item.name} x${item.quantity} = ₱${(item.price * item.quantity).toFixed(2)}`).join('\n');
             message += `\n\n💰 TOTAL: ₱${totalPrice.toFixed(2)}`;
             
-            // Open Messenger with pre-filled message (customer just clicks Send!)
+            // Open Messenger with pre-filled message
             const encodedMessage = encodeURIComponent(message);
-            window.open(`https://www.facebook.com/messages/t/61581500712810?text=${encodedMessage}`, '_blank');
-            showToast('Opening Messenger... Just click SEND!');
+            const pageId = '61581500712810';
+            
+            // Detect mobile device
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // Mobile: Use m.me with ref parameter, then show instructions
+                // Unfortunately Messenger app doesn't support pre-filled text via URL
+                // So we copy to clipboard and instruct user to paste
+                try {
+                    await navigator.clipboard.writeText(message);
+                } catch (err) {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = message;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                }
+                showToast('Order copied! Paste it in Messenger');
+                // Use intent URL for Android, universal link for iOS
+                window.location.href = `fb-messenger://user-thread/${pageId}`;
+                // Fallback after short delay if app doesn't open
+                setTimeout(() => {
+                    window.location.href = `https://m.me/${pageId}`;
+                }, 1500);
+            } else {
+                // Desktop: Pre-filled message works
+                window.open(`https://www.facebook.com/messages/t/${pageId}?text=${encodedMessage}`, '_blank');
+                showToast('Opening Messenger... Just click SEND!');
+            }
             
             // Clear cart
             cart = [];
