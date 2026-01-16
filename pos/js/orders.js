@@ -168,26 +168,47 @@ const Orders = {
     
     getPaymentBadge(order) {
         const method = order.paymentMethod === 'gcash' ? '📱 GCash' : 
-                       order.paymentMethod === 'bank_transfer' ? '🏦 Bank' : '💳';
+                       order.paymentMethod === 'bank_transfer' ? '🏦 Bank' : 
+                       order.paymentMethod === 'pending' ? '⏳' : '💳';
         
         switch (order.paymentStatus) {
             case 'verified':
                 return `<span class="payment-badge verified">✅ ${method} Paid</span>`;
             case 'pending_verification':
                 return `
-                    <span class="payment-badge pending">⏳ ${method} - Verify Payment</span>
-                    ${order.paymentProof ? `<button class="btn btn-sm btn-info" onclick="Orders.viewPaymentProof('${order.id}')">📷 View Proof</button>` : ''}
+                    <span class="payment-badge pending">⏳ ${method} - Needs Verification</span>
+                    <button class="btn btn-sm btn-info" onclick="Orders.viewPaymentProof('${order.id}')" style="margin-left:8px;">📷 View Proof</button>
                 `;
+            case 'unpaid':
             default:
-                return `<span class="payment-badge unpaid">❌ Unpaid</span>`;
+                return `<span class="payment-badge unpaid">⚠️ Awaiting Payment</span>`;
         }
     },
     
     // View payment proof image
     viewPaymentProof(orderId) {
         const order = this.orders.find(o => o.id === orderId);
-        if (!order || !order.paymentProof) {
-            Toast.error('No payment proof found');
+        if (!order) {
+            Toast.error('Order not found');
+            return;
+        }
+        
+        if (!order.paymentProof) {
+            Modal.open({
+                title: `💳 Payment - #${order.orderNumber}`,
+                content: `
+                    <div style="text-align:center;padding:20px;">
+                        <p style="font-size:3rem;">📷</p>
+                        <p>No payment screenshot uploaded yet.</p>
+                        <p style="color:#666;font-size:0.9rem;">Customer may still be processing payment.</p>
+                        <hr style="margin:20px 0;">
+                        <p><strong>Amount:</strong> ${Utils.formatCurrency(order.total)}</p>
+                        <p><strong>Status:</strong> ${order.paymentStatus || 'unpaid'}</p>
+                    </div>
+                `,
+                showCancel: false,
+                confirmText: 'Close'
+            });
             return;
         }
         
@@ -199,10 +220,12 @@ const Orders = {
                     <div style="margin-top:15px;">
                         <p><strong>Amount:</strong> ${Utils.formatCurrency(order.total)}</p>
                         <p><strong>Method:</strong> ${order.paymentMethod === 'gcash' ? 'GCash' : 'Bank Transfer'}</p>
+                        <p><strong>Customer:</strong> ${order.customerName}</p>
                     </div>
                 </div>
             `,
-            showCancel: false,
+            showCancel: true,
+            cancelText: 'Close',
             confirmText: '✅ Verify Payment',
             onConfirm: () => this.verifyPayment(orderId)
         });
