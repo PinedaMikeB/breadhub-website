@@ -984,10 +984,10 @@
                 <div class="order-number" id="confirmOrderNumber">ORDER-XXX</div>
                 <p class="confirmation-message">
                     Thank you for your order!<br>
-                    We'll prepare it right away and contact you when ready.
+                    We'll contact you to confirm payment and delivery details.
                 </p>
-                <button class="btn-track" onclick="Customer.showOrdersModal(); closeConfirmationModal();">
-                    📦 Track My Order
+                <button class="btn-track" onclick="openOrderChat()">
+                    💬 Message Us & Track Order
                 </button>
                 <button class="btn-continue" onclick="closeConfirmationModal()">
                     Continue Shopping
@@ -1587,6 +1587,13 @@
         
         function closeConfirmationModal() {
             document.getElementById('confirmationModal').classList.remove('open');
+        }
+        
+        // Open chat with order context
+        function openOrderChat() {
+            const orderNumber = document.getElementById('confirmOrderNumber').textContent;
+            closeConfirmationModal();
+            Chat.openModal(`📦 Order: <strong>${orderNumber}</strong> - Ask about your order or track its status`);
         }
         
         // Show toast notification

@@ -15,9 +15,9 @@ const Customer = {
         }
         this.updateUI();
         
-        // Initialize chat if customer is logged in
-        if (this.data?.id && typeof Chat !== 'undefined') {
-            Chat.init();
+        // Link chat session to customer if logged in
+        if (this.data?.id && typeof Chat !== 'undefined' && Chat.sessionId) {
+            Chat.linkToCustomer(this.data.id);
         }
         
         return this.data;
@@ -104,9 +104,9 @@ const Customer = {
             this.isLoaded = true;
             console.log('New customer created:', this.data.name);
             
-            // Initialize chat for new customer
-            if (typeof Chat !== 'undefined') {
-                Chat.init();
+            // Link chat session to new customer
+            if (typeof Chat !== 'undefined' && Chat.sessionId) {
+                Chat.linkToCustomer(docRef.id);
             }
             
             return this.data;
