@@ -1020,6 +1020,9 @@
     <!-- Order Tracker -->
     <script src="js/order-tracker.js"></script>
     
+    <!-- Payment System -->
+    <script src="js/payment.js"></script>
+    
     <!-- Chat System -->
     <script src="js/chat.js"></script>
     
@@ -1521,7 +1524,7 @@
                 });
                 
                 // Save order to Firebase with customer reference
-                await db.collection('orders').add({
+                const orderRef = await db.collection('orders').add({
                     orderNumber: orderNumber,
                     
                     // Link to customer account
@@ -1549,7 +1552,8 @@
                     total: totalPrice,
                     
                     deliveryMethod: 'delivery',
-                    paymentMethod: 'cod',
+                    paymentMethod: 'pending', // Will be set when payment is submitted
+                    paymentStatus: 'unpaid',
                     
                     status: 'pending',
                     source: 'website',
@@ -1562,17 +1566,6 @@
                 
                 console.log('Order saved:', orderNumber);
                 
-                // Show confirmation modal
-                document.getElementById('confirmOrderNumber').textContent = orderNumber;
-                document.getElementById('confirmationModal').classList.add('open');
-                
-                // Update orders modal info
-                if (document.getElementById('customerDisplayName')) {
-                    document.getElementById('customerDisplayName').textContent = customer.name;
-                    document.getElementById('customerStats').textContent = 
-                        `${customer.orderCount || 1} order(s) • ₱${(customer.totalSpent || totalPrice).toFixed(2)} total`;
-                }
-                
                 // Clear cart
                 cart = [];
                 saveCart();
@@ -1581,6 +1574,15 @@
                 
                 // Update customer UI
                 Customer.updateUI();
+                
+                // Show payment modal instead of confirmation
+                Payment.showPaymentModal({
+                    id: orderRef.id,
+                    orderNumber: orderNumber,
+                    total: totalPrice,
+                    customerId: customer.id,
+                    customerName: name
+                });
                 
             } catch (error) {
                 console.error('Error saving order:', error);
