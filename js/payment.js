@@ -200,21 +200,60 @@ const Payment = {
             return;
         }
 
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit for original
             showToast('Image too large. Please select a smaller image.');
             return;
         }
 
-        // Preview image
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            this.uploadedImage = e.target.result;
+        // Compress and preview image
+        this.compressImage(file, (compressedDataUrl) => {
+            this.uploadedImage = compressedDataUrl;
             const preview = document.getElementById('uploadPreview');
-            preview.innerHTML = `<img src="${e.target.result}" alt="Payment Screenshot">`;
+            preview.innerHTML = `<img src="${compressedDataUrl}" alt="Payment Screenshot">`;
             preview.classList.add('has-image');
             
             // Enable submit button
             document.getElementById('submitPaymentBtn').disabled = false;
+        });
+    },
+
+    // Compress image to reduce size for Firestore
+    compressImage(file, callback) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                
+                // Calculate new dimensions (max 800px width/height)
+                let width = img.width;
+                let height = img.height;
+                const maxSize = 800;
+                
+                if (width > height && width > maxSize) {
+                    height = (height * maxSize) / width;
+                    width = maxSize;
+                } else if (height > maxSize) {
+                    width = (width * maxSize) / height;
+                    height = maxSize;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convert to JPEG with 70% quality (much smaller than PNG)
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                
+                console.log('Image compressed:', 
+                    Math.round(e.target.result.length / 1024) + 'KB →', 
+                    Math.round(compressedDataUrl.length / 1024) + 'KB');
+                
+                callback(compressedDataUrl);
+            };
+            img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     },
@@ -246,7 +285,7 @@ const Payment = {
                 paymentSubmittedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            // Also create a payment record for easier tracking
+            // Also create a payment record for easier tracking (without image to save space)
             await db.collection('payments').add({
                 orderId: this.currentOrder.id,
                 orderNumber: this.currentOrder.orderNumber,
@@ -254,7 +293,7 @@ const Payment = {
                 customerName: this.currentOrder.customerName,
                 amount: this.currentOrder.total,
                 method: paymentMethod,
-                proof: this.uploadedImage,
+                hasProof: true, // Image is stored in the order document
                 status: 'pending_verification',
                 submittedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
