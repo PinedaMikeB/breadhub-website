@@ -5273,3 +5273,45 @@ details summary {
         font-size: 0.95rem;
     }
 }
+
+
+/* Payment Status Styles */
+.order-payment {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.payment-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.payment-badge.verified {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+.payment-badge.pending {
+    background: #FFF3E0;
+    color: #E65100;
+    animation: pulse-payment 2s infinite;
+}
+.payment-badge.unpaid {
+    background: #FFEBEE;
+    color: #C62828;
+}
+@keyframes pulse-payment {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+.btn-info {
+    background: #2196F3 !important;
+    color: white !important;
+}
+.btn-info:hover {
+    background: #1976D2 !important;
+}

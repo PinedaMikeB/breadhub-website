@@ -115,6 +115,11 @@ const Orders = {
                     <div class="order-status status-${order.status}">${this.getStatusEmoji(order.status)} ${order.status}</div>
                 </div>
                 
+                <!-- Payment Status -->
+                <div class="order-payment ${order.paymentStatus || 'unpaid'}">
+                    ${this.getPaymentBadge(order)}
+                </div>
+                
                 <div class="order-customer">
                     <strong>${order.customerName || 'Walk-in'}</strong>
                     ${order.customerPhone ? `<span>📱 ${order.customerPhone}</span>` : ''}
@@ -159,6 +164,64 @@ const Orders = {
             cancelled: '❌'
         };
         return emojis[status] || '⚪';
+    },
+    
+    getPaymentBadge(order) {
+        const method = order.paymentMethod === 'gcash' ? '📱 GCash' : 
+                       order.paymentMethod === 'bank_transfer' ? '🏦 Bank' : '💳';
+        
+        switch (order.paymentStatus) {
+            case 'verified':
+                return `<span class="payment-badge verified">✅ ${method} Paid</span>`;
+            case 'pending_verification':
+                return `
+                    <span class="payment-badge pending">⏳ ${method} - Verify Payment</span>
+                    ${order.paymentProof ? `<button class="btn btn-sm btn-info" onclick="Orders.viewPaymentProof('${order.id}')">📷 View Proof</button>` : ''}
+                `;
+            default:
+                return `<span class="payment-badge unpaid">❌ Unpaid</span>`;
+        }
+    },
+    
+    // View payment proof image
+    viewPaymentProof(orderId) {
+        const order = this.orders.find(o => o.id === orderId);
+        if (!order || !order.paymentProof) {
+            Toast.error('No payment proof found');
+            return;
+        }
+        
+        Modal.open({
+            title: `💳 Payment Proof - #${order.orderNumber}`,
+            content: `
+                <div style="text-align:center;">
+                    <img src="${order.paymentProof}" style="max-width:100%;max-height:400px;border-radius:8px;border:2px solid #ddd;">
+                    <div style="margin-top:15px;">
+                        <p><strong>Amount:</strong> ${Utils.formatCurrency(order.total)}</p>
+                        <p><strong>Method:</strong> ${order.paymentMethod === 'gcash' ? 'GCash' : 'Bank Transfer'}</p>
+                    </div>
+                </div>
+            `,
+            showCancel: false,
+            confirmText: '✅ Verify Payment',
+            onConfirm: () => this.verifyPayment(orderId)
+        });
+    },
+    
+    // Verify payment
+    async verifyPayment(orderId) {
+        try {
+            await DB.update('orders', orderId, {
+                paymentStatus: 'verified',
+                paymentVerifiedAt: new Date().toISOString(),
+                paymentVerifiedBy: Auth.userData?.id
+            });
+            Modal.close();
+            Toast.success('Payment verified!');
+        } catch (error) {
+            console.error('Error verifying payment:', error);
+            Toast.error('Failed to verify payment');
+        }
     },
     
     getActionButtons(order) {
