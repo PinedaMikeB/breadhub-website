@@ -148,7 +148,7 @@ const Reports = {
                 
                 <table class="report-table">
                     <thead>
-                        <tr><th>Date</th><th>POS Sales</th><th>Imported Sales</th><th>Total</th><th>Source</th></tr>
+                        <tr><th>Date</th><th>POS Sales</th><th>Imported Sales</th><th>Total</th><th>Source</th><th>Action</th></tr>
                     </thead>
                     <tbody>
                         ${days.slice().reverse().slice(0, 30).map(d => `
@@ -158,6 +158,7 @@ const Reports = {
                                 <td>${d.importSales > 0 ? Utils.formatCurrency(d.importSales) : '-'}</td>
                                 <td><strong>${Utils.formatCurrency(d.posSales + d.importSales)}</strong></td>
                                 <td><span class="source-badge ${d.source}">${d.source}</span></td>
+                                <td><button class="btn-view" onclick="Reports.viewDayDetails('${d.date}')">👁️ View</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -632,6 +633,117 @@ const Reports = {
         } catch (error) {
             console.error('Error loading categories report:', error);
             container.innerHTML = '<p class="error">Failed to load report</p>';
+        }
+    },
+
+    // View detailed item breakdown for a specific day
+    async viewDayDetails(dateKey) {
+        try {
+            const sales = await DB.getAll('sales');
+            const imports = await DB.getAll('salesImports');
+            
+            // Collect items for this date
+            const itemsData = {};
+            let posSalesTotal = 0;
+            let posDiscountTotal = 0;
+            
+            // POS sales items
+            const daySales = sales.filter(s => s.dateKey === dateKey);
+            daySales.forEach(sale => {
+                posSalesTotal += sale.total || 0;
+                posDiscountTotal += sale.totalDiscount || 0;
+                if (sale.items) {
+                    sale.items.forEach(item => {
+                        const name = item.productName || item.name;
+                        if (!itemsData[name]) {
+                            itemsData[name] = { name, qty: 0, sales: 0, source: 'POS' };
+                        }
+                        itemsData[name].qty += item.quantity || 1;
+                        // Use lineTotal first, then calculate from unitPrice
+                        const itemSales = item.lineTotal || (item.unitPrice || item.price || 0) * (item.quantity || 1);
+                        itemsData[name].sales += itemSales;
+                        if (itemsData[name].source === 'Import') itemsData[name].source = 'Both';
+                    });
+                }
+            });
+            
+            // Imported sales items
+            let importSalesTotal = 0;
+            imports.forEach(imp => {
+                if (imp.items) {
+                    imp.items.forEach(item => {
+                        const itemDate = this.parseDate(item.date || imp.dateKey || '');
+                        if (itemDate === dateKey) {
+                            const name = item.productName || item.loyverseName;
+                            if (!itemsData[name]) {
+                                itemsData[name] = { name, qty: 0, sales: 0, source: 'Import' };
+                            }
+                            itemsData[name].qty += item.quantity || 0;
+                            itemsData[name].sales += item.netSales || 0;
+                            importSalesTotal += item.netSales || 0;
+                            if (itemsData[name].source === 'POS') itemsData[name].source = 'Both';
+                        }
+                    });
+                }
+            });
+            
+            const items = Object.values(itemsData).sort((a, b) => b.qty - a.qty);
+            const totalQty = items.reduce((s, i) => s + i.qty, 0);
+            const totalItemSales = items.reduce((s, i) => s + i.sales, 0);
+            const actualTotal = posSalesTotal + importSalesTotal;
+            
+            // Build modal content
+            let content = '';
+            if (items.length === 0) {
+                content = '<p style="text-align:center;color:#999;padding:20px;">No item details available for this date</p>';
+            } else {
+                content = `
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                        <div style="background:#1a3a4a;padding:12px;border-radius:8px;text-align:center;">
+                            <div style="font-size:1.5rem;font-weight:bold;color:#D4894A;">${Utils.formatNumber(totalQty)}</div>
+                            <div style="font-size:0.85rem;color:#aaa;">Items Sold</div>
+                        </div>
+                        <div style="background:#1a3a4a;padding:12px;border-radius:8px;text-align:center;">
+                            <div style="font-size:1.5rem;font-weight:bold;color:#27ae60;">${Utils.formatCurrency(actualTotal)}</div>
+                            <div style="font-size:0.85rem;color:#aaa;">Total Sales</div>
+                        </div>
+                    </div>
+                    ${posDiscountTotal > 0 ? `
+                        <div style="background:#2d3748;padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:0.85rem;color:#f6ad55;">
+                            💰 Discounts given: ${Utils.formatCurrency(posDiscountTotal)}
+                        </div>
+                    ` : ''}
+                    <div style="max-height:400px;overflow-y:auto;">
+                        <table class="report-table" style="font-size:0.9rem;">
+                            <thead>
+                                <tr><th>#</th><th>Product</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Sales</th></tr>
+                            </thead>
+                            <tbody>
+                                ${items.map((item, i) => `
+                                    <tr>
+                                        <td style="color:#666;">${i + 1}</td>
+                                        <td><strong>${item.name}</strong></td>
+                                        <td style="text-align:center;">${Utils.formatNumber(item.qty)}</td>
+                                        <td style="text-align:right;">${Utils.formatCurrency(item.sales)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+            
+            // Show modal
+            Modal.open({
+                title: `📋 Sales Details - ${dateKey}`,
+                content: content,
+                showCancel: false,
+                saveText: 'Close'
+            });
+            
+        } catch (error) {
+            console.error('Error loading day details:', error);
+            alert('Failed to load details: ' + error.message);
         }
     }
 };

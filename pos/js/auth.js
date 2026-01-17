@@ -894,6 +894,15 @@ const Auth = {
                                 </label>
                             </div>
                             
+                            <div class="inventory-count-section" style="margin-top:16px;padding:12px;background:#1a3a4a;border-radius:8px;">
+                                <h4 style="margin:0 0 8px 0;color:#D4894A;">📦 Inventory Count</h4>
+                                <p style="margin:0 0 12px 0;font-size:0.85rem;color:#888;">Count remaining inventory to check for shortages</p>
+                                <button class="btn btn-secondary" onclick="Auth.doInventoryCount()" id="invCountBtn" style="width:100%;">
+                                    📋 Count Inventory
+                                </button>
+                                <div id="invCountStatus" style="margin-top:8px;font-size:0.85rem;"></div>
+                            </div>
+                            
                             <button class="btn btn-success btn-xl" onclick="Auth.finalizeEndShift()" id="endShiftBtn" disabled>
                                 ✅ End Shift & Generate Report
                             </button>
@@ -964,6 +973,55 @@ const Auth = {
         }
     },
     
+    // ========== INVENTORY COUNT FOR SHIFT END ==========
+    
+    async doInventoryCount() {
+        if (typeof ShiftInventory === 'undefined') {
+            Toast.error('Inventory module not loaded');
+            return;
+        }
+        
+        const btn = document.getElementById('invCountBtn');
+        btn.disabled = true;
+        btn.textContent = 'Loading...';
+        
+        try {
+            const result = await ShiftInventory.showEndInventoryModal();
+            
+            if (result && !result.skipped) {
+                // Save result for finalizeEndShift
+                this.inventoryCountData = result;
+                
+                // Update status display
+                const statusDiv = document.getElementById('invCountStatus');
+                if (result.totalShortage > 0) {
+                    statusDiv.innerHTML = `
+                        <div style="background:#f8d7da;padding:8px;border-radius:6px;color:#721c24;">
+                            ⚠️ Shortage: ${result.totalShortage} pcs (${Utils.formatCurrency(result.totalShortageValue)})
+                        </div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        <div style="background:#d4edda;padding:8px;border-radius:6px;color:#155724;">
+                            ✅ Inventory count complete - No shortage
+                        </div>
+                    `;
+                }
+                
+                btn.textContent = '✅ Count Complete';
+                btn.style.background = '#27ae60';
+            } else {
+                btn.textContent = '📋 Count Inventory';
+                btn.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error doing inventory count:', error);
+            btn.textContent = '📋 Count Inventory';
+            btn.disabled = false;
+            Toast.error('Failed to count inventory');
+        }
+    },
+
     // ========== NEW EXPENSE MODAL SYSTEM ==========
     
     addExpenseRow() {
@@ -1803,12 +1861,25 @@ const Auth = {
             originalSubtotal,
             totalDiscountGiven,
             discountBreakdown,
+            // Inventory tracking
+            inventoryCount: this.inventoryCountData || null,
+            inventoryShortage: this.inventoryCountData?.totalShortage || 0,
+            inventoryShortageValue: this.inventoryCountData?.totalShortageValue || 0,
             status: 'completed'
         };
         
         try {
             // Update shift in Firebase
             await DB.update('shifts', shift.id, shiftReport);
+            
+            // Save inventory endorsement if done
+            if (this.inventoryCountData && typeof ShiftInventory !== 'undefined') {
+                await ShiftInventory.saveEndorsement('end', {
+                    inventory: this.inventoryCountData.inventory,
+                    totalShortage: this.inventoryCountData.totalShortage,
+                    totalShortageValue: this.inventoryCountData.totalShortageValue
+                });
+            }
             
             // Create pending emergency purchases for ProofMaster
             for (const purchase of expensesData) {
@@ -2013,6 +2084,27 @@ const Auth = {
                         ${report.balanceStatus === 'balanced' ? '✅ BALANCED' : report.balanceStatus === 'over' ? `⬆️ OVER: ₱${(report.salesVariance || 0).toLocaleString()}` : `⬇️ SHORT: ₱${Math.abs(report.salesVariance || 0).toLocaleString()}`}
                     </h2>
                 </div>
+                
+                ${report.inventoryShortage > 0 ? `
+                <div style="margin-top: 20px; background: #f8d7da; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #721c24; margin-top: 0;">📦 Inventory Shortage</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                        ${(report.inventoryCount?.inventory || []).filter(i => i.variance < 0).map(item => `
+                        <tr>
+                            <td style="padding: 5px; border-bottom: 1px solid #e0b3b3;">${item.productName}</td>
+                            <td style="padding: 5px; border-bottom: 1px solid #e0b3b3; text-align: center;">${Math.abs(item.variance)} pcs</td>
+                            <td style="padding: 5px; border-bottom: 1px solid #e0b3b3; text-align: right;">₱${(item.shortageValue || 0).toLocaleString()}</td>
+                        </tr>
+                        `).join('')}
+                        <tr style="font-weight: bold; color: #721c24;">
+                            <td style="padding: 8px;">TOTAL SHORTAGE</td>
+                            <td style="padding: 8px; text-align: center;">${report.inventoryShortage} pcs</td>
+                            <td style="padding: 8px; text-align: right;">₱${(report.inventoryShortageValue || 0).toLocaleString()}</td>
+                        </tr>
+                    </table>
+                    <p style="margin: 0; font-size: 0.9em; color: #721c24;">⚠️ To be charged to cashier</p>
+                </div>
+                ` : ''}
                 
                 <div style="margin-top: 30px; text-align: center; color: #999; font-size: 0.9em;">
                     <p>Report generated: ${dateStr} ${timeStr}</p>

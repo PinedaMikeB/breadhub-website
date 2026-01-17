@@ -796,6 +796,22 @@ body {
 .source-badge.import { background: var(--bg-input); }
 .source-badge.both { background: var(--success); }
 
+/* View Button */
+.btn-view {
+    background: #2d5a6b;
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background 0.2s;
+}
+
+.btn-view:hover {
+    background: #3d7a8b;
+}
+
 /* Import View */
 .import-rules {
     background: var(--bg-card);
