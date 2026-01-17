@@ -982,8 +982,10 @@ const Auth = {
         }
         
         const btn = document.getElementById('invCountBtn');
-        btn.disabled = true;
-        btn.textContent = 'Loading...';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+        }
         
         try {
             const result = await ShiftInventory.showEndInventoryModal();
@@ -992,36 +994,52 @@ const Auth = {
                 // Save result for finalizeEndShift
                 this.inventoryCountData = result;
                 
-                // Update status display
-                const statusDiv = document.getElementById('invCountStatus');
-                if (result.totalShortage > 0) {
-                    statusDiv.innerHTML = `
-                        <div style="background:#f8d7da;padding:8px;border-radius:6px;color:#721c24;">
-                            ⚠️ Shortage: ${result.totalShortage} pcs (${Utils.formatCurrency(result.totalShortageValue)})
-                        </div>
-                    `;
-                } else {
-                    statusDiv.innerHTML = `
-                        <div style="background:#d4edda;padding:8px;border-radius:6px;color:#155724;">
-                            ✅ Inventory count complete - No shortage
-                        </div>
-                    `;
-                }
+                // Re-open the end shift modal to show updated status
+                // Modal was closed by inventory count, so we need to reopen it
+                await this.endShift();
                 
-                btn.textContent = '✅ Count Complete';
-                btn.style.background = '#27ae60';
-            } else {
-                btn.textContent = '📋 Count Inventory';
-                btn.disabled = false;
+                // Now update status display (after modal is reopened)
+                setTimeout(() => {
+                    const statusDiv = document.getElementById('invCountStatus');
+                    const newBtn = document.getElementById('invCountBtn');
+                    
+                    if (statusDiv) {
+                        if (result.totalShortage > 0) {
+                            statusDiv.innerHTML = `
+                                <div style="background:#f8d7da;padding:8px;border-radius:6px;color:#721c24;">
+                                    ⚠️ Shortage: ${result.totalShortage} pcs (${Utils.formatCurrency(result.totalShortageValue)})
+                                </div>
+                            `;
+                        } else {
+                            statusDiv.innerHTML = `
+                                <div style="background:#d4edda;padding:8px;border-radius:6px;color:#155724;">
+                                    ✅ Inventory count complete - No shortage
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    if (newBtn) {
+                        newBtn.textContent = '✅ Count Complete';
+                        newBtn.style.background = '#27ae60';
+                        newBtn.disabled = true;
+                    }
+                }, 200);
+                
+                return; // Exit early since we reopened the modal
             }
+            
+            // If skipped, reopen end shift modal
+            await this.endShift();
+            
         } catch (error) {
             console.error('Error doing inventory count:', error);
-            btn.textContent = '📋 Count Inventory';
-            btn.disabled = false;
             Toast.error('Failed to count inventory');
+            // Reopen end shift modal on error
+            await this.endShift();
         }
     },
-
+    
     // ========== NEW EXPENSE MODAL SYSTEM ==========
     
     addExpenseRow() {
