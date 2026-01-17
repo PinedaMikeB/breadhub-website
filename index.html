@@ -589,13 +589,17 @@
             const grid = document.getElementById('categoriesGrid');
             
             try {
-                // Get product counts per category
-                const snapshot = await db.collection('shopProducts').where('isActive', '==', true).get();
+                // Get product counts per category from unified products collection
+                const snapshot = await db.collection('products').get();
                 const counts = {};
                 
                 snapshot.forEach(doc => {
-                    const category = doc.data().category;
-                    counts[category] = (counts[category] || 0) + 1;
+                    const data = doc.data();
+                    // Only count published AND enabled products
+                    if (data.shop?.isPublished && data.isEnabled !== false) {
+                        const category = data.category;
+                        counts[category] = (counts[category] || 0) + 1;
+                    }
                 });
                 
                 // Render category cards
@@ -622,29 +626,34 @@
             const grid = document.getElementById('featuredProducts');
             
             try {
-                const snapshot = await db.collection('products')
-                    .where('isActive', '==', true)
-                    .orderBy('createdAt', 'desc')
-                    .limit(6)
-                    .get();
+                // Get all products and filter client-side (unified collection)
+                const snapshot = await db.collection('products').get();
                 
-                if (snapshot.empty) {
+                // Filter for published AND enabled, then get most recent 6
+                const products = snapshot.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() }))
+                    .filter(p => p.shop?.isPublished && p.isEnabled !== false)
+                    .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+                    .slice(0, 6);
+                
+                if (products.length === 0) {
                     grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">No products available yet. Check back soon!</p>';
                     return;
                 }
                 
-                grid.innerHTML = snapshot.docs.map(doc => {
-                    const product = doc.data();
+                grid.innerHTML = products.map(product => {
                     const categoryInfo = categoryData[product.category] || { emoji: '🍞', name: product.category };
+                    const imageUrl = product.shop?.imageUrl || '';
+                    const price = product.finalSRP || 0;
                     return `
                         <div class="product-card">
-                            <div class="product-image" style="${product.imageUrl ? `background-image: url('${product.imageUrl}')` : ''}">
-                                ${!product.imageUrl ? categoryInfo.emoji : ''}
+                            <div class="product-image" style="${imageUrl ? `background-image: url('${imageUrl}')` : ''}">
+                                ${!imageUrl ? categoryInfo.emoji : ''}
                             </div>
                             <div class="product-info">
                                 <h3>${product.name}</h3>
-                                <p>${product.description || ''}</p>
-                                <div class="product-price">₱${product.price.toFixed(2)}</div>
+                                <p>${product.shop?.description || ''}</p>
+                                <div class="product-price">₱${price.toFixed(2)}</div>
                             </div>
                         </div>
                     `;

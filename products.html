@@ -1098,7 +1098,7 @@
             }
         }
         
-        // Get stock status for display
+        // Get stock status for display - HIDE stock count from customers
         function getStockDisplay(productId) {
             const stock = stockCache[productId];
             if (stock === undefined) {
@@ -1111,18 +1111,8 @@
                     canOrder: false 
                 };
             }
-            if (stock <= 5) {
-                return { 
-                    badge: `<span style="position:absolute;top:10px;right:10px;background:#FFF3E0;color:#E65100;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">Only ${stock} left!</span>`, 
-                    class: 'low-stock',
-                    canOrder: true 
-                };
-            }
-            return { 
-                badge: '<span style="position:absolute;top:10px;right:10px;background:#E8F5E9;color:#2E7D32;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">In Stock</span>', 
-                class: '',
-                canOrder: true 
-            };
+            // Don't show stock count to customers - just allow ordering if in stock
+            return { badge: '', class: '', canOrder: true };
         }
         
         // Utility function to truncate text
@@ -1173,7 +1163,7 @@
                 // Get all products and filter client-side (avoids composite index requirement)
                 const snapshot = await db.collection('products').get();
                 
-                // Map to expected format and filter for published only
+                // Map to expected format and filter for published AND enabled products
                 allProducts = snapshot.docs
                     .map(doc => {
                         const data = doc.data();
@@ -1189,10 +1179,11 @@
                             hasVariants: data.shop?.hasVariants || false,
                             variants: data.shop?.variants || [],
                             isPublished: data.shop?.isPublished || false,
+                            isEnabled: data.isEnabled !== false, // Master switch from ProofMaster
                             createdAt: data.createdAt
                         };
                     })
-                    .filter(p => p.isPublished); // Only show published products
+                    .filter(p => p.isPublished && p.isEnabled); // Only show published AND enabled products
                 
                 // Sort by name
                 allProducts.sort((a, b) => a.name.localeCompare(b.name));

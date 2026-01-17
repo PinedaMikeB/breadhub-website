@@ -65,7 +65,10 @@ const POS = {
     
     async loadProducts() {
         try {
-            this.products = await DB.getAll('products');
+            const allProducts = await DB.getAll('products');
+            
+            // Filter out disabled products (isEnabled === false)
+            this.products = allProducts.filter(p => p.isEnabled !== false);
             this.products.sort((a, b) => a.name.localeCompare(b.name));
             
             const cats = new Set();
@@ -74,7 +77,7 @@ const POS = {
             });
             this.categories = Array.from(cats).sort();
             
-            console.log(`Loaded ${this.products.length} products`);
+            console.log(`Loaded ${this.products.length} products (${allProducts.length - this.products.length} disabled)`);
         } catch (error) {
             console.error('Error loading products:', error);
             Toast.error('Failed to load products');
