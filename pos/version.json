@@ -1,9 +1,9 @@
 {
-    "version": "2.1.0",
-    "releaseDate": "2026-01-15",
+    "version": "2.2.0",
+    "releaseDate": "2026-01-22",
     "changes": [
-        "Added version update checker",
-        "PWA auto-update support",
-        "Bug fixes and improvements"
+        "STRICT STOCK MODE: Block sales for products with no stock or no inventory record",
+        "Visual blocking for out-of-stock products",
+        "Improved stock validation on add to cart"
     ]
 }

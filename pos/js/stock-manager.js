@@ -143,16 +143,28 @@ const StockManager = {
     },
     
     // Check stock before adding to cart
+    // STRICT MODE: Products without stock records OR with 0 stock cannot be sold
     canAddToCart(productId, requestedQty, currentCartQty = 0) {
         const stock = this.getStock(productId);
         const totalNeeded = requestedQty + currentCartQty;
         
         if (!stock.hasRecord) {
-            // No inventory record - allow sale but warn
+            // No inventory record - BLOCK sale (strict mode)
             return {
-                allowed: true,
-                warning: 'No stock record for today',
-                available: null
+                allowed: false,
+                warning: 'No stock record - cannot sell',
+                available: 0,
+                reason: 'no_record'
+            };
+        }
+        
+        if (stock.sellable <= 0) {
+            // Out of stock - BLOCK sale
+            return {
+                allowed: false,
+                warning: 'SOLD OUT - no stock available',
+                available: 0,
+                reason: 'sold_out'
             };
         }
         
@@ -167,7 +179,8 @@ const StockManager = {
         return {
             allowed: false,
             warning: `Only ${stock.sellable} available (need ${totalNeeded})`,
-            available: stock.sellable
+            available: stock.sellable,
+            reason: 'insufficient'
         };
     },
 

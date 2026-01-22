@@ -752,22 +752,30 @@ const POS = {
             // Get stock status
             let stockBadge = '';
             let cardClass = 'product-card';
+            let isBlocked = false;
             if (typeof StockManager !== 'undefined') {
                 const stockStatus = StockManager.getStockStatusText(p.id);
                 if (stockStatus.class === 'stock-out') {
                     stockBadge = `<div class="stock-badge sold-out">SOLD OUT</div>`;
-                    cardClass += ' out-of-stock';
+                    cardClass += ' out-of-stock blocked';
+                    isBlocked = true;
+                } else if (stockStatus.class === 'stock-none') {
+                    stockBadge = `<div class="stock-badge no-record">NO STOCK</div>`;
+                    cardClass += ' no-stock-record blocked';
+                    isBlocked = true;
                 } else if (stockStatus.class === 'stock-low') {
                     stockBadge = `<div class="stock-badge low-stock">${stockStatus.qty} left</div>`;
                 } else if (stockStatus.class === 'stock-ok') {
                     stockBadge = `<div class="stock-badge in-stock">${stockStatus.qty}</div>`;
                 } else {
-                    stockBadge = `<div class="stock-badge no-record">--</div>`;
+                    stockBadge = `<div class="stock-badge no-record">NO STOCK</div>`;
+                    cardClass += ' no-stock-record blocked';
+                    isBlocked = true;
                 }
             }
             
             return `
-                <div class="${cardClass}" onclick="POS.addToCart('${p.id}')">
+                <div class="${cardClass}" onclick="${isBlocked ? 'POS.showBlockedMessage()' : `POS.addToCart('${p.id}')`}">
                     <div class="product-image">
                         ${p.shop?.imageUrl 
                             ? `<img src="${p.shop.imageUrl}" alt="${p.name}">` 
@@ -782,6 +790,11 @@ const POS = {
                 </div>
             `;
         }).join('');
+    },
+    
+    // Show message when clicking blocked (out of stock) product
+    showBlockedMessage() {
+        Toast.error('❌ Cannot sell - no stock available');
     },
     
     // ========== CART MANAGEMENT ==========

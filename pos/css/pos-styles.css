@@ -5195,9 +5195,21 @@ details summary {
     color: #999;
 }
 
+/* Blocked products (out of stock or no record) - cannot sell */
+.product-card.blocked {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+    position: relative;
+}
+
+.product-card.blocked:hover {
+    transform: none;
+    box-shadow: none;
+}
+
 .product-card.out-of-stock {
     opacity: 0.5;
-    pointer-events: none;
+    cursor: not-allowed !important;
     position: relative;
 }
 
