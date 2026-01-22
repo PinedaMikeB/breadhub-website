@@ -763,6 +763,9 @@ const POS = {
                     stockBadge = `<div class="stock-badge no-record">NO STOCK</div>`;
                     cardClass += ' no-stock-record blocked';
                     isBlocked = true;
+                } else if (stockStatus.class === 'stock-exempt') {
+                    // Drinks/Addons - no stock badge needed, always available
+                    stockBadge = '';
                 } else if (stockStatus.class === 'stock-low') {
                     stockBadge = `<div class="stock-badge low-stock">${stockStatus.qty} left</div>`;
                 } else if (stockStatus.class === 'stock-ok') {

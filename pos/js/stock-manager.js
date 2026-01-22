@@ -142,14 +142,49 @@ const StockManager = {
         return stock.sellable >= quantity;
     },
     
+    // Check if product is exempt from stock control (drinks, addons)
+    isStockExempt(productId) {
+        // Get product from POS
+        if (typeof POS === 'undefined' || !POS.products) return false;
+        
+        const product = POS.products.find(p => p.id === productId);
+        if (!product) return false;
+        
+        const category = (product.category || '').toLowerCase();
+        const mainCategory = (product.mainCategory || '').toLowerCase();
+        
+        // Drinks categories - exempt from stock control
+        const drinkCategories = ['coffee', 'non-coffee', 'drinks', 'beverages'];
+        const isDrink = mainCategory === 'drinks' || drinkCategories.some(c => category.includes(c));
+        
+        // Add-on categories - exempt from stock control
+        const addonCategories = ['box', 'creamer', 'sugar', 'extras', 'addon', 'add-on', 'addons', 'add-ons'];
+        const isAddon = mainCategory === 'addons' || mainCategory === 'add-ons' || addonCategories.some(c => category.includes(c));
+        
+        return isDrink || isAddon;
+    },
+    
     // Check stock before adding to cart
-    // STRICT MODE: Products without stock records OR with 0 stock cannot be sold
+    // STRICT MODE: Breads without stock records OR with 0 stock cannot be sold
+    // EXEMPT: Drinks and Addons can be sold without stock records
     canAddToCart(productId, requestedQty, currentCartQty = 0) {
         const stock = this.getStock(productId);
         const totalNeeded = requestedQty + currentCartQty;
         
+        // Check if product is exempt from stock control (drinks, addons)
+        const isExempt = this.isStockExempt(productId);
+        
         if (!stock.hasRecord) {
-            // No inventory record - BLOCK sale (strict mode)
+            if (isExempt) {
+                // Drinks/Addons - allow without stock record
+                return {
+                    allowed: true,
+                    warning: null,
+                    available: null,
+                    reason: 'exempt'
+                };
+            }
+            // Breads - BLOCK sale (strict mode)
             return {
                 allowed: false,
                 warning: 'No stock record - cannot sell',
@@ -159,7 +194,16 @@ const StockManager = {
         }
         
         if (stock.sellable <= 0) {
-            // Out of stock - BLOCK sale
+            if (isExempt) {
+                // Drinks/Addons - allow even with 0 stock (not tracked yet)
+                return {
+                    allowed: true,
+                    warning: null,
+                    available: null,
+                    reason: 'exempt'
+                };
+            }
+            // Breads - BLOCK sale
             return {
                 allowed: false,
                 warning: 'SOLD OUT - no stock available',
@@ -267,15 +311,25 @@ const StockManager = {
     
     /**
      * Get stock status text for display
+     * Drinks and Addons show as "exempt" (no stock tracking)
      */
     getStockStatusText(productId) {
         const stock = this.getStock(productId);
+        const isExempt = this.isStockExempt(productId);
         
         if (!stock.hasRecord) {
+            if (isExempt) {
+                // Drinks/Addons without record - show as available (exempt)
+                return { text: '✓', class: 'stock-exempt', qty: null };
+            }
             return { text: 'No stock', class: 'stock-none', qty: null };
         }
         
         if (stock.sellable <= 0) {
+            if (isExempt) {
+                // Drinks/Addons with 0 stock - still available (exempt)
+                return { text: '✓', class: 'stock-exempt', qty: null };
+            }
             return { text: 'SOLD OUT', class: 'stock-out', qty: 0 };
         }
         

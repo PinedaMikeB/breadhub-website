@@ -1,9 +1,9 @@
 {
-    "version": "2.2.0",
+    "version": "2.2.1",
     "releaseDate": "2026-01-22",
     "changes": [
-        "STRICT STOCK MODE: Block sales for products with no stock or no inventory record",
-        "Visual blocking for out-of-stock products",
-        "Improved stock validation on add to cart"
+        "STRICT STOCK MODE: Block sales for BREADS with no stock or no inventory record",
+        "EXEMPT: Drinks and Addons can sell without stock records (not yet tracked)",
+        "Visual blocking for out-of-stock breads only"
     ]
 }
