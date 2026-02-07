@@ -5271,6 +5271,11 @@ details summary {
     border: 1px solid rgba(0, 123, 255, 0.5);
 }
 
+.payment-item.grab {
+    background: rgba(0, 177, 79, 0.3);
+    border: 1px solid rgba(0, 177, 79, 0.5);
+}
+
 .payment-icon {
     font-size: 1.2rem;
 }

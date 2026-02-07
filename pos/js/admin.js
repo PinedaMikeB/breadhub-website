@@ -236,7 +236,8 @@ const Admin = {
             const paymentBreakdown = {
                 cash: { count: 0, amount: 0 },
                 gcash: { count: 0, amount: 0 },
-                card: { count: 0, amount: 0 }
+                card: { count: 0, amount: 0 },
+                grab: { count: 0, amount: 0 }
             };
             
             shiftSales.forEach(sale => {
@@ -327,6 +328,12 @@ const Admin = {
                                     <span class="payment-label">Card</span>
                                     <span class="payment-count">${paymentBreakdown.card.count}x</span>
                                     <span class="payment-amount">${Utils.formatCurrency(paymentBreakdown.card.amount)}</span>
+                                </div>
+                                <div class="payment-item grab">
+                                    <span class="payment-icon">🛵</span>
+                                    <span class="payment-label">Grab</span>
+                                    <span class="payment-count">${paymentBreakdown.grab.count}x</span>
+                                    <span class="payment-amount">${Utils.formatCurrency(paymentBreakdown.grab.amount)}</span>
                                 </div>
                             </div>
                         </div>

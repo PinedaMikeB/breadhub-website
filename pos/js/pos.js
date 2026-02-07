@@ -1151,6 +1151,10 @@ const POS = {
                                 <input type="radio" name="paymentMethod" value="card">
                                 <span>💳 Card</span>
                             </label>
+                            <label class="payment-option">
+                                <input type="radio" name="paymentMethod" value="grab">
+                                <span>🛵 Grab</span>
+                            </label>
                         </div>
                     </div>
                     
@@ -1227,6 +1231,11 @@ const POS = {
                         } else {
                             gcashGroup.style.display = 'none';
                         }
+                    } else if (e.target.value === 'grab') {
+                        // Grab is pre-paid online, no cash/verification needed
+                        cashGroup.style.display = 'none';
+                        changeDisplay.style.display = 'none';
+                        gcashGroup.style.display = 'none';
                     } else {
                         // Card or other
                         cashGroup.style.display = 'none';
