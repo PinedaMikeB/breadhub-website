@@ -44,8 +44,9 @@ const InstallModal = {
         this.isInstalled = this.checkIfInstalled();
         const params = new URLSearchParams(window.location.search);
         const forceInstall = params.has('install');
+        const dismissed = localStorage.getItem('breadhub_installDismissed');
         
-        // If already installed as PWA, skip
+        // If already installed as PWA, never show install modal
         if (this.isInstalled) {
             if (this.isFirstLaunchAsPWA()) {
                 setTimeout(() => this.showWelcome(), 500);
@@ -53,8 +54,9 @@ const InstallModal = {
             return;
         }
         
-        // Show install guide for browser users
-        if (forceInstall || !this.isInstalled) {
+        // ONLY show install guide when explicitly requested via ?install=true
+        // Never auto-show — it blocks the POS for users who already have it installed
+        if (forceInstall && !dismissed) {
             setTimeout(() => this.show(), 800);
         }
         
@@ -270,6 +272,7 @@ const InstallModal = {
         const modal = document.getElementById('installModal');
         if (modal) modal.remove();
         document.body.style.overflow = '';
+        localStorage.setItem('breadhub_installDismissed', 'true');
     },
     
     addStyles() {
