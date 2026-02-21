@@ -636,108 +636,212 @@ const Reports = {
         }
     },
 
-    // View detailed item breakdown for a specific day
+    // View detailed shift + payment breakdown for a specific day
     async viewDayDetails(dateKey) {
         try {
             const sales = await DB.getAll('sales');
             const imports = await DB.getAll('salesImports');
             
-            // Collect items for this date
-            const itemsData = {};
+            // POS sales for this date
+            const daySales = sales.filter(s => s.dateKey === dateKey);
+            
+            // Group by shift
+            const shifts = {};
             let posSalesTotal = 0;
             let posDiscountTotal = 0;
             
-            // POS sales items
-            const daySales = sales.filter(s => s.dateKey === dateKey);
+            // Grand totals by payment method
+            const grandPayments = { cash: 0, gcash: 0, grab: 0, charge: 0 };
+            let grandItemCount = 0;
+            
             daySales.forEach(sale => {
-                posSalesTotal += sale.total || 0;
-                posDiscountTotal += sale.totalDiscount || 0;
-                if (sale.items) {
-                    sale.items.forEach(item => {
-                        const name = item.productName || item.name;
-                        if (!itemsData[name]) {
-                            itemsData[name] = { name, qty: 0, sales: 0, source: 'POS' };
-                        }
-                        itemsData[name].qty += item.quantity || 1;
-                        // Use lineTotal first, then calculate from unitPrice
-                        const itemSales = item.lineTotal || (item.unitPrice || item.price || 0) * (item.quantity || 1);
-                        itemsData[name].sales += itemSales;
-                        if (itemsData[name].source === 'Import') itemsData[name].source = 'Both';
-                    });
+                const shiftNum = sale.shiftNumber || 0;
+                const shiftKey = shiftNum || 'unassigned';
+                const cashier = sale.cashierName || sale.createdByName || 'Unknown';
+                const method = (sale.paymentMethod || 'cash').toLowerCase();
+                
+                if (!shifts[shiftKey]) {
+                    shifts[shiftKey] = {
+                        shiftNumber: shiftNum,
+                        cashier: cashier,
+                        totalSales: 0,
+                        payments: { cash: 0, gcash: 0, grab: 0, charge: 0 },
+                        itemCount: 0,
+                        discount: 0,
+                        transactionCount: 0
+                    };
+                }
+                
+                const saleTotal = sale.total || 0;
+                const saleDiscount = sale.totalDiscount || 0;
+                const itemQty = sale.items ? sale.items.reduce((s, i) => s + (i.quantity || 1), 0) : 0;
+                
+                shifts[shiftKey].totalSales += saleTotal;
+                shifts[shiftKey].discount += saleDiscount;
+                shifts[shiftKey].itemCount += itemQty;
+                shifts[shiftKey].transactionCount++;
+                
+                // Accumulate payment by method
+                if (shifts[shiftKey].payments.hasOwnProperty(method)) {
+                    shifts[shiftKey].payments[method] += saleTotal;
+                } else {
+                    shifts[shiftKey].payments.cash += saleTotal; // fallback
+                }
+                
+                // Update cashier name (use latest)
+                if (cashier !== 'Unknown') {
+                    shifts[shiftKey].cashier = cashier;
+                }
+                
+                posSalesTotal += saleTotal;
+                posDiscountTotal += saleDiscount;
+                grandItemCount += itemQty;
+                
+                if (grandPayments.hasOwnProperty(method)) {
+                    grandPayments[method] += saleTotal;
+                } else {
+                    grandPayments.cash += saleTotal;
                 }
             });
             
-            // Imported sales items
+            // Imported sales total
             let importSalesTotal = 0;
             imports.forEach(imp => {
+                if (imp.dailySummaries) {
+                    imp.dailySummaries.forEach(day => {
+                        const dk = this.parseDate(day.date);
+                        if (dk === dateKey) importSalesTotal += day.netSales || 0;
+                    });
+                }
                 if (imp.items) {
                     imp.items.forEach(item => {
-                        const itemDate = this.parseDate(item.date || imp.dateKey || '');
-                        if (itemDate === dateKey) {
-                            const name = item.productName || item.loyverseName;
-                            if (!itemsData[name]) {
-                                itemsData[name] = { name, qty: 0, sales: 0, source: 'Import' };
-                            }
-                            itemsData[name].qty += item.quantity || 0;
-                            itemsData[name].sales += item.netSales || 0;
-                            importSalesTotal += item.netSales || 0;
-                            if (itemsData[name].source === 'POS') itemsData[name].source = 'Both';
-                        }
+                        const dk = this.parseDate(item.date || imp.dateKey || '');
+                        if (dk === dateKey) importSalesTotal += item.netSales || 0;
                     });
                 }
             });
             
-            const items = Object.values(itemsData).sort((a, b) => b.qty - a.qty);
-            const totalQty = items.reduce((s, i) => s + i.qty, 0);
-            const totalItemSales = items.reduce((s, i) => s + i.sales, 0);
-            const actualTotal = posSalesTotal + importSalesTotal;
+            const grandTotal = posSalesTotal + importSalesTotal;
+            
+            // Sort shifts by number
+            const sortedShifts = Object.values(shifts).sort((a, b) => (a.shiftNumber || 99) - (b.shiftNumber || 99));
+            
+            // Helper to render payment badge
+            const payBadge = (label, amount, color) => {
+                if (amount <= 0) return '';
+                return `<span style="display:inline-block;background:${color};color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem;margin:2px;">${label}: ${Utils.formatCurrency(amount)}</span>`;
+            };
             
             // Build modal content
             let content = '';
-            if (items.length === 0) {
-                content = '<p style="text-align:center;color:#999;padding:20px;">No item details available for this date</p>';
+            
+            if (sortedShifts.length === 0 && importSalesTotal === 0) {
+                content = '<p style="text-align:center;color:#999;padding:20px;">No sales data for this date</p>';
             } else {
+                // Grand Summary Cards
                 content = `
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
                         <div style="background:#1a3a4a;padding:12px;border-radius:8px;text-align:center;">
-                            <div style="font-size:1.5rem;font-weight:bold;color:#D4894A;">${Utils.formatNumber(totalQty)}</div>
-                            <div style="font-size:0.85rem;color:#aaa;">Items Sold</div>
+                            <div style="font-size:1.4rem;font-weight:bold;color:#D4894A;">${Utils.formatNumber(grandItemCount)}</div>
+                            <div style="font-size:0.8rem;color:#aaa;">Items Sold</div>
                         </div>
                         <div style="background:#1a3a4a;padding:12px;border-radius:8px;text-align:center;">
-                            <div style="font-size:1.5rem;font-weight:bold;color:#27ae60;">${Utils.formatCurrency(actualTotal)}</div>
-                            <div style="font-size:0.85rem;color:#aaa;">Total Sales</div>
+                            <div style="font-size:1.4rem;font-weight:bold;color:#27ae60;">${Utils.formatCurrency(grandTotal)}</div>
+                            <div style="font-size:0.8rem;color:#aaa;">Grand Total</div>
                         </div>
-                    </div>
-                    ${posDiscountTotal > 0 ? `
-                        <div style="background:#2d3748;padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:0.85rem;color:#f6ad55;">
-                            💰 Discounts given: ${Utils.formatCurrency(posDiscountTotal)}
-                        </div>
-                    ` : ''}
-                    <div style="max-height:400px;overflow-y:auto;">
-                        <table class="report-table" style="font-size:0.9rem;">
-                            <thead>
-                                <tr><th>#</th><th>Product</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Sales</th></tr>
-                            </thead>
-                            <tbody>
-                                ${items.map((item, i) => `
-                                    <tr>
-                                        <td style="color:#666;">${i + 1}</td>
-                                        <td><strong>${item.name}</strong></td>
-                                        <td style="text-align:center;">${Utils.formatNumber(item.qty)}</td>
-                                        <td style="text-align:right;">${Utils.formatCurrency(item.sales)}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
                     </div>
                 `;
+                
+                // Discount info
+                if (posDiscountTotal > 0) {
+                    content += `
+                        <div style="background:#2d3748;padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:0.85rem;color:#f6ad55;">
+                            💰 Total Discounts: ${Utils.formatCurrency(posDiscountTotal)}
+                        </div>
+                    `;
+                }
+                
+                // Per-shift breakdown
+                content += '<div style="max-height:500px;overflow-y:auto;">';
+                
+                sortedShifts.forEach(shift => {
+                    const shiftLabel = shift.shiftNumber ? `Shift ${shift.shiftNumber}` : 'Unassigned Shift';
+                    content += `
+                        <div style="background:#0d2137;border:1px solid #1a3a4a;border-radius:10px;padding:14px;margin-bottom:12px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                                <div>
+                                    <span style="font-size:1.1rem;font-weight:bold;color:#D4894A;">🕐 ${shiftLabel}</span>
+                                    <span style="display:block;font-size:0.85rem;color:#8ab4d6;margin-top:2px;">👤 ${shift.cashier}</span>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:1.2rem;font-weight:bold;color:#27ae60;">${Utils.formatCurrency(shift.totalSales)}</div>
+                                    <div style="font-size:0.75rem;color:#aaa;">${shift.transactionCount} txns · ${Utils.formatNumber(shift.itemCount)} items</div>
+                                </div>
+                            </div>
+                            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                                ${payBadge('💵 Cash', shift.payments.cash, '#2d6a4f')}
+                                ${payBadge('📱 GCash', shift.payments.gcash, '#1a56db')}
+                                ${payBadge('🛵 Grab', shift.payments.grab, '#00b14f')}
+                                ${payBadge('📝 Charge', shift.payments.charge, '#b45309')}
+                            </div>
+                            ${shift.discount > 0 ? `<div style="font-size:0.8rem;color:#f6ad55;margin-top:6px;">💰 Discount: ${Utils.formatCurrency(shift.discount)}</div>` : ''}
+                        </div>
+                    `;
+                });
+                
+                // Imported sales section (if any)
+                if (importSalesTotal > 0) {
+                    content += `
+                        <div style="background:#0d2137;border:1px solid #1a3a4a;border-radius:10px;padding:14px;margin-bottom:12px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span style="font-size:1.1rem;font-weight:bold;color:#3498db;">📥 Imported (Loyverse)</span>
+                                <span style="font-size:1.2rem;font-weight:bold;color:#3498db;">${Utils.formatCurrency(importSalesTotal)}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Grand Total Payment Summary
+                if (posSalesTotal > 0) {
+                    content += `
+                        <div style="background:#1a2940;border:2px solid #D4894A;border-radius:10px;padding:14px;margin-bottom:8px;">
+                            <div style="font-size:1rem;font-weight:bold;color:#D4894A;margin-bottom:10px;text-align:center;">📊 Grand Total by Payment Method</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                <div style="background:#0d2137;padding:8px;border-radius:6px;text-align:center;">
+                                    <div style="font-size:0.75rem;color:#aaa;">💵 Cash</div>
+                                    <div style="font-size:1.1rem;font-weight:bold;color:#2d6a4f;">${Utils.formatCurrency(grandPayments.cash)}</div>
+                                </div>
+                                <div style="background:#0d2137;padding:8px;border-radius:6px;text-align:center;">
+                                    <div style="font-size:0.75rem;color:#aaa;">📱 GCash</div>
+                                    <div style="font-size:1.1rem;font-weight:bold;color:#1a56db;">${Utils.formatCurrency(grandPayments.gcash)}</div>
+                                </div>
+                                <div style="background:#0d2137;padding:8px;border-radius:6px;text-align:center;">
+                                    <div style="font-size:0.75rem;color:#aaa;">🛵 Grab</div>
+                                    <div style="font-size:1.1rem;font-weight:bold;color:#00b14f;">${Utils.formatCurrency(grandPayments.grab)}</div>
+                                </div>
+                                <div style="background:#0d2137;padding:8px;border-radius:6px;text-align:center;">
+                                    <div style="font-size:0.75rem;color:#aaa;">📝 Charge</div>
+                                    <div style="font-size:1.1rem;font-weight:bold;color:#b45309;">${Utils.formatCurrency(grandPayments.charge)}</div>
+                                </div>
+                            </div>
+                            <div style="text-align:center;margin-top:10px;padding-top:10px;border-top:1px solid #2d3748;">
+                                <div style="font-size:0.8rem;color:#aaa;">Grand Total (POS)</div>
+                                <div style="font-size:1.3rem;font-weight:bold;color:#27ae60;">${Utils.formatCurrency(posSalesTotal)}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                content += '</div>';
             }
             
             // Show modal
             Modal.open({
-                title: `📋 Sales Details - ${dateKey}`,
+                title: `📋 Daily Sales Report - ${dateKey}`,
                 content: content,
+                width: '550px',
                 showCancel: false,
+                cancelText: null,
                 saveText: 'Close'
             });
             
