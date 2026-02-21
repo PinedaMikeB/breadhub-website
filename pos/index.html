@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BreadHub POS</title>
     
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a1929">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BreadHub">
+    <link rel="apple-touch-icon" href="icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
+    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -163,6 +173,9 @@
                     <div class="cart-header">
                         <h2>🛒 Current Order</h2>
                         <div class="cart-header-actions">
+                            <button class="btn btn-outline btn-sm" onclick="Receivables.showReceivables()" title="Receivables (Charge Payments)" style="color: #F9A825;">
+                                📝
+                            </button>
                             <button class="btn btn-outline btn-sm" onclick="POS.showTransactionHistory()" title="Transaction History">
                                 📋
                             </button>
@@ -520,6 +533,7 @@
     <script src="js/stock-manager.js?v=2"></script>
     <script src="js/shift-inventory.js?v=1"></script>
     <script src="js/pos.js?v=21"></script>
+    <script src="js/receivables.js?v=1"></script>
     <script src="js/orders.js"></script>
     <script src="js/admin.js?v=12"></script>
     <script src="js/sales-import.js?v=4"></script>
@@ -527,5 +541,43 @@
     <script src="js/version-manager.js?v=1"></script>
     <script src="js/pos-chat.js?v=1"></script>
     <script src="js/app.js?v=3"></script>
+    <script src="js/install-modal.js?v=1"></script>
+    
+    <!-- PWA Service Worker - Silent Auto-Update -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/pos/sw.js').then(reg => {
+                console.log('[PWA] Service worker registered');
+                
+                // Check for updates every 5 minutes
+                setInterval(() => { reg.update(); }, 5 * 60 * 1000);
+                
+                // When a new SW is found, tell it to activate immediately
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    console.log('[PWA] New service worker installing...');
+                    
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'activated') {
+                            console.log('[PWA] Silent update applied');
+                        }
+                    });
+                });
+            }).catch(err => {
+                console.warn('[PWA] SW registration failed:', err);
+            });
+            
+            // When a new SW takes over, silently reload to get fresh assets
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
+                console.log('[PWA] New version active - reloading...');
+                window.location.reload();
+            });
+        });
+    }
+    </script>
 </body>
 </html>
