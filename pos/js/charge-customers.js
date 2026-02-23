@@ -243,31 +243,32 @@ const ChargeCustomers = {
             if (synced > 0) Toast.success(`Created ${synced} missing receivable record${synced>1?'s':''}`);
             
             const allR = await DB.getAllFresh('receivables');
+            // Helper to get timestamp as ms
+            const getMs = (d) => { if (!d) return 0; if (d.toDate) return d.toDate().getTime(); if (d.seconds) return d.seconds * 1000; return new Date(d).getTime() || 0; };
             allR.sort((a, b) => {
                 const so = { unpaid: 0, partial: 1, paid: 2 };
                 const d = (so[a.status]||0) - (so[b.status]||0);
-                return d !== 0 ? d : (b.createdAt||'').localeCompare(a.createdAt||'');
+                return d !== 0 ? d : getMs(b.createdAt) - getMs(a.createdAt);
             });
 
             const unpaid = allR.filter(r => r.status !== 'paid');
             const unpaidTotal = unpaid.reduce((s, r) => s + (r.balance || 0), 0);
             const overdue7 = unpaid.filter(r => {
-                const created = new Date(r.createdAt);
-                return (Date.now() - created.getTime()) > 7 * 86400000;
+                return (Date.now() - getMs(r.createdAt)) > 7 * 86400000;
             });
             const overdue30 = unpaid.filter(r => {
-                const created = new Date(r.createdAt);
-                return (Date.now() - created.getTime()) > 30 * 86400000;
+                return (Date.now() - getMs(r.createdAt)) > 30 * 86400000;
             });
 
             // Group by customer
             const byCustomer = {};
             unpaid.forEach(r => {
                 const key = r.customerName || 'Unknown';
-                if (!byCustomer[key]) byCustomer[key] = { name: key, total: 0, count: 0, oldest: r.createdAt, mobile: r.contactNumber || '', items: [] };
+                const ms = getMs(r.createdAt);
+                if (!byCustomer[key]) byCustomer[key] = { name: key, total: 0, count: 0, oldestMs: ms, mobile: r.contactNumber || '', items: [] };
                 byCustomer[key].total += r.balance || 0;
                 byCustomer[key].count++;
-                if (r.createdAt < byCustomer[key].oldest) byCustomer[key].oldest = r.createdAt;
+                if (ms < byCustomer[key].oldestMs) byCustomer[key].oldestMs = ms;
                 byCustomer[key].items.push(r);
             });
             const customerList = Object.values(byCustomer).sort((a, b) => b.total - a.total);
@@ -294,7 +295,7 @@ const ChargeCustomers = {
             } else {
                 c += '<div style="max-height:450px;overflow-y:auto;">';
                 customerList.forEach(cust => {
-                    const daysOld = Math.floor((Date.now() - new Date(cust.oldest).getTime()) / 86400000);
+                    const daysOld = Math.floor((Date.now() - cust.oldestMs) / 86400000);
                     const urgency = daysOld > 30 ? '#ef4444' : daysOld > 7 ? '#F57F17' : '#D4894A';
                     c += `<div style="background:#0d2137;border:1px solid #1a3a4a;border-left:4px solid ${urgency};border-radius:10px;padding:12px;margin-bottom:8px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
