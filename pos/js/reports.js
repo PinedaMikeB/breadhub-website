@@ -354,11 +354,15 @@ const Reports = {
                 });
             } else c += '<p style="color:#999;font-size:0.85rem;text-align:center;">No items</p>';
             c += '</div>';
+            // Charge customer assignment section
+            const currentCustomer = sale.chargePayment?.customerName || '';
+            const isCharge = method === 'charge';
+            
             c += `<div style="border-top:1px solid #2d3748;padding-top:12px;margin-top:8px;">
                 <div style="margin-bottom:10px;">
                     <label style="color:#8ab4d6;font-size:0.8rem;display:block;margin-bottom:4px;">Change Payment Method:</label>
                     <div style="display:flex;gap:6px;">
-                        <select id="changePaymentSelect" style="flex:1;padding:8px 10px;background:#0d2137;color:#fff;border:1px solid #1a3a4a;border-radius:8px;font-size:0.85rem;">
+                        <select id="changePaymentSelect" onchange="Reports._onPaymentSelectChange()" style="flex:1;padding:8px 10px;background:#0d2137;color:#fff;border:1px solid #1a3a4a;border-radius:8px;font-size:0.85rem;">
                             <option value="cash" ${method==='cash'?'selected':''}>💵 Cash</option>
                             <option value="gcash" ${method==='gcash'?'selected':''}>📱 GCash</option>
                             <option value="grab" ${method==='grab'?'selected':''}>🛵 Grab</option>
@@ -368,10 +372,26 @@ const Reports = {
                         <button onclick="Reports.changePaymentMethod('${saleDocId}')" style="padding:8px 14px;background:#1a56db;color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;">💱 Change</button>
                     </div>
                 </div>
+                <div id="chargeCustomerSection" style="display:${isCharge?'block':'none'};margin-bottom:10px;background:#1a2940;border:1px solid #b45309;border-radius:8px;padding:10px;">
+                    <label style="color:#f6ad55;font-size:0.8rem;display:block;margin-bottom:6px;">📝 Charge Customer${currentCustomer ? ': <strong style=\"color:#fff;\">'+currentCustomer+'</strong>' : ' (not assigned)'}:</label>
+                    <div style="display:flex;gap:6px;">
+                        <select id="assignCustomerSelect" style="flex:1;padding:8px 10px;background:#0d2137;color:#fff;border:1px solid #1a3a4a;border-radius:8px;font-size:0.85rem;">
+                            <option value="">Loading...</option>
+                        </select>
+                        <button onclick="Reports.assignChargeCustomer('${saleDocId}')" style="padding:8px 14px;background:#b45309;color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;">✅ Assign</button>
+                    </div>
+                </div>
                 <button onclick="Reports.deleteTransaction('${saleDocId}')" style="width:100%;padding:12px;background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;">🗑️ Delete Entire Transaction</button>
             </div>
             <div style="margin-top:8px;"><button onclick="Reports._renderDayModal('transactions')" style="width:100%;padding:10px;background:transparent;color:#8ab4d6;border:1px solid #1a3a4a;border-radius:10px;font-size:0.85rem;cursor:pointer;">← Back to Transactions</button></div>`;
             Modal.open({ title: `🧾 Transaction - ${sale.saleId||sale.id}`, content: c, width: '500px', cancelText: null, saveText: 'Close' });
+            // Populate charge customer dropdown if visible
+            if (isCharge) {
+                ChargeCustomers.buildChargeDropdownHTML().then(html => {
+                    const sel = document.getElementById('assignCustomerSelect');
+                    if (sel) { sel.innerHTML = html; if (sale.chargePayment?.customerId) sel.value = sale.chargePayment.customerId; }
+                });
+            }
         } catch (error) { console.error('Error:', error); alert('Failed: ' + error.message); }
     },
 
@@ -419,6 +439,66 @@ const Reports = {
         } catch (error) { console.error('Error:', error); alert('Failed: ' + error.message); }
     },
 
+    // Show/hide charge customer section when payment method dropdown changes
+    _onPaymentSelectChange() {
+        const sel = document.getElementById('changePaymentSelect');
+        const section = document.getElementById('chargeCustomerSection');
+        if (!sel || !section) return;
+        if (sel.value === 'charge') {
+            section.style.display = 'block';
+            ChargeCustomers.buildChargeDropdownHTML().then(html => {
+                const dd = document.getElementById('assignCustomerSelect');
+                if (dd) dd.innerHTML = html;
+            });
+        } else {
+            section.style.display = 'none';
+        }
+    },
+
+    // ========== ASSIGN CHARGE CUSTOMER ==========
+    async assignChargeCustomer(saleDocId) {
+        const sel = document.getElementById('assignCustomerSelect');
+        if (!sel || !sel.value || sel.value === '__new__') { Toast.error('Please select a customer'); return; }
+        const opt = sel.options[sel.selectedIndex];
+        const customerData = {
+            customerId: sel.value,
+            customerName: opt.dataset.name || '',
+            contactPerson: opt.dataset.contact || '',
+            contactNumber: opt.dataset.mobile || '',
+            email: opt.dataset.email || '',
+            address: opt.dataset.address || '',
+            tin: opt.dataset.tin || ''
+        };
+        try {
+            const sale = await DB.get('sales', saleDocId);
+            if (!sale) { alert('Transaction not found'); return; }
+            // Update sale's chargePayment
+            const cp = sale.chargePayment || {};
+            Object.assign(cp, customerData, { chargedAt: cp.chargedAt || new Date().toISOString(), status: cp.status || 'unpaid' });
+            await DB.update('sales', saleDocId, { chargePayment: cp, editedAt: new Date().toISOString() });
+            // Also update matching receivable if exists
+            try {
+                const receivables = await DB.query('receivables', 'saleId', '==', sale.saleId || '');
+                for (const r of receivables) {
+                    await DB.update('receivables', r.id, {
+                        customerId: customerData.customerId,
+                        customerName: customerData.customerName,
+                        contactPerson: customerData.contactPerson,
+                        contactNumber: customerData.contactNumber,
+                        email: customerData.email,
+                        address: customerData.address,
+                        tin: customerData.tin,
+                        updatedAt: new Date().toISOString()
+                    });
+                }
+            } catch (e) { console.warn('Could not update receivable:', e); }
+            Toast.success(`Assigned to ${customerData.customerName}`);
+            const sales = await DB.getAll('sales');
+            this._dayData.daySales = sales.filter(s => s.dateKey === this._dayDateKey);
+            this.viewTransaction(saleDocId);
+        } catch (error) { console.error('Error:', error); alert('Failed: ' + error.message); }
+    },
+
     // ========== CHANGE PAYMENT METHOD ==========
     async changePaymentMethod(saleDocId) {
         const select = document.getElementById('changePaymentSelect');
@@ -428,10 +508,30 @@ const Reports = {
         try {
             const sale = await DB.get('sales', saleDocId);
             if (!sale) { alert('Transaction not found'); return; }
-            if (sale.paymentMethod === newMethod) { Toast.info('Payment method is already ' + ml[newMethod]); return; }
+            if (sale.paymentMethod === newMethod) { Toast.info('Already ' + ml[newMethod]); return; }
             const oldMethod = sale.paymentMethod || 'cash';
-            if (!confirm(`Change payment from ${ml[oldMethod] || oldMethod} → ${ml[newMethod]}?`)) return;
-            await DB.update('sales', saleDocId, { paymentMethod: newMethod, editedAt: new Date().toISOString(), editNote: `Payment changed from ${oldMethod} to ${newMethod}` });
+            // If changing TO charge, require customer assignment first
+            if (newMethod === 'charge') {
+                const sel2 = document.getElementById('assignCustomerSelect');
+                if (!sel2 || !sel2.value || sel2.value === '' || sel2.value === '__new__') {
+                    Toast.error('Please select a Charge Customer first, then click Change');
+                    return;
+                }
+            }
+            if (!confirm(`Change payment from ${ml[oldMethod]||oldMethod} → ${ml[newMethod]}?`)) return;
+            const updateData = { paymentMethod: newMethod, editedAt: new Date().toISOString(), editNote: `Payment changed from ${oldMethod} to ${newMethod}` };
+            // If changing to charge, attach customer data and create receivable
+            if (newMethod === 'charge') {
+                const sel2 = document.getElementById('assignCustomerSelect');
+                const opt = sel2.options[sel2.selectedIndex];
+                const cd = { customerId: sel2.value, customerName: opt.dataset.name||'', contactPerson: opt.dataset.contact||'', contactNumber: opt.dataset.mobile||'', email: opt.dataset.email||'', address: opt.dataset.address||'', tin: opt.dataset.tin||'', chargedAt: new Date().toISOString(), status: 'unpaid' };
+                updateData.chargePayment = cd;
+                // Create receivable
+                await DB.add('receivables', { saleId: sale.saleId, dateKey: sale.dateKey, customerId: cd.customerId, customerName: cd.customerName, contactPerson: cd.contactPerson, contactNumber: cd.contactNumber, email: cd.email, address: cd.address, tin: cd.tin, notes: '', totalAmount: sale.total||0, paidAmount: 0, balance: sale.total||0, status: 'unpaid', items: (sale.items||[]).map(i=>({productName:i.productName||i.name,quantity:i.quantity,unitPrice:i.unitPrice||i.price,lineTotal:i.lineTotal})), payments: [], cashierId: sale.cashierId, cashierName: sale.cashierName, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+            }
+            // If changing FROM charge, remove chargePayment
+            if (oldMethod === 'charge') { updateData.chargePayment = null; }
+            await DB.update('sales', saleDocId, updateData);
             Toast.success(`Payment changed to ${ml[newMethod]}`);
             const sales = await DB.getAll('sales');
             this._dayData.daySales = sales.filter(s => s.dateKey === this._dayDateKey);
