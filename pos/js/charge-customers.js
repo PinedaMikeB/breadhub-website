@@ -194,11 +194,55 @@ const ChargeCustomers = {
         };
     },
 
+    // ========== SYNC: Create missing receivables for charge sales ==========
+    async syncReceivables() {
+        const sales = await DB.getAll('sales');
+        const receivables = await DB.getAll('receivables');
+        const existingSaleIds = new Set(receivables.map(r => r.saleId));
+        
+        const chargeSales = sales.filter(s => (s.paymentMethod || '').toLowerCase() === 'charge');
+        let created = 0;
+        for (const sale of chargeSales) {
+            const saleId = sale.saleId || sale.id;
+            if (existingSaleIds.has(saleId)) continue;
+            // Create missing receivable
+            const cp = sale.chargePayment || {};
+            await DB.add('receivables', {
+                saleId: saleId,
+                dateKey: sale.dateKey,
+                customerId: cp.customerId || null,
+                customerName: cp.customerName || 'Unknown',
+                contactPerson: cp.contactPerson || '',
+                contactNumber: cp.contactNumber || '',
+                email: cp.email || '',
+                address: cp.address || '',
+                tin: cp.tin || '',
+                notes: cp.notes || '',
+                totalAmount: sale.total || 0,
+                paidAmount: 0,
+                balance: sale.total || 0,
+                status: 'unpaid',
+                items: (sale.items || []).map(i => ({ productName: i.productName || i.name, quantity: i.quantity, unitPrice: i.unitPrice || i.price, lineTotal: i.lineTotal })),
+                payments: [],
+                cashierId: sale.cashierId || '',
+                cashierName: sale.cashierName || '',
+                createdAt: sale.timestamp || new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            });
+            created++;
+        }
+        return created;
+    },
+
     // ========== ADMIN: ACCOUNTS RECEIVABLE DASHBOARD ==========
     async showReceivablesDashboard() {
-        Toast.info('Loading receivables...');
+        Toast.info('Syncing receivables...');
         try {
-            const allR = await DB.getAll('receivables');
+            // First sync any missing receivables from charge sales
+            const synced = await this.syncReceivables();
+            if (synced > 0) Toast.success(`Created ${synced} missing receivable record${synced>1?'s':''}`);
+            
+            const allR = await DB.getAllFresh('receivables');
             allR.sort((a, b) => {
                 const so = { unpaid: 0, partial: 1, paid: 2 };
                 const d = (so[a.status]||0) - (so[b.status]||0);

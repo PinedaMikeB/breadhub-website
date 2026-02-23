@@ -69,32 +69,46 @@ const Reports = {
         try {
             const sales = await DB.getAll('sales');
             const dailyData = {};
+            const receivables = await DB.getAll('receivables');
+            const recBySaleId = {};
+            receivables.forEach(r => { recBySaleId[r.saleId] = r; });
+            
             sales.forEach(sale => {
                 const day = sale.dateKey; if (!this.isInDateRange(day)) return;
-                if (!dailyData[day]) dailyData[day] = { date: day, posSales: 0, posCount: 0, forDeposit: 0, grab: 0, charge: 0 };
+                if (!dailyData[day]) dailyData[day] = { date: day, posSales: 0, posCount: 0, forDeposit: 0, grab: 0, chargeUnpaid: 0, chargePaid: 0 };
                 const total = sale.total || 0;
                 const method = (sale.paymentMethod || 'cash').toLowerCase();
                 dailyData[day].posSales += total; dailyData[day].posCount++;
                 if (method === 'cash' || method === 'gcash') dailyData[day].forDeposit += total;
                 if (method === 'grab') dailyData[day].grab += total;
-                if (method === 'charge') dailyData[day].charge += total;
+                if (method === 'charge') {
+                    const saleId = sale.saleId || sale.id;
+                    const rec = recBySaleId[saleId];
+                    if (rec && rec.status === 'paid') dailyData[day].chargePaid += total;
+                    else dailyData[day].chargeUnpaid += total;
+                }
             });
             const days = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
             if (days.length === 0) { container.innerHTML = '<p class="empty-state">No sales data for selected period</p>'; return; }
             const totalPOS = days.reduce((s, d) => s + d.posSales, 0);
             const totalDeposit = days.reduce((s, d) => s + d.forDeposit, 0);
             const totalGrab = days.reduce((s, d) => s + d.grab, 0);
-            const totalCharge = days.reduce((s, d) => s + d.charge, 0);
+            const totalChargeUnpaid = days.reduce((s, d) => s + d.chargeUnpaid, 0);
+            const totalChargePaid = days.reduce((s, d) => s + d.chargePaid, 0);
             container.innerHTML = `
                 <div class="chart-container"><canvas id="dailyChart"></canvas></div>
                 <div class="report-summary">
                     <div class="summary-card"><div class="summary-value">${Utils.formatCurrency(totalPOS)}</div><div class="summary-label">Total Sales</div></div>
                     <div class="summary-card highlight"><div class="summary-value">${Utils.formatCurrency(totalDeposit)}</div><div class="summary-label">For Deposit</div></div>
                     <div class="summary-card"><div class="summary-value">${Utils.formatCurrency(totalGrab)}</div><div class="summary-label">🛵 Grab</div></div>
-                    <div class="summary-card"><div class="summary-value">${Utils.formatCurrency(totalCharge)}</div><div class="summary-label">📝 Charge</div></div>
+                    <div class="summary-card"><div class="summary-value" style="color:#ef4444;">${Utils.formatCurrency(totalChargeUnpaid)}</div><div class="summary-label">📝 Unpaid</div></div>
+                    <div class="summary-card"><div class="summary-value" style="color:#27ae60;">${Utils.formatCurrency(totalChargePaid)}</div><div class="summary-label">✅ Collected</div></div>
                 </div>
-                <table class="report-table"><thead><tr><th>Date</th><th>POS Sales</th><th>For Deposit</th><th>🛵 Grab</th><th>📝 Charge</th><th>Action</th></tr></thead>
-                <tbody>${days.slice().reverse().slice(0, 30).map(d => `<tr><td>${d.date}</td><td>${Utils.formatCurrency(d.posSales)}</td><td style="color:#27ae60;font-weight:bold;">${d.forDeposit > 0 ? Utils.formatCurrency(d.forDeposit) : '-'}</td><td style="color:#00b14f;">${d.grab > 0 ? Utils.formatCurrency(d.grab) : '-'}</td><td style="color:#b45309;">${d.charge > 0 ? Utils.formatCurrency(d.charge) : '-'}</td><td><button class="btn-view" onclick="Reports.viewDayDetails('${d.date}')">👁️ View</button></td></tr>`).join('')}</tbody></table>`;
+                <table class="report-table"><thead><tr><th>Date</th><th>POS Sales</th><th>For Deposit</th><th>🛵 Grab</th><th>📝 Unpaid</th><th>✅ Collected</th><th>Action</th></tr></thead>
+                <tbody>${days.slice().reverse().slice(0, 30).map(d => {
+                    const chargeTotal = d.chargeUnpaid + d.chargePaid;
+                    return `<tr><td>${d.date}</td><td>${Utils.formatCurrency(d.posSales)}</td><td style="color:#27ae60;font-weight:bold;">${d.forDeposit > 0 ? Utils.formatCurrency(d.forDeposit) : '-'}</td><td style="color:#00b14f;">${d.grab > 0 ? Utils.formatCurrency(d.grab) : '-'}</td><td style="color:#ef4444;">${d.chargeUnpaid > 0 ? Utils.formatCurrency(d.chargeUnpaid) : '-'}</td><td style="color:#27ae60;">${d.chargePaid > 0 ? Utils.formatCurrency(d.chargePaid) : '-'}</td><td><button class="btn-view" onclick="Reports.viewDayDetails('${d.date}')">👁️ View</button></td></tr>`;
+                }).join('')}</tbody></table>`;
             this.destroyChart();
             const ctx = document.getElementById('dailyChart').getContext('2d');
             this.chart = new Chart(ctx, { type: 'bar', data: { labels: days.map(d => d.date), datasets: [{ label: 'POS Sales', data: days.map(d => d.posSales), backgroundColor: '#D4894A' }, { label: 'For Deposit', data: days.map(d => d.forDeposit), backgroundColor: '#27ae60' }] }, options: { responsive: true, scales: { y: { beginAtZero: true } } } });
@@ -476,11 +490,28 @@ const Reports = {
             const cp = sale.chargePayment || {};
             Object.assign(cp, customerData, { chargedAt: cp.chargedAt || new Date().toISOString(), status: cp.status || 'unpaid' });
             await DB.update('sales', saleDocId, { chargePayment: cp, editedAt: new Date().toISOString() });
-            // Also update matching receivable if exists
+            // Also update or create matching receivable
             try {
-                const receivables = await DB.query('receivables', 'saleId', '==', sale.saleId || '');
-                for (const r of receivables) {
-                    await DB.update('receivables', r.id, {
+                const saleId = sale.saleId || sale.id;
+                const receivables = await DB.query('receivables', 'saleId', '==', saleId);
+                if (receivables.length > 0) {
+                    for (const r of receivables) {
+                        await DB.update('receivables', r.id, {
+                            customerId: customerData.customerId,
+                            customerName: customerData.customerName,
+                            contactPerson: customerData.contactPerson,
+                            contactNumber: customerData.contactNumber,
+                            email: customerData.email,
+                            address: customerData.address,
+                            tin: customerData.tin,
+                            updatedAt: new Date().toISOString()
+                        });
+                    }
+                } else {
+                    // No receivable exists — create one
+                    await DB.add('receivables', {
+                        saleId: saleId,
+                        dateKey: sale.dateKey,
                         customerId: customerData.customerId,
                         customerName: customerData.customerName,
                         contactPerson: customerData.contactPerson,
@@ -488,10 +519,20 @@ const Reports = {
                         email: customerData.email,
                         address: customerData.address,
                         tin: customerData.tin,
+                        notes: '',
+                        totalAmount: sale.total || 0,
+                        paidAmount: 0,
+                        balance: sale.total || 0,
+                        status: 'unpaid',
+                        items: (sale.items||[]).map(i=>({productName:i.productName||i.name,quantity:i.quantity,unitPrice:i.unitPrice||i.price,lineTotal:i.lineTotal})),
+                        payments: [],
+                        cashierId: sale.cashierId || '',
+                        cashierName: sale.cashierName || '',
+                        createdAt: sale.timestamp || new Date().toISOString(),
                         updatedAt: new Date().toISOString()
                     });
                 }
-            } catch (e) { console.warn('Could not update receivable:', e); }
+            } catch (e) { console.warn('Could not update/create receivable:', e); }
             Toast.success(`Assigned to ${customerData.customerName}`);
             const sales = await DB.getAll('sales');
             this._dayData.daySales = sales.filter(s => s.dateKey === this._dayDateKey);
