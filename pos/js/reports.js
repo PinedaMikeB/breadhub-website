@@ -356,6 +356,19 @@ const Reports = {
             } else c += '<p style="color:#999;font-size:0.85rem;text-align:center;">No items</p>';
             c += '</div>';
             c += `<div style="border-top:1px solid #2d3748;padding-top:12px;margin-top:8px;">
+                <div style="margin-bottom:10px;">
+                    <label style="color:#8ab4d6;font-size:0.8rem;display:block;margin-bottom:4px;">Change Payment Method:</label>
+                    <div style="display:flex;gap:6px;">
+                        <select id="changePaymentSelect" style="flex:1;padding:8px 10px;background:#0d2137;color:#fff;border:1px solid #1a3a4a;border-radius:8px;font-size:0.85rem;">
+                            <option value="cash" ${method==='cash'?'selected':''}>💵 Cash</option>
+                            <option value="gcash" ${method==='gcash'?'selected':''}>📱 GCash</option>
+                            <option value="grab" ${method==='grab'?'selected':''}>🛵 Grab</option>
+                            <option value="charge" ${method==='charge'?'selected':''}>📝 Charge</option>
+                            <option value="card" ${method==='card'?'selected':''}>💳 Card</option>
+                        </select>
+                        <button onclick="Reports.changePaymentMethod('${saleDocId}')" style="padding:8px 14px;background:#1a56db;color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;">💱 Change</button>
+                    </div>
+                </div>
                 <button onclick="Reports.deleteTransaction('${saleDocId}')" style="width:100%;padding:12px;background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;">🗑️ Delete Entire Transaction</button>
             </div>
             <div style="margin-top:8px;"><button onclick="Reports._renderDayModal('transactions')" style="width:100%;padding:10px;background:transparent;color:#8ab4d6;border:1px solid #1a3a4a;border-radius:10px;font-size:0.85rem;cursor:pointer;">← Back to Transactions</button></div>`;
@@ -401,6 +414,26 @@ const Reports = {
             const newSub = newItems.reduce((s,i) => s + ((i.originalPrice||i.unitPrice||i.price||0)*(i.quantity||1)), 0);
             await DB.update('sales', saleDocId, { items: newItems, total: newTotal, totalDiscount: newDisc, subtotal: newSub, editedAt: new Date().toISOString(), editNote: `Removed ${name} (qty ${item.quantity||1})` });
             Toast.success(`Removed "${name}"`);
+            const sales = await DB.getAll('sales');
+            this._dayData.daySales = sales.filter(s => s.dateKey === this._dayDateKey);
+            this.viewTransaction(saleDocId);
+        } catch (error) { console.error('Error:', error); alert('Failed: ' + error.message); }
+    },
+
+    // ========== CHANGE PAYMENT METHOD ==========
+    async changePaymentMethod(saleDocId) {
+        const select = document.getElementById('changePaymentSelect');
+        if (!select) return;
+        const newMethod = select.value;
+        const ml = { cash:'Cash', gcash:'GCash', grab:'Grab', charge:'Charge', card:'Card' };
+        try {
+            const sale = await DB.get('sales', saleDocId);
+            if (!sale) { alert('Transaction not found'); return; }
+            if (sale.paymentMethod === newMethod) { Toast.info('Payment method is already ' + ml[newMethod]); return; }
+            const oldMethod = sale.paymentMethod || 'cash';
+            if (!confirm(`Change payment from ${ml[oldMethod] || oldMethod} → ${ml[newMethod]}?`)) return;
+            await DB.update('sales', saleDocId, { paymentMethod: newMethod, editedAt: new Date().toISOString(), editNote: `Payment changed from ${oldMethod} to ${newMethod}` });
+            Toast.success(`Payment changed to ${ml[newMethod]}`);
             const sales = await DB.getAll('sales');
             this._dayData.daySales = sales.filter(s => s.dateKey === this._dayDateKey);
             this.viewTransaction(saleDocId);

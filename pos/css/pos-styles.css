@@ -523,17 +523,20 @@ body {
 
 .payment-methods {
     display: flex;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .payment-option {
-    flex: 1;
-    padding: 12px;
+    flex: 1 1 calc(33.33% - 8px);
+    min-width: 80px;
+    padding: 10px 8px;
     background: var(--bg-input);
     border: 2px solid transparent;
     border-radius: 8px;
     text-align: center;
     cursor: pointer;
+    font-size: 0.85rem;
 }
 
 .payment-option input {
