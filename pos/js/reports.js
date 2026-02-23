@@ -68,37 +68,31 @@ const Reports = {
         container.innerHTML = '<p class="loading">Loading...</p>';
         try {
             const sales = await DB.getAll('sales');
-            const imports = await DB.getAll('salesImports');
             const dailyData = {};
             sales.forEach(sale => {
                 const day = sale.dateKey; if (!this.isInDateRange(day)) return;
-                if (!dailyData[day]) dailyData[day] = { date: day, posSales: 0, posCount: 0, importSales: 0, source: 'pos' };
-                dailyData[day].posSales += sale.total || 0; dailyData[day].posCount++;
-            });
-            imports.forEach(imp => {
-                if (imp.dailySummaries) imp.dailySummaries.forEach(day => {
-                    const dateKey = this.parseDate(day.date); if (!this.isInDateRange(dateKey)) return;
-                    if (!dailyData[dateKey]) dailyData[dateKey] = { date: dateKey, posSales: 0, posCount: 0, importSales: 0, source: 'import' };
-                    dailyData[dateKey].importSales += day.netSales || 0;
-                    dailyData[dateKey].source = dailyData[dateKey].posSales > 0 ? 'both' : 'import';
-                });
+                if (!dailyData[day]) dailyData[day] = { date: day, posSales: 0, posCount: 0, forDeposit: 0 };
+                const total = sale.total || 0;
+                const method = (sale.paymentMethod || 'cash').toLowerCase();
+                dailyData[day].posSales += total; dailyData[day].posCount++;
+                // For Deposit = Cash + GCash only (not Grab, Charge, Card)
+                if (method === 'cash' || method === 'gcash') dailyData[day].forDeposit += total;
             });
             const days = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
             if (days.length === 0) { container.innerHTML = '<p class="empty-state">No sales data for selected period</p>'; return; }
             const totalPOS = days.reduce((s, d) => s + d.posSales, 0);
-            const totalImport = days.reduce((s, d) => s + d.importSales, 0);
+            const totalDeposit = days.reduce((s, d) => s + d.forDeposit, 0);
             container.innerHTML = `
                 <div class="chart-container"><canvas id="dailyChart"></canvas></div>
                 <div class="report-summary">
-                    <div class="summary-card"><div class="summary-value">${Utils.formatCurrency(totalPOS)}</div><div class="summary-label">POS Sales</div></div>
-                    <div class="summary-card"><div class="summary-value">${Utils.formatCurrency(totalImport)}</div><div class="summary-label">Imported (Loyverse)</div></div>
-                    <div class="summary-card highlight"><div class="summary-value">${Utils.formatCurrency(totalPOS + totalImport)}</div><div class="summary-label">Total</div></div>
+                    <div class="summary-card"><div class="summary-value">${Utils.formatCurrency(totalPOS)}</div><div class="summary-label">Total Sales</div></div>
+                    <div class="summary-card highlight"><div class="summary-value">${Utils.formatCurrency(totalDeposit)}</div><div class="summary-label">For Deposit</div></div>
                 </div>
-                <table class="report-table"><thead><tr><th>Date</th><th>POS Sales</th><th>Imported Sales</th><th>Total</th><th>Source</th><th>Action</th></tr></thead>
-                <tbody>${days.slice().reverse().slice(0, 30).map(d => `<tr><td>${d.date}</td><td>${d.posSales > 0 ? Utils.formatCurrency(d.posSales) : '-'}</td><td>${d.importSales > 0 ? Utils.formatCurrency(d.importSales) : '-'}</td><td><strong>${Utils.formatCurrency(d.posSales + d.importSales)}</strong></td><td><span class="source-badge ${d.source}">${d.source}</span></td><td><button class="btn-view" onclick="Reports.viewDayDetails('${d.date}')">👁️ View</button></td></tr>`).join('')}</tbody></table>`;
+                <table class="report-table"><thead><tr><th>Date</th><th>POS Sales</th><th>For Deposit</th><th>Action</th></tr></thead>
+                <tbody>${days.slice().reverse().slice(0, 30).map(d => `<tr><td>${d.date}</td><td>${d.posSales > 0 ? Utils.formatCurrency(d.posSales) : '-'}</td><td style="color:#27ae60;font-weight:bold;">${d.forDeposit > 0 ? Utils.formatCurrency(d.forDeposit) : '-'}</td><td><button class="btn-view" onclick="Reports.viewDayDetails('${d.date}')">👁️ View</button></td></tr>`).join('')}</tbody></table>`;
             this.destroyChart();
             const ctx = document.getElementById('dailyChart').getContext('2d');
-            this.chart = new Chart(ctx, { type: 'bar', data: { labels: days.map(d => d.date), datasets: [{ label: 'POS Sales', data: days.map(d => d.posSales), backgroundColor: '#D4894A' }, { label: 'Imported Sales', data: days.map(d => d.importSales), backgroundColor: '#3498db' }] }, options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } } });
+            this.chart = new Chart(ctx, { type: 'bar', data: { labels: days.map(d => d.date), datasets: [{ label: 'POS Sales', data: days.map(d => d.posSales), backgroundColor: '#D4894A' }, { label: 'For Deposit', data: days.map(d => d.forDeposit), backgroundColor: '#27ae60' }] }, options: { responsive: true, scales: { y: { beginAtZero: true } } } });
         } catch (error) { console.error('Error loading daily report:', error); container.innerHTML = '<p class="error">Failed to load report</p>'; }
     },
 
