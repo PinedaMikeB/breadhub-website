@@ -71,25 +71,30 @@ const Reports = {
             const dailyData = {};
             sales.forEach(sale => {
                 const day = sale.dateKey; if (!this.isInDateRange(day)) return;
-                if (!dailyData[day]) dailyData[day] = { date: day, posSales: 0, posCount: 0, forDeposit: 0 };
+                if (!dailyData[day]) dailyData[day] = { date: day, posSales: 0, posCount: 0, forDeposit: 0, grab: 0, charge: 0 };
                 const total = sale.total || 0;
                 const method = (sale.paymentMethod || 'cash').toLowerCase();
                 dailyData[day].posSales += total; dailyData[day].posCount++;
-                // For Deposit = Cash + GCash only (not Grab, Charge, Card)
                 if (method === 'cash' || method === 'gcash') dailyData[day].forDeposit += total;
+                if (method === 'grab') dailyData[day].grab += total;
+                if (method === 'charge') dailyData[day].charge += total;
             });
             const days = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
             if (days.length === 0) { container.innerHTML = '<p class="empty-state">No sales data for selected period</p>'; return; }
             const totalPOS = days.reduce((s, d) => s + d.posSales, 0);
             const totalDeposit = days.reduce((s, d) => s + d.forDeposit, 0);
+            const totalGrab = days.reduce((s, d) => s + d.grab, 0);
+            const totalCharge = days.reduce((s, d) => s + d.charge, 0);
             container.innerHTML = `
                 <div class="chart-container"><canvas id="dailyChart"></canvas></div>
                 <div class="report-summary">
                     <div class="summary-card"><div class="summary-value">${Utils.formatCurrency(totalPOS)}</div><div class="summary-label">Total Sales</div></div>
                     <div class="summary-card highlight"><div class="summary-value">${Utils.formatCurrency(totalDeposit)}</div><div class="summary-label">For Deposit</div></div>
+                    <div class="summary-card"><div class="summary-value">${Utils.formatCurrency(totalGrab)}</div><div class="summary-label">🛵 Grab</div></div>
+                    <div class="summary-card"><div class="summary-value">${Utils.formatCurrency(totalCharge)}</div><div class="summary-label">📝 Charge</div></div>
                 </div>
-                <table class="report-table"><thead><tr><th>Date</th><th>POS Sales</th><th>For Deposit</th><th>Action</th></tr></thead>
-                <tbody>${days.slice().reverse().slice(0, 30).map(d => `<tr><td>${d.date}</td><td>${d.posSales > 0 ? Utils.formatCurrency(d.posSales) : '-'}</td><td style="color:#27ae60;font-weight:bold;">${d.forDeposit > 0 ? Utils.formatCurrency(d.forDeposit) : '-'}</td><td><button class="btn-view" onclick="Reports.viewDayDetails('${d.date}')">👁️ View</button></td></tr>`).join('')}</tbody></table>`;
+                <table class="report-table"><thead><tr><th>Date</th><th>POS Sales</th><th>For Deposit</th><th>🛵 Grab</th><th>📝 Charge</th><th>Action</th></tr></thead>
+                <tbody>${days.slice().reverse().slice(0, 30).map(d => `<tr><td>${d.date}</td><td>${Utils.formatCurrency(d.posSales)}</td><td style="color:#27ae60;font-weight:bold;">${d.forDeposit > 0 ? Utils.formatCurrency(d.forDeposit) : '-'}</td><td style="color:#00b14f;">${d.grab > 0 ? Utils.formatCurrency(d.grab) : '-'}</td><td style="color:#b45309;">${d.charge > 0 ? Utils.formatCurrency(d.charge) : '-'}</td><td><button class="btn-view" onclick="Reports.viewDayDetails('${d.date}')">👁️ View</button></td></tr>`).join('')}</tbody></table>`;
             this.destroyChart();
             const ctx = document.getElementById('dailyChart').getContext('2d');
             this.chart = new Chart(ctx, { type: 'bar', data: { labels: days.map(d => d.date), datasets: [{ label: 'POS Sales', data: days.map(d => d.posSales), backgroundColor: '#D4894A' }, { label: 'For Deposit', data: days.map(d => d.forDeposit), backgroundColor: '#27ae60' }] }, options: { responsive: true, scales: { y: { beginAtZero: true } } } });
