@@ -1155,6 +1155,10 @@ const POS = {
                                 <input type="radio" name="paymentMethod" value="grab">
                                 <span>🛵 Grab</span>
                             </label>
+                            <label class="payment-option">
+                                <input type="radio" name="paymentMethod" value="charge">
+                                <span>📝 Charge</span>
+                            </label>
                         </div>
                     </div>
                     
@@ -1196,6 +1200,34 @@ const POS = {
                         </div>
                     </div>
                     
+                    <!-- Charge Details -->
+                    <div id="chargeDetailsGroup" style="display: none;">
+                        <div style="padding: 15px; background: #FFF8E1; border-radius: 8px; border-left: 4px solid #F9A825;">
+                            <p style="margin: 0 0 10px; color: #F57F17; font-weight: bold;">📝 Charge (Receivable)</p>
+                            <p style="margin: 0 0 12px; font-size: 0.85rem; color: #666;">Select a registered customer or type a new name.</p>
+                            <div class="form-group" style="margin-bottom: 10px;">
+                                <label>Customer <span class="required">*</span></label>
+                                <select id="chargeCustomerSelect" class="form-input" onchange="ChargeCustomers.onCustomerSelected(this)" style="color:#333;">
+                                    <option value="">Loading...</option>
+                                </select>
+                            </div>
+                            <div id="chargeManualGroup">
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label>Customer Name <span class="required">*</span></label>
+                                    <input type="text" id="chargeCustomerName" class="form-input" placeholder="e.g., Juan Dela Cruz" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label>Contact Number (optional)</label>
+                                    <input type="tel" id="chargeContactNumber" class="form-input" placeholder="e.g., 09171234567">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Notes (optional)</label>
+                                <input type="text" id="chargeNotes" class="form-input" placeholder="e.g., Will pay on Friday">
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="change-display" id="changeDisplay" style="display: ${this.gcashPaymentData ? 'none' : 'block'};">
                         Change: <strong>${Utils.formatCurrency(Math.ceil(total / 10) * 10 - total)}</strong>
                     </div>
@@ -1212,14 +1244,17 @@ const POS = {
                     const cashGroup = document.getElementById('cashReceivedGroup');
                     const changeDisplay = document.getElementById('changeDisplay');
                     const gcashGroup = document.getElementById('gcashVerificationGroup');
+                    const chargeGroup = document.getElementById('chargeDetailsGroup');
                     
                     if (e.target.value === 'cash') {
                         cashGroup.style.display = 'block';
                         changeDisplay.style.display = 'block';
                         gcashGroup.style.display = 'none';
+                        chargeGroup.style.display = 'none';
                     } else if (e.target.value === 'gcash') {
                         cashGroup.style.display = 'none';
                         changeDisplay.style.display = 'none';
+                        chargeGroup.style.display = 'none';
                         
                         // Only show GCash verification if capture is ENABLED
                         if (POS.gcashCaptureEnabled) {
@@ -1236,11 +1271,24 @@ const POS = {
                         cashGroup.style.display = 'none';
                         changeDisplay.style.display = 'none';
                         gcashGroup.style.display = 'none';
+                        chargeGroup.style.display = 'none';
+                    } else if (e.target.value === 'charge') {
+                        // Charge - receivable, no cash expected
+                        cashGroup.style.display = 'none';
+                        changeDisplay.style.display = 'none';
+                        gcashGroup.style.display = 'none';
+                        chargeGroup.style.display = 'block';
+                        // Populate customer dropdown
+                        ChargeCustomers.buildChargeDropdownHTML().then(html => {
+                            const sel = document.getElementById('chargeCustomerSelect');
+                            if (sel) sel.innerHTML = html;
+                        });
                     } else {
                         // Card or other
                         cashGroup.style.display = 'none';
                         changeDisplay.style.display = 'none';
                         gcashGroup.style.display = 'none';
+                        chargeGroup.style.display = 'none';
                     }
                 });
             });
@@ -1268,6 +1316,29 @@ const POS = {
         if (paymentMethod === 'gcash' && !this.gcashPaymentData && this.gcashCaptureEnabled) {
             this.showGcashVerificationModal(total, totalDiscount);
             return false;
+        }
+        
+        // Charge payment requires customer name
+        let chargeData = null;
+        if (paymentMethod === 'charge') {
+            const cd = ChargeCustomers.getSelectedCustomerData();
+            if (!cd.customerName) {
+                Toast.error('Customer name is required for Charge payments');
+                document.getElementById('chargeCustomerName')?.focus();
+                return false;
+            }
+            chargeData = {
+                customerId: cd.customerId || null,
+                customerName: cd.customerName,
+                contactPerson: cd.contactPerson || '',
+                contactNumber: cd.contactNumber || '',
+                email: cd.email || '',
+                address: cd.address || '',
+                tin: cd.tin || '',
+                notes: cd.notes || '',
+                chargedAt: new Date().toISOString(),
+                status: 'unpaid'
+            };
         }
         
         try {
@@ -1340,6 +1411,9 @@ const POS = {
                 // GCash payment verification data
                 gcashPayment: paymentMethod === 'gcash' ? this.gcashPaymentData : null,
                 
+                // Charge (receivable) data
+                chargePayment: paymentMethod === 'charge' ? chargeData : null,
+                
                 source: 'pos',
                 createdBy: Auth.userData?.id || 'unknown',
                 createdByName: Auth.userData?.name || 'Unknown'
@@ -1352,6 +1426,42 @@ const POS = {
             }
             
             await DB.add('sales', saleRecord);
+            
+            // Create receivable record for Charge payments
+            if (paymentMethod === 'charge' && chargeData) {
+                const receivableRecord = {
+                    saleId: saleId,
+                    saleDocId: null,
+                    dateKey: today,
+                    customerId: chargeData.customerId || null,
+                    customerName: chargeData.customerName,
+                    contactPerson: chargeData.contactPerson || '',
+                    contactNumber: chargeData.contactNumber,
+                    email: chargeData.email || '',
+                    address: chargeData.address || '',
+                    tin: chargeData.tin || '',
+                    notes: chargeData.notes,
+                    totalAmount: total,
+                    paidAmount: 0,
+                    balance: total,
+                    status: 'unpaid', // unpaid, partial, paid
+                    items: this.cart.map(item => ({
+                        productName: item.productName,
+                        quantity: item.quantity,
+                        unitPrice: item.price,
+                        lineTotal: item.price * item.quantity
+                    })),
+                    payments: [], // Array of payment records
+                    shiftId: Auth.getShiftId(),
+                    cashierId: Auth.userData?.id || 'unknown',
+                    cashierName: Auth.userData?.name || 'Unknown',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                
+                await DB.add('receivables', receivableRecord);
+                console.log('Receivable created for charge sale:', saleId);
+            }
             
             // Deduct product stock (dailyInventory)
             if (typeof StockManager !== 'undefined') {
@@ -1453,6 +1563,15 @@ const POS = {
                             <div class="receipt-row">
                                 <span>Change</span>
                                 <span>${Utils.formatCurrency(sale.change)}</span>
+                            </div>
+                        ` : sale.paymentMethod === 'charge' ? `
+                            <div class="receipt-row">
+                                <span>Payment</span>
+                                <span style="color: #F57F17;">📝 CHARGE</span>
+                            </div>
+                            <div class="receipt-row">
+                                <span>Customer</span>
+                                <span>${sale.chargePayment?.customerName || '-'}</span>
                             </div>
                         ` : `
                             <div class="receipt-row">
@@ -1571,7 +1690,7 @@ const POS = {
                                         ${sale.items.length > 2 ? `+${sale.items.length - 2} more` : ''}
                                     </div>
                                     <div class="tx-details">
-                                        <span class="tx-method ${sale.paymentMethod}">${sale.paymentMethod === 'cash' ? '💵' : sale.paymentMethod === 'gcash' ? '📱' : '💳'}</span>
+                                        <span class="tx-method ${sale.paymentMethod}">${sale.paymentMethod === 'cash' ? '💵' : sale.paymentMethod === 'gcash' ? '📱' : sale.paymentMethod === 'charge' ? '📝' : sale.paymentMethod === 'grab' ? '🛵' : '💳'}</span>
                                         <span class="tx-total">${Utils.formatCurrency(sale.total)}</span>
                                         ${sale.totalDiscount > 0 ? `<span class="tx-discount">-${Utils.formatCurrency(sale.totalDiscount)}</span>` : ''}
                                     </div>
@@ -1696,9 +1815,30 @@ const POS = {
                             ` : ''}
                         </div>
                     ` : ''}
+                    
+                    ${sale.chargePayment ? `
+                        <div class="detail-charge" style="margin-top: 15px; padding: 12px; background: #FFF8E1; border-radius: 8px; border-left: 4px solid #F9A825;">
+                            <h4 style="margin: 0 0 10px; color: #F57F17;">📝 Charge (Receivable)</h4>
+                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; font-size: 0.9rem;">
+                                <strong>Customer:</strong>
+                                <span>${sale.chargePayment.customerName}</span>
+                                ${sale.chargePayment.contactNumber ? `
+                                    <strong>Contact:</strong>
+                                    <span>${sale.chargePayment.contactNumber}</span>
+                                ` : ''}
+                                <strong>Status:</strong>
+                                <span style="font-weight: bold; color: ${sale.chargePayment.status === 'paid' ? '#2E7D32' : '#F57F17'};">
+                                    ${(sale.chargePayment.status || 'unpaid').toUpperCase()}
+                                </span>
+                                ${sale.chargePayment.notes ? `
+                                    <strong>Notes:</strong>
+                                    <span>${sale.chargePayment.notes}</span>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
             `,
-            saveText: '🖨️ Reprint Receipt',
             onSave: () => {
                 this.lastSale = sale;
                 this.printReceipt();

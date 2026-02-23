@@ -397,6 +397,21 @@
                         <button class="btn btn-primary btn-sm" onclick="Admin.showDeviceManagement()">🔒 Manage Devices</button>
                     </div>
                     
+                    <!-- Charge Customers -->
+                    <div class="admin-card">
+                        <h3>🏢 Charge Customers</h3>
+                        <p>Manage customers who can pay via Charge</p>
+                        <button class="btn btn-primary btn-sm" onclick="ChargeCustomers.showManagement()">👥 Manage Customers</button>
+                    </div>
+                    
+                    <!-- Accounts Receivable -->
+                    <div class="admin-card">
+                        <h3>💰 Accounts Receivable</h3>
+                        <p>Track outstanding Charge payments for collection</p>
+                        <button class="btn btn-primary btn-sm" onclick="ChargeCustomers.showReceivablesDashboard()">📊 View AR Dashboard</button>
+                        <button class="btn btn-outline btn-sm" onclick="Receivables.showReceivables()" style="margin-top:6px;">📋 All Receivables</button>
+                    </div>
+                    
                     <!-- Feature Toggles -->
                     <div class="admin-card">
                         <h3>⚙️ Feature Settings</h3>
@@ -534,6 +549,7 @@
     <script src="js/shift-inventory.js?v=1"></script>
     <script src="js/pos.js?v=21"></script>
     <script src="js/receivables.js?v=1"></script>
+    <script src="js/charge-customers.js?v=1"></script>
     <script src="js/orders.js"></script>
     <script src="js/admin.js?v=12"></script>
     <script src="js/sales-import.js?v=4"></script>
