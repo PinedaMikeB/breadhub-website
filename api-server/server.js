@@ -629,6 +629,138 @@ app.get('/api/cashiers/performance', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/analytics/overview
+ * Single endpoint for Steward high-level KPI analysis + recommendations
+ */
+app.get('/api/analytics/overview', async (req, res) => {
+  try {
+    const { period = 'month', compare = 'previous' } = req.query;
+    const currentRange = getDateRange(period);
+
+    const currentSnapshot = await db.collection('sales')
+      .where('dateKey', '>=', currentRange.start)
+      .where('dateKey', '<=', currentRange.end)
+      .get();
+
+    const currentSales = currentSnapshot.docs.map(doc => doc.data());
+
+    // Build previous range with same number of days for fair comparison
+    const endDate = new Date(currentRange.end);
+    const startDate = new Date(currentRange.start);
+    const days = Math.max(1, Math.round((endDate - startDate) / (24 * 60 * 60 * 1000)) + 1);
+    const prevEnd = new Date(startDate);
+    prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(prevEnd);
+    prevStart.setDate(prevStart.getDate() - (days - 1));
+    const prevRange = {
+      start: prevStart.toISOString().split('T')[0],
+      end: prevEnd.toISOString().split('T')[0]
+    };
+
+    const previousSnapshot = await db.collection('sales')
+      .where('dateKey', '>=', prevRange.start)
+      .where('dateKey', '<=', prevRange.end)
+      .get();
+    const previousSales = previousSnapshot.docs.map(doc => doc.data());
+
+    const summarize = (rows) => {
+      const productMap = {};
+      let totalSales = 0;
+      let totalDiscount = 0;
+      const byChannel = { walkIn: 0, website: 0, grab: 0, other: 0 };
+
+      rows.forEach((sale) => {
+        totalSales += sale.total || 0;
+        totalDiscount += sale.totalDiscount || 0;
+        const channel = (sale.channel || sale.source || sale.orderSource || '').toLowerCase();
+        if (channel.includes('walk')) byChannel.walkIn += sale.total || 0;
+        else if (channel.includes('web')) byChannel.website += sale.total || 0;
+        else if (channel.includes('grab')) byChannel.grab += sale.total || 0;
+        else byChannel.other += sale.total || 0;
+
+        (sale.items || []).forEach((item) => {
+          const key = item.productId || item.productName || 'unknown';
+          if (!productMap[key]) {
+            productMap[key] = {
+              productId: item.productId || null,
+              productName: item.productName || 'Unknown',
+              quantity: 0,
+              revenue: 0
+            };
+          }
+          productMap[key].quantity += item.quantity || 0;
+          productMap[key].revenue += item.lineTotal || ((item.unitPrice || 0) * (item.quantity || 0));
+        });
+      });
+
+      const transactions = rows.length;
+      const averageTransaction = transactions > 0 ? totalSales / transactions : 0;
+      const topProducts = Object.values(productMap)
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 10);
+
+      return { totalSales, transactions, totalDiscount, averageTransaction, byChannel, topProducts };
+    };
+
+    const current = summarize(currentSales);
+    const previous = summarize(previousSales);
+
+    const pctChange = (now, prev) => {
+      if (!prev && now) return 100;
+      if (!prev) return 0;
+      return ((now - prev) / prev) * 100;
+    };
+
+    const insights = [];
+    if (pctChange(current.totalSales, previous.totalSales) < -8) {
+      insights.push('Sales dropped vs previous period. Run promo bundles on top-selling bread + drink pairings.');
+    }
+    if (current.averageTransaction < 120) {
+      insights.push('Average transaction is low. Increase upsell prompts and bundle discounts.');
+    }
+    if ((current.byChannel.website + current.byChannel.grab) < (current.totalSales * 0.35)) {
+      insights.push('Digital channel mix is low. Push website/Grab promos and improve conversion landing pages.');
+    }
+    if (insights.length === 0) {
+      insights.push('Performance is stable. Focus on best-seller availability and margin-optimized bundles.');
+    }
+
+    res.json({
+      success: true,
+      data: {
+        period,
+        compare,
+        currentRange,
+        previousRange: prevRange,
+        current: {
+          ...current,
+          totalSalesFormatted: formatCurrency(current.totalSales),
+          averageTransactionFormatted: formatCurrency(current.averageTransaction)
+        },
+        previous: {
+          ...previous,
+          totalSalesFormatted: formatCurrency(previous.totalSales),
+          averageTransactionFormatted: formatCurrency(previous.averageTransaction)
+        },
+        changes: {
+          salesPct: pctChange(current.totalSales, previous.totalSales),
+          transactionsPct: pctChange(current.transactions, previous.transactions),
+          averageTransactionPct: pctChange(current.averageTransaction, previous.averageTransaction)
+        },
+        recommendations: insights
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching analytics overview:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch analytics overview',
+      message: error.message
+    });
+  }
+});
+
 // ============================================================================
 // ERROR HANDLING
 // ============================================================================
@@ -646,7 +778,8 @@ app.use((req, res) => {
       'GET /api/products/performance',
       'GET /api/shifts/active',
       'GET /api/shifts/:shiftId',
-      'GET /api/cashiers/performance'
+      'GET /api/cashiers/performance',
+      'GET /api/analytics/overview'
     ]
   });
 });
@@ -687,6 +820,7 @@ Available endpoints:
   GET  /api/shifts/active             - Active shifts
   GET  /api/shifts/:shiftId           - Shift details
   GET  /api/cashiers/performance      - Cashier performance
+  GET  /api/analytics/overview        - Steward KPI + recommendations
 
 Authentication: x-api-key header required for all /api/* endpoints
   `);
