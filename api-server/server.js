@@ -761,6 +761,114 @@ app.get('/api/analytics/overview', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/executive/daily
+ * One-shot daily executive briefing for Steward (POS + Production + Waste + Actions)
+ */
+app.get('/api/executive/daily', async (req, res) => {
+  try {
+    const date = req.query.date || getTodayKey();
+
+    const [todaySalesSnap, yesterdaySalesSnap, monthSalesSnap, inventorySnap, wasteSnap] = await Promise.all([
+      db.collection('sales').where('dateKey', '==', date).get(),
+      db.collection('sales').where('dateKey', '==', (() => {
+        const d = new Date(date); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0];
+      })()).get(),
+      db.collection('sales').where('dateKey', '>=', `${date.slice(0, 8)}01`).where('dateKey', '<=', date).get(),
+      db.collection('dailyInventory').where('date', '==', date).get(),
+      db.collection('dailyWastage').where('date', '==', date).get()
+    ]);
+
+    const mapSales = (snap) => snap.docs.map(d => d.data());
+    const todaySales = mapSales(todaySalesSnap);
+    const yesterdaySales = mapSales(yesterdaySalesSnap);
+    const monthSales = mapSales(monthSalesSnap);
+
+    const summarizeSales = (rows) => {
+      const productMap = {};
+      let totalSales = 0;
+      rows.forEach((sale) => {
+        totalSales += sale.total || 0;
+        (sale.items || []).forEach((item) => {
+          const key = item.productId || item.productName || 'unknown';
+          if (!productMap[key]) productMap[key] = { productId: item.productId || null, productName: item.productName || 'Unknown', qty: 0, revenue: 0 };
+          productMap[key].qty += item.quantity || 0;
+          productMap[key].revenue += item.lineTotal || ((item.unitPrice || 0) * (item.quantity || 0));
+        });
+      });
+      const transactions = rows.length;
+      const aov = transactions ? totalSales / transactions : 0;
+      const bestSellers = Object.values(productMap).sort((a, b) => b.qty - a.qty).slice(0, 10);
+      return { totalSales, transactions, aov, bestSellers };
+    };
+
+    const t = summarizeSales(todaySales);
+    const y = summarizeSales(yesterdaySales);
+    const m = summarizeSales(monthSales);
+
+    const inventoryRows = inventorySnap.docs.map(d => d.data());
+    const wasteRows = wasteSnap.docs.map(d => d.data());
+
+    const production = inventoryRows.reduce((s, r) => s + (r.newProductionQty || 0), 0);
+    const sold = inventoryRows.reduce((s, r) => s + (r.soldQty || 0), 0);
+    const remaining = inventoryRows.reduce((s, r) => s + ((r.carryoverQty || 0) + (r.newProductionQty || 0) - (r.soldQty || 0) + (r.cancelledQty || 0)), 0);
+
+    const runouts = inventoryRows
+      .map((r) => {
+        const rem = (r.carryoverQty || 0) + (r.newProductionQty || 0) - (r.soldQty || 0) + (r.cancelledQty || 0);
+        return { productId: r.productId, productName: r.productName, remaining: rem, sold: r.soldQty || 0, produced: r.newProductionQty || 0 };
+      })
+      .filter(r => r.remaining <= 0)
+      .sort((a, b) => a.remaining - b.remaining);
+
+    const totalWasteQty = wasteRows.reduce((s, w) => s + (w.qty || 0), 0);
+    const totalWasteValue = wasteRows.reduce((s, w) => s + (w.lossValue || w.amount || 0), 0);
+
+    const recommendations = [];
+    const salesDeltaPct = y.totalSales ? ((t.totalSales - y.totalSales) / y.totalSales) * 100 : 0;
+
+    if (salesDeltaPct < -8) recommendations.push('Sales dropped vs yesterday. Trigger flash bundles on top 3 breads + drink add-on.');
+    if (t.aov < 120) recommendations.push('AOV is low. Add upsell prompts at checkout and combo pricing.');
+    if (runouts.length > 0) recommendations.push(`Detected ${runouts.length} runout item(s). Increase early-batch production for high sell-through items.`);
+    if (totalWasteQty > 15) recommendations.push('Waste is elevated. Reduce late-day production for slow movers and re-balance batch timing.');
+    if (recommendations.length === 0) recommendations.push('Ops health is stable. Keep current production rhythm and monitor evening demand spikes.');
+
+    res.json({
+      success: true,
+      data: {
+        date,
+        sales: {
+          today: { ...t, totalSalesFormatted: formatCurrency(t.totalSales), aovFormatted: formatCurrency(t.aov) },
+          yesterday: { ...y, totalSalesFormatted: formatCurrency(y.totalSales), aovFormatted: formatCurrency(y.aov) },
+          monthToDate: { ...m, totalSalesFormatted: formatCurrency(m.totalSales), aovFormatted: formatCurrency(m.aov) },
+          deltaVsYesterdayPct: salesDeltaPct
+        },
+        production: {
+          skuCount: inventoryRows.length,
+          totalProduction: production,
+          totalSold: sold,
+          totalRemaining: remaining,
+          runoutCount: runouts.length,
+          runouts
+        },
+        waste: {
+          totalQty: totalWasteQty,
+          totalValue: totalWasteValue,
+          totalValueFormatted: formatCurrency(totalWasteValue)
+        },
+        recommendations
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching executive daily report:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch executive daily report',
+      message: error.message
+    });
+  }
+});
+
 // ============================================================================
 // ERROR HANDLING
 // ============================================================================
@@ -779,7 +887,8 @@ app.use((req, res) => {
       'GET /api/shifts/active',
       'GET /api/shifts/:shiftId',
       'GET /api/cashiers/performance',
-      'GET /api/analytics/overview'
+      'GET /api/analytics/overview',
+      'GET /api/executive/daily'
     ]
   });
 });
@@ -821,6 +930,7 @@ Available endpoints:
   GET  /api/shifts/:shiftId           - Shift details
   GET  /api/cashiers/performance      - Cashier performance
   GET  /api/analytics/overview        - Steward KPI + recommendations
+  GET  /api/executive/daily           - Daily executive brief (sales + ops + actions)
 
 Authentication: x-api-key header required for all /api/* endpoints
   `);
