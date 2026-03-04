@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BreadHub Admin Reports</title>
+  <style>
+    body{font-family:Inter,system-ui,Arial;background:#f7f3ef;color:#2f241d;margin:0}
+    header{padding:16px 20px;background:#fff;border-bottom:1px solid #eadfd6;display:flex;justify-content:space-between;align-items:center}
+    main{padding:20px;display:grid;gap:12px}
+    .card{background:#fff;border:1px solid #eadfd6;border-radius:12px;padding:14px}
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+    .kpi{background:#fff7f0;border:1px solid #f2dfcf;border-radius:10px;padding:10px}
+    input,button{padding:8px;border-radius:8px;border:1px solid #d8c6b7}
+    button{cursor:pointer;background:#6f4e37;color:#fff;border:none}
+    ul{margin:0;padding-left:20px}
+    table{width:100%;border-collapse:collapse} td,th{padding:8px;border-bottom:1px solid #f0e6dd;text-align:left}
+  </style>
+</head>
+<body>
+  <header>
+    <h2>📊 BreadHub Executive Reports</h2>
+    <a href="admin.html">← Back to Admin</a>
+  </header>
+  <main>
+    <section class="card">
+      <label>API Key</label>
+      <input id="apiKey" type="password" placeholder="x-api-key" />
+      <label style="margin-left:8px">Date</label>
+      <input id="date" type="date" />
+      <button id="loadBtn">Load Report</button>
+      <small id="status"></small>
+    </section>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="card">
+      <h3>Top Best Sellers (Today)</h3>
+      <table><thead><tr><th>Product</th><th>Qty</th><th>Revenue</th></tr></thead><tbody id="best"></tbody></table>
+    </section>
+
+    <section class="card">
+      <h3>Action Recommendations</h3>
+      <ul id="reco"></ul>
+    </section>
+  </main>
+
+  <script>
+    const apiKeyInput=document.getElementById('apiKey');
+    const dateInput=document.getElementById('date');
+    const statusEl=document.getElementById('status');
+    apiKeyInput.value=localStorage.getItem('breadhub_api_key')||'';
+    dateInput.value=new Date().toISOString().split('T')[0];
+
+    function money(n){return new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP'}).format(n||0)}
+
+    async function load(){
+      const key=apiKeyInput.value.trim();
+      if(!key){alert('API key required');return}
+      localStorage.setItem('breadhub_api_key', key);
+      const date=dateInput.value;
+      statusEl.textContent=' loading...';
+      const r=await fetch(`http://localhost:3001/api/executive/daily?date=${date}`,{headers:{'x-api-key':key}});
+      const j=await r.json();
+      if(!j.success){statusEl.textContent=' failed';return}
+      const d=j.data;
+      document.getElementById('kpis').innerHTML=`
+        <div class='kpi'><strong>Today Sales</strong><div>${money(d.sales.today.totalSales)}</div></div>
+        <div class='kpi'><strong>Transactions</strong><div>${d.sales.today.transactions}</div></div>
+        <div class='kpi'><strong>AOV</strong><div>${money(d.sales.today.aov)}</div></div>
+        <div class='kpi'><strong>Vs Yesterday</strong><div>${(d.sales.deltaVsYesterdayPct||0).toFixed(1)}%</div></div>
+        <div class='kpi'><strong>Production</strong><div>${d.production.totalProduction}</div></div>
+        <div class='kpi'><strong>Sold</strong><div>${d.production.totalSold}</div></div>
+        <div class='kpi'><strong>Remaining</strong><div>${d.production.totalRemaining}</div></div>
+        <div class='kpi'><strong>Runouts</strong><div>${d.production.runoutCount}</div></div>
+      `;
+      document.getElementById('best').innerHTML=(d.sales.today.bestSellers||[]).slice(0,10).map(x=>`<tr><td>${x.productName}</td><td>${x.qty}</td><td>${money(x.revenue)}</td></tr>`).join('');
+      document.getElementById('reco').innerHTML=(d.recommendations||[]).map(x=>`<li>${x}</li>`).join('');
+      statusEl.textContent=' loaded';
+    }
+
+    document.getElementById('loadBtn').onclick=load;
+  </script>
+</body>
+</html>
