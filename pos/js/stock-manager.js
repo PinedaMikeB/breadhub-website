@@ -158,8 +158,9 @@ const StockManager = {
         const isDrink = mainCategory === 'drinks' || drinkCategories.some(c => category.includes(c));
         
         // Add-on categories - exempt from stock control
+        // TEMP FIX (2026-03-16): packaging/boxes exempt until stock records are set up
         const addonCategories = ['box', 'creamer', 'sugar', 'extras', 'addon', 'add-on', 'addons', 'add-ons'];
-        const isAddon = mainCategory === 'addons' || mainCategory === 'add-ons' || addonCategories.some(c => category.includes(c));
+        const isAddon = mainCategory === 'addons' || mainCategory === 'add-ons' || mainCategory === 'packaging' || category.includes('packaging') || addonCategories.some(c => category.includes(c));
         
         return isDrink || isAddon;
     },
