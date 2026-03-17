@@ -11,7 +11,8 @@ const CONFIG = {
         projectId: "breadhub-proofmaster",
         storageBucket: "breadhub-proofmaster.firebasestorage.app",
         messagingSenderId: "222137689770",
-        appId: "1:222137689770:web:645c552afa835732c852d3"
+        appId: "1:222137689770:web:645c552afa835732c852d3",
+        enableOfflinePersistence: false
     },
     
     app: {

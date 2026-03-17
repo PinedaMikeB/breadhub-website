@@ -23,10 +23,13 @@ function initFirebase() {
         db = firebase.firestore();
         auth = firebase.auth();
         
-        // Enable offline persistence
-        db.enablePersistence({ synchronizeTabs: true }).catch(err => {
-            console.warn('Persistence:', err.code);
-        });
+        // Firestore persistence has caused browser-side internal assertion failures
+        // on some client machines. Keep it opt-in so POS login stays reliable.
+        if (CONFIG.firebase.enableOfflinePersistence) {
+            db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+                console.warn('Persistence:', err.code);
+            });
+        }
         
         console.log('Firebase initialized - connected to ProofMaster database');
         return true;

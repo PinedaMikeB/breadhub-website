@@ -10,6 +10,7 @@ const Reports = {
     chart: null,
     _dayData: null,
     _dayDateKey: null,
+    receivablesAvailable: true,
     
     async init() {
         this.setQuickRange('month');
@@ -63,15 +64,30 @@ const Reports = {
         return dateStr;
     },
 
+    async loadReceivablesMap() {
+        try {
+            const receivables = await DB.getAll('receivables');
+            const recBySaleId = {};
+            receivables.forEach(r => { recBySaleId[r.saleId] = r; });
+            this.receivablesAvailable = true;
+            return recBySaleId;
+        } catch (error) {
+            if (error?.code === 'permission-denied' || /insufficient permissions/i.test(error?.message || '')) {
+                console.warn('Receivables not accessible for reports, continuing without charge status data');
+                this.receivablesAvailable = false;
+                return {};
+            }
+            throw error;
+        }
+    },
+
     async loadDaily() {
         const container = document.getElementById('reportsContent');
         container.innerHTML = '<p class="loading">Loading...</p>';
         try {
             const sales = await DB.getAll('sales');
             const dailyData = {};
-            const receivables = await DB.getAll('receivables');
-            const recBySaleId = {};
-            receivables.forEach(r => { recBySaleId[r.saleId] = r; });
+            const recBySaleId = await this.loadReceivablesMap();
             
             sales.forEach(sale => {
                 const day = sale.dateKey; if (!this.isInDateRange(day)) return;
@@ -81,7 +97,7 @@ const Reports = {
                 dailyData[day].posSales += total; dailyData[day].posCount++;
                 if (method === 'cash' || method === 'gcash') dailyData[day].forDeposit += total;
                 if (method === 'grab') dailyData[day].grab += total;
-                if (method === 'charge') {
+                if (method === 'charge' && this.receivablesAvailable) {
                     const saleId = sale.saleId || sale.id;
                     const rec = recBySaleId[saleId];
                     if (rec && rec.status === 'paid') dailyData[day].chargePaid += total;
